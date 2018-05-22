@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c7a83ec0c3c88edad233aea21806113a",
+    "content-hash": "48c1c639ec5d4e6428b4db458aa42dd3",
     "packages": [
         {
             "name": "behat/behat",
@@ -2122,11 +2122,16 @@
         {
             "name": "wp-cli/wp-cli",
             "version": "dev-4748-split-off-bundle",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/wp-cli/wp-cli.git",
+                "reference": "741f57f86a599bc5cf87fd8b0fbeaef93ef4d0d2"
+            },
             "dist": {
-                "type": "path",
-                "url": "../wp-cli-refactor",
-                "reference": "55610316d1b115503bbbb80489fad9f6642bba46",
-                "shasum": null
+                "type": "zip",
+                "url": "https://api.github.com/repos/wp-cli/wp-cli/zipball/741f57f86a599bc5cf87fd8b0fbeaef93ef4d0d2",
+                "reference": "741f57f86a599bc5cf87fd8b0fbeaef93ef4d0d2",
+                "shasum": ""
             },
             "require": {
                 "mustache/mustache": "~2.4",
@@ -2137,9 +2142,7 @@
                 "wp-cli/php-cli-tools": "~0.11.2"
             },
             "require-dev": {
-                "behat/behat": "2.5.*",
                 "dealerdirect/phpcodesniffer-composer-installer": "^0.4.3",
-                "phpunit/phpunit": "3.7.*",
                 "roave/security-advisories": "dev-master",
                 "symfony/finder": ">2.7",
                 "wimg/php-compatibility": "^8.0",
@@ -2158,6 +2161,7 @@
                 "wp-cli/scaffold-command": "^1.1",
                 "wp-cli/search-replace-command": "^1.3",
                 "wp-cli/server-command": "^1.0",
+                "wp-cli/wp-cli-tests": "dev-master",
                 "wp-coding-standards/wpcs": "^0.13.1"
             },
             "bin": [
@@ -2173,11 +2177,7 @@
                     "": "php/commands/src"
                 }
             },
-            "scripts": {
-                "post-install-cmd": [
-                    "./utils/git-setup-pre-commit-hook"
-                ]
-            },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -2187,11 +2187,7 @@
                 "cli",
                 "wordpress"
             ],
-            "support": {
-                "issues": "https://github.com/wp-cli/wp-cli/issues",
-                "source": "https://github.com/wp-cli/wp-cli",
-                "docs": "https://make.wordpress.org/cli/handbook/"
-            }
+            "time": "2018-05-22T14:39:29+00:00"
         }
     ],
     "aliases": [],
