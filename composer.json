@@ -13,7 +13,6 @@
         "docs": "https://make.wordpress.org/cli/handbook/"
     },
     "bin": [
-        "bin/get-behat-root",
         "bin/run-behat-tests",
         "bin/run-php-unit-tests",
         "bin/install-package-tests"
