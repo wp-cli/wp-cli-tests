@@ -34,5 +34,14 @@
     },
     "require-dev": {
         "wp-cli/wp-cli": "dev-4748-split-off-bundle"
+    },
+    "scripts": {
+        "phpunit": "run-php-unit-tests",
+        "behat": "run-behat-tests",
+        "prepare-tests": "install-package-tests",
+        "test": [
+            "@phpunit",
+            "@behat"
+        ]
     }
 }

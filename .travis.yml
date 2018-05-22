@@ -48,7 +48,6 @@ before_install:
     fi
 
 install:
-  - composer require wp-cli/wp-cli:dev-master
   - composer install
   - composer prepare-tests
 
