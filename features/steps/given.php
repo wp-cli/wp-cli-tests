@@ -1,8 +1,8 @@
 <?php
 
-use Behat\Gherkin\Node\PyStringNode,
-    Behat\Gherkin\Node\TableNode,
-    WP_CLI\Process;
+use Behat\Gherkin\Node\PyStringNode;
+use Behat\Gherkin\Node\TableNode;
+use WP_CLI\Process;
 
 $steps->Given( '/^an empty directory$/',
 	function ( $world ) {

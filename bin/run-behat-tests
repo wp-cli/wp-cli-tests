@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Fetch the root folder of the Behat package
+export BEHAT_ROOT=$(get-behat-root)
+
+# Set Behat environment variables
+export BEHAT_PARAMS="paths[bootstrap]=$(php -r "echo urlencode('$BEHAT_ROOT/features/bootstrap');")"
+
+# Generate the tags to apply environment-specific filters
+BEHAT_TAGS=$(php "$BEHAT_ROOT"/utils/behat-tags.php)
+
+# Run the functional tests
+behat --format progress $BEHAT_TAGS --strict --ansi $@

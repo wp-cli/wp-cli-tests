@@ -1,7 +1,7 @@
 <?php
 
-use Behat\Gherkin\Node\PyStringNode,
-    Behat\Gherkin\Node\TableNode;
+use Behat\Gherkin\Node\PyStringNode;
+use Behat\Gherkin\Node\TableNode;
 
 $steps->Then( '/^the return code should( not)? be (\d+)$/',
 	function ( $world, $not, $return_code ) {
