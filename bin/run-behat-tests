@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -ex
-
 # To retrieve the Behat root folder, we start with this scripts location
 SOURCE="${BASH_SOURCE[0]}"
 
