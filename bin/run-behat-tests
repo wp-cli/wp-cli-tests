@@ -1,7 +1,21 @@
 #!/bin/bash
 
+set -ex
+
+# To retrieve the Behat root folder, we start with this scripts location
+SOURCE="${BASH_SOURCE[0]}"
+
+# Resolve $SOURCE until the file is no longer a symlink
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  # If $SOURCE was a relative symlink, we need to resolve it relative to the
+  # path where the symlink file was located
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+
 # Fetch the root folder of the Behat package
-export BEHAT_ROOT=$(get-behat-root)
+export BEHAT_ROOT="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 
 # Set Behat environment variables
 export BEHAT_PARAMS="paths[bootstrap]=$(php -r "echo urlencode('$BEHAT_ROOT/features/bootstrap');")"
