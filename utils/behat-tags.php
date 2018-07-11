@@ -14,8 +14,9 @@
  */
 
 function version_tags( $prefix, $current, $operator = '<' ) {
-	if ( ! $current )
+	if ( ! $current ) {
 		return array();
+	}
 
 	exec( "grep '@{$prefix}-[0-9\.]*' -h -o features/*.feature | uniq", $existing_tags );
 
@@ -31,7 +32,7 @@ function version_tags( $prefix, $current, $operator = '<' ) {
 	return $skip_tags;
 }
 
-$wp_version = getenv( 'WP_VERSION' );
+$wp_version      = getenv( 'WP_VERSION' );
 $wp_version_reqs = array();
 // Only apply @require-wp tags when WP_VERSION isn't 'latest', 'nightly' or 'trunk'.
 // 'latest', 'nightly' and 'trunk' are expected to work with all features.
@@ -79,7 +80,7 @@ function extension_tags() {
 
 $skip_tags = array_merge( $skip_tags, extension_tags() );
 
-if ( !empty( $skip_tags ) ) {
+if ( ! empty( $skip_tags ) ) {
 	echo '--tags=~' . implode( '&&~', $skip_tags );
 }
 

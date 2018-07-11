@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# Run the unit tests, if they exist
+if [ -f "phpcs.xml" ] || [ -f "phpcs.xml.dist" ]
+then
+	phpcs "$@"
+fi
