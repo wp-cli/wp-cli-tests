@@ -13,8 +13,10 @@
         "docs": "https://make.wordpress.org/cli/handbook/"
     },
     "bin": [
-        "bin/run-behat-tests",
+        "bin/run-linter-tests",
+        "bin/run-phpcs-tests",
         "bin/run-php-unit-tests",
+        "bin/run-behat-tests",
         "bin/install-package-tests"
     ],
     "config": {
@@ -28,20 +30,30 @@
     "require": {
         "php": ">=5.4",
         "behat/behat": "^2.5",
+        "dealerdirect/phpcodesniffer-composer-installer": "^0.4.4",
+        "jakub-onderka/php-console-highlighter": "^0.3.2",
+        "jakub-onderka/php-parallel-lint": "^1.0",
         "phpunit/phpunit": "^4.8",
         "roave/security-advisories": "dev-master",
+        "squizlabs/php_codesniffer": "^3.3",
+        "wimg/php-compatibility": "^8.1",
         "wp-cli/config-command": "^1.0",
         "wp-cli/core-command": "^1.0",
-        "wp-cli/eval-command": "^1.0"
+        "wp-cli/eval-command": "^1.0",
+        "wp-coding-standards/wpcs": "^0.14.1"
     },
     "require-dev": {
         "wp-cli/wp-cli": "dev-4748-split-off-bundle"
     },
     "scripts": {
+        "lint": "run-linter-tests",
+        "phpcs": "run-phpcs-tests",
         "phpunit": "run-php-unit-tests",
         "behat": "run-behat-tests",
         "prepare-tests": "install-package-tests",
         "test": [
+            "@lint",
+            "@phpcs",
             "@phpunit",
             "@behat"
         ]
