@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Run the Behat tests only if a features folder exists
+if [ ! -d "features" ]; then
+  exit 0;
+fi
+
 # To retrieve the Behat root folder, we start with this scripts location
 SOURCE="${BASH_SOURCE[0]}"
 
