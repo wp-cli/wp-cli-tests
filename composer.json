@@ -43,6 +43,7 @@
         "wp-coding-standards/wpcs": "^0.14.1"
     },
     "require-dev": {
+        "wp-cli/regenerate-readme": "dev-master",
         "wp-cli/wp-cli": "dev-4748-split-off-bundle"
     },
     "scripts": {
@@ -57,5 +58,18 @@
             "@phpunit",
             "@behat"
         ]
+    },
+    "extra": {
+        "readme": {
+            "sections": [
+                "Using",
+                "Contributing",
+                "Support"
+            ],
+            "using": {
+                "body": ".readme-partials/USING.md"
+            },
+            "show_powered_by": false
+        }
     }
 }

@@ -12,6 +12,7 @@
 	<arg name="report" value="source"/>
 
 	<file>.</file>
+	<exclude-pattern>*/.git/*</exclude-pattern>
 	<exclude-pattern>*/bin/*</exclude-pattern>
 	<exclude-pattern>*/vendor/*</exclude-pattern>
 
