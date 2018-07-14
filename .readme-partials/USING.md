@@ -39,8 +39,8 @@ You are now ready to use the testing framework from within your package.
 
 You can use the following commands to control the tests:
 
-* `composer test` - Run all test suites.
 * `composer prepare-tests` - Set up the database that is needed for running the functional tests. This is only needed once.
+* `composer test` - Run all test suites.
 * `composer lint` - Run only the linting test suite.
 * `composer phpcs` - Run only the code sniffer test suite.
 * `composer phpunit` - Run only the unit test suite.
