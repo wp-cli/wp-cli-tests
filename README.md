@@ -39,7 +39,8 @@ To make use of the WP-CLI testing framework, you need to complete the following 
 	"config": {
 		"process-timeout": 1800
 	},
-	``` 
+	```
+	The timeout is expressed in seconds.
 
 4. Update your composer dependencies and regenerate your autoloader and binary folders:
 	```bash
