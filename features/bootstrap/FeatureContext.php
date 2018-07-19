@@ -117,20 +117,31 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 * @return string Absolute path to the Composer vendor folder.
 	 */
 	private static function get_vendor_dir() {
+		static $vendor_dir = null;
+
+		if ( null !== $vendor_dir ) {
+			return $vendor_dir;
+		}
+
 		$paths = [
 			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/bin/wp',
-			dirname( dirname( dirname( __DIR__ ) ) ) . '/bin/wp',
-			dirname( dirname( __DIR__ ) ) . '/vendor/bin/wp'
+			dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) . '/bin/wp',
+			dirname( dirname( __DIR__ ) ) . '/vendor/bin/wp',
 		];
 
-		foreach( $paths as $path ) {
-			if ( file_exists( $path ) && is_executable( $path ) )  {
-				return (string) realpath( dirname( $path ) );
+		foreach ( $paths as $path ) {
+			if ( file_exists( $path ) && is_executable( $path ) ) {
+				$vendor_dir = (string) realpath( dirname( $path ) );
+				break;
 			}
 		}
 
-		// Did not detect WP-CLI binary, so make a random guess.
-		return '/usr/local/bin';
+		if ( null === $vendor_dir ) {
+			// Did not detect WP-CLI binary, so make a random guess.
+			$vendor_dir = '/usr/local/bin';
+		}
+
+		return $vendor_dir;
 	}
 
 	/**
