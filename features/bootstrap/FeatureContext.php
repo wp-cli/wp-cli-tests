@@ -111,6 +111,11 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	private static $scenario_count        = 0; // Scenario count, incremented on `@AfterScenario`.
 	private static $proc_method_run_times = array(); // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
 
+	/**
+	 * Get the path to the Composer vendor folder.
+	 *
+	 * @return string Absolute path to the Composer vendor folder.
+	 */
 	private static function get_vendor_dir() {
 		$paths = [
 			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/bin/wp',
@@ -120,7 +125,7 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		foreach( $paths as $path ) {
 			if ( file_exists( $path ) && is_executable( $path ) )  {
-				return realpath( dirname( $path ) );
+				return (string) realpath( dirname( $path ) );
 			}
 		}
 
