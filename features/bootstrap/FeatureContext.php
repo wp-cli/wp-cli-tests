@@ -111,13 +111,29 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	private static $scenario_count        = 0; // Scenario count, incremented on `@AfterScenario`.
 	private static $proc_method_run_times = array(); // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
 
+	private static function get_vendor_dir() {
+		$paths = [
+			dirname( dirname( dirname( __DIR__ ) ) ) . '/bin/wp',
+			dirname( dirname( __DIR__ ) ) . '/vendor/bin/wp'
+		];
+
+		foreach( $paths as $path ) {
+			if ( file_exists( $path ) && is_executable( $path ) )  {
+				return realpath( dirname( $path ) );
+			}
+		}
+
+		// Did not detect WP-CLI binary, so make a random guess.
+		return '/usr/local/bin';
+	}
+
 	/**
 	 * Get the environment variables required for launched `wp` processes
 	 */
 	private static function get_process_env_variables() {
 		// Ensure we're using the expected `wp` binary
-		$bin_dir        = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath( __DIR__ . '/../../bin' );
-		$vendor_dir     = realpath( __DIR__ . '/../../vendor/bin' );
+		$bin_dir        = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath( dirname( dirname( __DIR__ ) ) . '/bin' );
+		$vendor_dir     = self::get_vendor_dir();
 		$path_separator = Utils\is_windows() ? ';' : ':';
 		$env            = array(
 			'PATH'      => $bin_dir . $path_separator . $vendor_dir . $path_separator . getenv( 'PATH' ),

@@ -3444,12 +3444,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/wp-cli/regenerate-readme.git",
-                "reference": "d7144c9ebfb7d5914ac96c441203dd3edbc9e3a2"
+                "reference": "4268bf7b6465ad11946521c78d3bea7ea14b2336"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wp-cli/regenerate-readme/zipball/d7144c9ebfb7d5914ac96c441203dd3edbc9e3a2",
-                "reference": "d7144c9ebfb7d5914ac96c441203dd3edbc9e3a2",
+                "url": "https://api.github.com/repos/wp-cli/regenerate-readme/zipball/4268bf7b6465ad11946521c78d3bea7ea14b2336",
+                "reference": "4268bf7b6465ad11946521c78d3bea7ea14b2336",
                 "shasum": ""
             },
             "require": {
@@ -3463,7 +3463,8 @@
             "type": "php-composter-action",
             "extra": {
                 "php-composter-hooks": {
-                    "10.pre-commit": "WP_CLI\\RegenerateReadme\\Regenerator::preCommit"
+                    "10.pre-commit": "WP_CLI\\RegenerateReadme\\Regenerator::pre_commit",
+                    "10.post-commit": "WP_CLI\\RegenerateReadme\\Regenerator::post_commit"
                 },
                 "readme": {
                     "sections": [
@@ -3496,8 +3497,8 @@
                     "email": "alain.schlesser@gmail.com"
                 }
             ],
-            "description": "PHP Composter action to regenerate the README.md file (precommit).",
-            "time": "2018-07-14T16:03:10+00:00"
+            "description": "PHP Composter action to regenerate the README.md file (pre-commit + post-commit).",
+            "time": "2018-07-14T16:31:03+00:00"
         },
         {
             "name": "wp-cli/scaffold-package-command",
