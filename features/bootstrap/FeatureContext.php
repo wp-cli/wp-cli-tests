@@ -283,7 +283,10 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			self::log_run_times_before_scenario( $event );
 		}
 
-		$this->variables = self::get_behat_internal_variables();
+		$this->variables = array_merge(
+			$this->variables,
+			self::get_behat_internal_variables()
+		);
 
 		// Used in the names of the RUN_DIR and SUITE_CACHE_DIR directories.
 		self::$temp_dir_infix = null;
