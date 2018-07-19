@@ -182,6 +182,41 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	}
 
 	/**
+	 * Get the internal variables to use within tests.
+	 *
+	 * @return array Associative array of internal variables that will be mapped
+	 *               into tests.
+	 */
+	private static function get_behat_internal_variables() {
+		static $variables = null;
+
+		if ( null !== $variables ) {
+			return $variables;
+		}
+
+		$paths = [
+			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/wp-cli/wp-cli/VERSION',
+			dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) . '/VERSION',
+			dirname( dirname( __DIR__ ) ) . '/vendor/wp-cli/wp-cli/VERSION',
+		];
+
+		$framework_root = dirname( dirname( __DIR__ ) );
+		foreach ( $paths as $path ) {
+			if ( file_exists( $path ) ) {
+				$framework_root = (string) realpath( dirname( $path ) );
+				break;
+			}
+		}
+
+		$variables = [
+			'SRC_DIR'        => realpath( dirname( dirname( __DIR__ ) ) ),
+			'FRAMEWORK_ROOT' => realpath( $framework_root ),
+		];
+
+		return $variables;
+	}
+
+	/**
 	 * We cache the results of `wp core download` to improve test performance.
 	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
 	 */
@@ -248,7 +283,7 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			self::log_run_times_before_scenario( $event );
 		}
 
-		$this->variables['SRC_DIR'] = realpath( __DIR__ . '/../..' );
+		$this->variables = self::get_behat_internal_variables();
 
 		// Used in the names of the RUN_DIR and SUITE_CACHE_DIR directories.
 		self::$temp_dir_infix = null;
