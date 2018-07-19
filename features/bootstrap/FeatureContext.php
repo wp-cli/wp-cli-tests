@@ -113,6 +113,7 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 	private static function get_vendor_dir() {
 		$paths = [
+			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/bin/wp',
 			dirname( dirname( dirname( __DIR__ ) ) ) . '/bin/wp',
 			dirname( dirname( __DIR__ ) ) . '/vendor/bin/wp'
 		];
