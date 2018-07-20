@@ -70,7 +70,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 
 		putenv( 'GITHUB_TOKEN' );
 
-		$behat_tags = dirname( __DIR__ ) . '/vendor/wp-cli/wp-cli/ci/behat-tags.php';
+		$behat_tags = dirname( __DIR__ ) . '/utils/behat-tags.php';
 
 		$php_version = substr( PHP_VERSION, 0, 3 );
 		$contents = $expected = '';
@@ -113,7 +113,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 
 		putenv( 'GITHUB_TOKEN' );
 
-		$behat_tags = dirname( __DIR__ ) . '/tests/behat-tags.php';
+		$behat_tags = dirname( __DIR__ ) . '/utils/behat-tags.php';
 
 		file_put_contents( $this->temp_dir . '/features/extension.feature', '@require-extension-imagick @require-extension-curl' );
 
