@@ -31,7 +31,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 	 * @dataProvider data_behat_tags_wp_version_github_token
 	 */
 	function test_behat_tags_wp_version_github_token( $env, $expected ) {
-		$env_wp_version = getenv( 'WP_VERSION' );
+		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 
 		putenv( 'WP_VERSION' );
@@ -73,7 +73,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 		$behat_tags = dirname( __DIR__ ) . '/utils/behat-tags.php';
 
 		$php_version = substr( PHP_VERSION, 0, 3 );
-		$contents = $expected = '';
+		$contents    = $expected = '';
 
 		if ( '5.3' === $php_version ) {
 			$contents = '@require-php-5.2 @require-php-5.3 @require-php-5.4 @less-than-php-5.2 @less-than-php-5.3 @less-than-php-5.4';
@@ -125,7 +125,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 			$expecteds[] = '~@require-extension-curl';
 		}
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
-		$output = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
