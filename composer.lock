@@ -3203,16 +3203,16 @@
         },
         {
             "name": "php-composter/php-composter",
-            "version": "v0.3.1",
+            "version": "v0.3.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-composter/php-composter.git",
-                "reference": "5910bac28beb061d5f9d4945c581c983e5ca5dec"
+                "reference": "e34f4d7381de871f5b859d796b6277a588044b96"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-composter/php-composter/zipball/5910bac28beb061d5f9d4945c581c983e5ca5dec",
-                "reference": "5910bac28beb061d5f9d4945c581c983e5ca5dec",
+                "url": "https://api.github.com/repos/php-composter/php-composter/zipball/e34f4d7381de871f5b859d796b6277a588044b96",
+                "reference": "e34f4d7381de871f5b859d796b6277a588044b96",
                 "shasum": ""
             },
             "require": {
@@ -3246,7 +3246,7 @@
                 }
             ],
             "description": "Git Hooks Management through Composer.",
-            "time": "2018-07-14T15:20:59+00:00"
+            "time": "2018-07-22T11:35:24+00:00"
         },
         {
             "name": "seld/cli-prompt",
@@ -3444,18 +3444,18 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/wp-cli/regenerate-readme.git",
-                "reference": "4268bf7b6465ad11946521c78d3bea7ea14b2336"
+                "reference": "db3b45e36e8289ea59b06106e41c2250bb0327e0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wp-cli/regenerate-readme/zipball/4268bf7b6465ad11946521c78d3bea7ea14b2336",
-                "reference": "4268bf7b6465ad11946521c78d3bea7ea14b2336",
+                "url": "https://api.github.com/repos/wp-cli/regenerate-readme/zipball/db3b45e36e8289ea59b06106e41c2250bb0327e0",
+                "reference": "db3b45e36e8289ea59b06106e41c2250bb0327e0",
                 "shasum": ""
             },
             "require": {
                 "php-composter/php-composter": "^0",
                 "wp-cli/scaffold-package-command": "^0",
-                "wp-cli/wp-cli": "dev-4748-split-off-bundle"
+                "wp-cli/wp-cli": "*"
             },
             "require-dev": {
                 "wp-cli/wp-cli-tests": "dev-master"
@@ -3498,7 +3498,7 @@
                 }
             ],
             "description": "PHP Composter action to regenerate the README.md file (pre-commit + post-commit).",
-            "time": "2018-07-14T16:31:03+00:00"
+            "time": "2018-07-19T00:22:58+00:00"
         },
         {
             "name": "wp-cli/scaffold-package-command",
