@@ -29,4 +29,4 @@ export BEHAT_PARAMS
 BEHAT_TAGS=$(php "$BEHAT_ROOT"/utils/behat-tags.php)
 
 # Run the functional tests
-behat --format progress "$BEHAT_TAGS" --strict --ansi "$@"
+vendor/bin/behat --format progress "$BEHAT_TAGS" --strict --ansi "$@"
