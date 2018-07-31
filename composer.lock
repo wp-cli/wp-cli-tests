@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ade61c19b17c26d124d30d6990bcf941",
+    "content-hash": "ddbc7a3985a99fdc32591ae5ae5f7f73",
     "packages": [
         {
             "name": "behat/behat",
@@ -2617,12 +2617,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/wp-cli/wp-cli.git",
-                "reference": "6a8ff47f40c0a9126f213c00d9b344c1d999691b"
+                "reference": "c5cb69f97178197e3e39f333dca0a23822ac8c98"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wp-cli/wp-cli/zipball/6a8ff47f40c0a9126f213c00d9b344c1d999691b",
-                "reference": "6a8ff47f40c0a9126f213c00d9b344c1d999691b",
+                "url": "https://api.github.com/repos/wp-cli/wp-cli/zipball/c5cb69f97178197e3e39f333dca0a23822ac8c98",
+                "reference": "c5cb69f97178197e3e39f333dca0a23822ac8c98",
                 "shasum": ""
             },
             "require": {
@@ -2667,7 +2667,7 @@
                 "cli",
                 "wordpress"
             ],
-            "time": "2018-07-31T03:39:55+00:00"
+            "time": "2018-07-31T09:19:07+00:00"
         },
         {
             "name": "wp-cli/wp-config-transformer",
