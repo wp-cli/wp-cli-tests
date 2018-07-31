@@ -774,7 +774,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		$this->composer_command( 'init --name="wp-cli/composer-test" --type="project" --no-interaction' );
 		$this->composer_command( 'config vendor-dir ' . $vendor_directory );
-		$this->composer_command( 'require johnpbloch/wordpress-core --optimize-autoloader --no-interaction' );
+		$this->composer_command( 'require johnpbloch/wordpress --optimize-autoloader --no-interaction' );
+		$this->composer_command( 'config extra.wordpress-install-dir WordPress --no-interaction' );
 
 		$config_extra_php = "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';";
 		$this->create_config( 'WordPress', $config_extra_php );
