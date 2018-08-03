@@ -19,11 +19,10 @@ $steps->Given(
 			$dir = $world->variables['RUN_DIR'] . "/$dir";
 		}
 
-		if ( is_dir( $dir ) ) {
-			$dir = realpath( $dir );
-		}
+		// Mac OS X can prefix the `/var` folder to turn it into `/private/var`.
+		$dir = preg_replace( '|^/private/var/|', '/var/', $dir );
 
-		$temp_dir = realpath( sys_get_temp_dir() );
+		$temp_dir = sys_get_temp_dir();
 
 		if ( 0 !== strpos( $dir, $temp_dir ) ) {
 			throw new RuntimeException( sprintf( "Attempted to delete directory '%s' that is not in the temp directory '%s'. " . __FILE__ . ':' . __LINE__, $dir, $temp_dir ) );
