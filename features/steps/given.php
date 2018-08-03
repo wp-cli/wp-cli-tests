@@ -19,7 +19,10 @@ $steps->Given(
 			$dir = $world->variables['RUN_DIR'] . "/$dir";
 		}
 
-		$dir      = realpath( $dir );
+		if ( is_dir( $dir ) ) {
+			$dir = realpath( $dir );
+		}
+
 		$temp_dir = realpath( sys_get_temp_dir() );
 
 		if ( 0 !== strpos( $dir, $temp_dir ) ) {
