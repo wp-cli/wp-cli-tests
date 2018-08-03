@@ -18,9 +18,14 @@ $steps->Given(
 		if ( ! WP_CLI\Utils\is_path_absolute( $dir ) ) {
 			$dir = $world->variables['RUN_DIR'] . "/$dir";
 		}
-		if ( 0 !== strpos( $dir, sys_get_temp_dir() ) ) {
-			throw new RuntimeException( sprintf( "Attempted to delete directory '%s' that is not in the temp directory '%s'. " . __FILE__ . ':' . __LINE__, $dir, sys_get_temp_dir() ) );
+
+		$dir      = realpath( $dir );
+		$temp_dir = realpath( sys_get_temp_dir() );
+
+		if ( 0 !== strpos( $dir, $temp_dir ) ) {
+			throw new RuntimeException( sprintf( "Attempted to delete directory '%s' that is not in the temp directory '%s'. " . __FILE__ . ':' . __LINE__, $dir, $temp_dir ) );
 		}
+
 		$world->remove_dir( $dir );
 		if ( 'empty' === $empty_or_nonexistent ) {
 			mkdir( $dir, 0777, true /*recursive*/ );
