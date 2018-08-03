@@ -244,21 +244,27 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			self::log_run_times_before_suite( $event );
 		}
 
-		$travis = getenv( 'TRAVIS' );
 
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo PHP_EOL;
 		echo $result->stdout;
 		echo PHP_EOL;
+
 		self::cache_wp_files();
+
 		$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
-		$travis && print( "travis_fold:start:wp_cli_debug\n" );
-		echo "[Debug messages]\n";
-		echo $result->stderr;
-		$travis && print( "travis_fold:end:wp_cli_debug\n" );
+
+		$ci = getenv( 'CI' );
+		if ( $ci ) {
+			$travis = getenv( 'TRAVIS' );
+			$travis && print( "travis_fold:start:wp_cli_debug\n" );
+			echo "[Debug messages]\n";
+			echo $result->stderr;
+			$travis && print( "travis_fold:end:wp_cli_debug\n" );
+		}
+
 		echo PHP_EOL;
 		echo 'WordPress ' . $result->stdout;
-
 		echo PHP_EOL;
 
 		// Remove install cache if any (not setting the static var).
