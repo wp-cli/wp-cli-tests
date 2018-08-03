@@ -250,7 +250,10 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		echo PHP_EOL;
 		self::cache_wp_files();
 		$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
+		Process::create( 'echo -e "travis_fold:start:$1\033[33;1m$2\033[0m"', null, self::get_process_env_variables() )->run_check();
+		echo "[Debug messages]\n";
 		echo $result->stderr;
+		Process::create( 'echo -e "\ntravis_fold:end:$1\r"', null, self::get_process_env_variables() )->run_check();
 		echo PHP_EOL;
 		echo 'WordPress ' . $result->stdout;
 
