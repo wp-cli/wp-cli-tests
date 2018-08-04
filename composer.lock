@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "93d3e5617798b651316d25e24f6b6316",
+    "content-hash": "8d17640d1f94ff1dee13bf95c9f8bdf9",
     "packages": [
         {
             "name": "behat/behat",
@@ -2649,16 +2649,16 @@
         },
         {
             "name": "wp-cli/wp-cli",
-            "version": "dev-4748-split-off-bundle",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/wp-cli/wp-cli.git",
-                "reference": "5f08f07c68da4c14074f5d877dd9f14658e95a36"
+                "reference": "8a72205166b8f1fc824a6c3ef30444141196bf8b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wp-cli/wp-cli/zipball/5f08f07c68da4c14074f5d877dd9f14658e95a36",
-                "reference": "5f08f07c68da4c14074f5d877dd9f14658e95a36",
+                "url": "https://api.github.com/repos/wp-cli/wp-cli/zipball/8a72205166b8f1fc824a6c3ef30444141196bf8b",
+                "reference": "8a72205166b8f1fc824a6c3ef30444141196bf8b",
                 "shasum": ""
             },
             "require": {
@@ -2703,7 +2703,7 @@
                 "cli",
                 "wordpress"
             ],
-            "time": "2018-08-03T20:11:26+00:00"
+            "time": "2018-08-04T05:08:25+00:00"
         },
         {
             "name": "wp-cli/wp-config-transformer",
@@ -3282,16 +3282,16 @@
         },
         {
             "name": "php-composter/php-composter",
-            "version": "v0.3.2",
+            "version": "v0.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-composter/php-composter.git",
-                "reference": "e34f4d7381de871f5b859d796b6277a588044b96"
+                "reference": "6dbf9d4934dd67c444827560c7add079e5ccb8f3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-composter/php-composter/zipball/e34f4d7381de871f5b859d796b6277a588044b96",
-                "reference": "e34f4d7381de871f5b859d796b6277a588044b96",
+                "url": "https://api.github.com/repos/php-composter/php-composter/zipball/6dbf9d4934dd67c444827560c7add079e5ccb8f3",
+                "reference": "6dbf9d4934dd67c444827560c7add079e5ccb8f3",
                 "shasum": ""
             },
             "require": {
@@ -3325,7 +3325,7 @@
                 }
             ],
             "description": "Git Hooks Management through Composer.",
-            "time": "2018-07-22T11:35:24+00:00"
+            "time": "2018-08-04T07:37:18+00:00"
         },
         {
             "name": "seld/jsonlint",
@@ -3471,7 +3471,7 @@
         },
         {
             "name": "wp-cli/regenerate-readme",
-            "version": "dev-master",
+            "version": "v0.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/wp-cli/regenerate-readme.git",
@@ -3650,9 +3650,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "roave/security-advisories": 20,
-        "wp-cli/regenerate-readme": 20,
-        "wp-cli/wp-cli": 20
+        "roave/security-advisories": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
