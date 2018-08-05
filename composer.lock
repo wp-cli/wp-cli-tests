@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8d17640d1f94ff1dee13bf95c9f8bdf9",
+    "content-hash": "8f666e80333af887916900d86f466675",
     "packages": [
         {
             "name": "behat/behat",
@@ -1163,6 +1163,17 @@
         {
             "name": "roave/security-advisories",
             "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Roave/SecurityAdvisories.git",
+                "reference": "b3569bbd5257d4ae0885b14feb6e45e41e8184b7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Roave/SecurityAdvisories/zipball/b3569bbd5257d4ae0885b14feb6e45e41e8184b7",
+                "reference": "b3569bbd5257d4ae0885b14feb6e45e41e8184b7",
+                "shasum": ""
+            },
             "conflict": {
                 "3f/pygmentize": "<1.2",
                 "adodb/adodb-php": "<5.20.12",
@@ -2653,12 +2664,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/wp-cli/wp-cli.git",
-                "reference": "8a72205166b8f1fc824a6c3ef30444141196bf8b"
+                "reference": "6d48def7243ad759e0200e8c90bb6f6f5b425329"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wp-cli/wp-cli/zipball/8a72205166b8f1fc824a6c3ef30444141196bf8b",
-                "reference": "8a72205166b8f1fc824a6c3ef30444141196bf8b",
+                "url": "https://api.github.com/repos/wp-cli/wp-cli/zipball/6d48def7243ad759e0200e8c90bb6f6f5b425329",
+                "reference": "6d48def7243ad759e0200e8c90bb6f6f5b425329",
                 "shasum": ""
             },
             "require": {
@@ -2676,11 +2687,11 @@
                 "wp-cli/entity-command": "^1.2",
                 "wp-cli/extension-command": "^1.1",
                 "wp-cli/package-command": "^1.0",
-                "wp-cli/wp-cli-tests": "dev-master"
+                "wp-cli/wp-cli-tests": "^0"
             },
             "bin": [
-                "bin/wp.bat",
-                "bin/wp"
+                "bin/wp",
+                "bin/wp.bat"
             ],
             "type": "library",
             "extra": {
@@ -2703,7 +2714,7 @@
                 "cli",
                 "wordpress"
             ],
-            "time": "2018-08-04T05:08:25+00:00"
+            "time": "2018-08-04T20:01:15+00:00"
         },
         {
             "name": "wp-cli/wp-config-transformer",
@@ -3471,25 +3482,25 @@
         },
         {
             "name": "wp-cli/regenerate-readme",
-            "version": "v0.1.0",
+            "version": "v2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/wp-cli/regenerate-readme.git",
-                "reference": "db3b45e36e8289ea59b06106e41c2250bb0327e0"
+                "reference": "89af35cc5ed780b4199c8dd718b5c760e589b6a9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/wp-cli/regenerate-readme/zipball/db3b45e36e8289ea59b06106e41c2250bb0327e0",
-                "reference": "db3b45e36e8289ea59b06106e41c2250bb0327e0",
+                "url": "https://api.github.com/repos/wp-cli/regenerate-readme/zipball/89af35cc5ed780b4199c8dd718b5c760e589b6a9",
+                "reference": "89af35cc5ed780b4199c8dd718b5c760e589b6a9",
                 "shasum": ""
             },
             "require": {
-                "php-composter/php-composter": "^0",
-                "wp-cli/scaffold-package-command": "^0",
-                "wp-cli/wp-cli": "*"
+                "php-composter/php-composter": "*",
+                "wp-cli/scaffold-package-command": "*",
+                "wp-cli/wp-cli": "^2"
             },
             "require-dev": {
-                "wp-cli/wp-cli-tests": "dev-master"
+                "wp-cli/wp-cli-tests": "*"
             },
             "type": "php-composter-action",
             "extra": {
@@ -3529,7 +3540,7 @@
                 }
             ],
             "description": "PHP Composter action to regenerate the README.md file (pre-commit + post-commit).",
-            "time": "2018-07-19T00:22:58+00:00"
+            "time": "2018-08-05T07:52:46+00:00"
         },
         {
             "name": "wp-cli/scaffold-command",
