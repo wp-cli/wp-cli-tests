@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Run the unit tests, if they exist
-if [ -f "phpcs.xml" ] || [ -f "phpcs.xml.dist" ]
+if [ -f "phpcs.xml" ] || [ -f "phpcs.xml.dist" ] || [ -f ".phpcs.xml" ] || [ -f ".phpcs.xml.dist" ]
 then
 	vendor/bin/phpcs "$@"
 fi
