@@ -5,6 +5,11 @@ if [ ! -d "features" ]; then
   exit 0;
 fi
 
+# Turn WP_VERSION into an actual number to make sure our tags work correctly.
+if [ $WP_VERSION = "latest" ]; then
+	export WP_VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r ".offers[0].current")
+fi
+
 # To retrieve the Behat root folder, we start with this scripts location
 SOURCE="${BASH_SOURCE[0]}"
 
