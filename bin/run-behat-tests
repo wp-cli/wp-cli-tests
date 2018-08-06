@@ -6,7 +6,7 @@ if [ ! -d "features" ]; then
 fi
 
 # Turn WP_VERSION into an actual number to make sure our tags work correctly.
-if [ $WP_VERSION = "latest" ]; then
+if [ "${WP_VERSION-latest}" = "latest" ]; then
 	export WP_VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r ".offers[0].current")
 fi
 
