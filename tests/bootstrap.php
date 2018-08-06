@@ -1,4 +1,5 @@
 <?php
+define( 'WP_CLI', true );
 define( 'WP_CLI_TESTS_ROOT', dirname( __DIR__ ) );
 define( 'VENDOR_DIR',
 	file_exists( WP_CLI_TESTS_ROOT . '/vendor/autoload.php' )
@@ -7,6 +8,7 @@ define( 'VENDOR_DIR',
 );
 define( 'WP_CLI_ROOT', VENDOR_DIR . '/wp-cli/wp-cli' );
 define( 'PACKAGE_ROOT', VENDOR_DIR . '/..' );
+define( 'WP_CLI_VERSION', trim( file_get_contents( WP_CLI_ROOT . '/VERSION' ) ) );
 
 /**
  * Compatibility with PHPUnit 6+
