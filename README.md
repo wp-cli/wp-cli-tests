@@ -52,7 +52,7 @@ To make use of the WP-CLI testing framework, you need to complete the following 
 	```
 	This will make sure that the automated Behat system works across all platforms. This is needed on Windows.
 
-4. Update your composer dependencies and regenerate your autoloader and binary folders:
+5. Update your composer dependencies and regenerate your autoloader and binary folders:
 	```bash
 	composer update
 	```
@@ -80,6 +80,40 @@ composer behat -- features/cli-info.feature
 Prepending with the double dash is needed because the arguments would otherwise be sent to Composer itself, not the tool that Composer executes.
 
 ### Controlling the test environment
+
+#### WordPress Version
+
+You can run the tests against a specific version of WordPress by setting the `WP_VERSION` environment variable.
+
+This variable understands any numeric version, as well as the special terms `latest` and `trunk`.
+
+Note: This only applies to the Behat functional tests. All other tests never load WordPress.
+
+Here's how to run your tests against the latest trunk version of WordPress:
+```bash
+WP_VERSION=trunk composer behat
+```
+
+#### WP-CLI Binary
+
+You can run the tests against a specific WP-CLI binary, instead of using the one that has been built in your project's `vendor/bin` folder.
+
+This can be useful to run your tests against a specific Phar version of WP_CLI.
+
+To do this, you can set the `WP_CLI_BIN_DIR` environment variable to point to a folder that contains an executable `wp` binary. Note: the binary has to be named `wp` to be properly recognized.
+
+As an example, here's how to run your tests against a specific Phar version you've downloaded.
+```bash
+# Prepare the binary you've downloaded into the ~/wp-cli folder first.
+mv ~/wp-cli/wp-cli-1.2.0.phar ~/wp-cli/wp
+chmod +x ~/wp-cli/wp
+
+WP_CLI_BIN_DIR=~/wp-cli composer behat
+```
+
+### Setting up the tests in Travis CI
+
+
 
 #### WP-CLI version
 
