@@ -19,10 +19,11 @@ To make use of the WP-CLI testing framework, you need to complete the following 
 2. Add the required test scripts to the `composer.json` file:
 	```json
 	"scripts": {
+        "behat": "run-behat-tests",
+        "behat-rerun": "rerun-behat-tests",
         "lint": "run-linter-tests",
         "phpcs": "run-phpcs-tests",
         "phpunit": "run-php-unit-tests",
-        "behat": "run-behat-tests",
         "prepare-tests": "install-package-tests",
         "test": [
             "@lint",
