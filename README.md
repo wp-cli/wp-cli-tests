@@ -113,7 +113,39 @@ WP_CLI_BIN_DIR=~/wp-cli composer behat
 
 ### Setting up the tests in Travis CI
 
+Basic rules for setting up the test framework with Travis CI:
 
+* `composer prepare-tests` needs to be called once per environment.
+* `linting and sniffing` is a static analysis, so it shouldn't depend on any specific environment. You should do this only once, as a separate stage, instead of per environment.
+* `composer behat || composer behat-rerun` causes the Behat tests to run in their entirety first, and in case their were failed scenarios, a second run is done with only the failed scenarios. This usually gets around intermittent issues like timeouts or similar.
+
+Here's a basic setup of how you can configure Travis CI to work with the test framework (extract):
+```yml
+install:
+  - composer install
+  - composer prepare-tests
+
+script:
+  - composer phpunit
+  - composer behat || composer behat-rerun
+
+jobs:
+  include:
+    - stage: sniff
+      script:
+        - composer lint
+        - composer phpcs
+      env: BUILD=sniff
+    - stage: test
+      php: 7.2
+      env: WP_VERSION=latest
+    - stage: test
+      php: 7.2
+      env: WP_VERSION=3.7.11
+    - stage: test
+      php: 7.2
+      env: WP_VERSION=trunk
+```
 
 #### WP-CLI version
 
