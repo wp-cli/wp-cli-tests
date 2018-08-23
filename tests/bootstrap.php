@@ -17,7 +17,7 @@ define( 'WP_CLI_ROOT',
 define( 'WP_CLI_VERSION',
 	is_readable( WP_CLI_ROOT . '/VERSION' )
 		? trim( file_get_contents( WP_CLI_ROOT . '/VERSION' ) )
-		: define( 'WP_CLI_VERSION', '2.x.x' )
+		: '2.x.x'
 );
 
 /**
