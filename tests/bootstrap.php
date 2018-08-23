@@ -6,9 +6,19 @@ define( 'VENDOR_DIR',
 		? WP_CLI_TESTS_ROOT . '/vendor'
 		: WP_CLI_TESTS_ROOT . '/../..'
 );
-define( 'WP_CLI_ROOT', VENDOR_DIR . '/wp-cli/wp-cli' );
 define( 'PACKAGE_ROOT', VENDOR_DIR . '/..' );
-define( 'WP_CLI_VERSION', trim( file_get_contents( WP_CLI_ROOT . '/VERSION' ) ) );
+
+define( 'WP_CLI_ROOT',
+	is_readable( PACKAGE_ROOT . '/VERSION' )
+		? PACKAGE_ROOT
+		: VENDOR_DIR . '/wp-cli/wp-cli'
+);
+
+define( 'WP_CLI_VERSION',
+	is_readable( WP_CLI_ROOT . '/VERSION' )
+		? trim( file_get_contents( WP_CLI_ROOT . '/VERSION' ) )
+		: define( 'WP_CLI_VERSION', '2.x.x' )
+);
 
 /**
  * Compatibility with PHPUnit 6+
