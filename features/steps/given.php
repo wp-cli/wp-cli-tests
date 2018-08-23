@@ -43,10 +43,12 @@ $steps->Given(
 );
 
 $steps->Given(
-	'/^an? ([^\s]+) file:$/',
-	function ( $world, $path, PyStringNode $content ) {
+	'/^an? ([^\s]+) (file|cache file)?:$/',
+	function ( $world, $path, $type, PyStringNode $content ) {
 		$content   = (string) $content . "\n";
-		$full_path = $world->variables['RUN_DIR'] . "/$path";
+		$full_path = 'cache file' === $type
+			? $world->variables['SUITE_CACHE_DIR'] . "/$path"
+			: $world->variables['RUN_DIR'] . "/$path";
 		$dir       = dirname( $full_path );
 		if ( ! file_exists( $dir ) ) {
 			mkdir( $dir, 0777, true /*recursive*/ );
