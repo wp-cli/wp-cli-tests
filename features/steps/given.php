@@ -43,7 +43,7 @@ $steps->Given(
 );
 
 $steps->Given(
-	'/^an? ([^\s]+) (file|cache file)?:$/',
+	'/^an? ([^\s]+) (file|cache file):$/',
 	function ( $world, $path, $type, PyStringNode $content ) {
 		$content   = (string) $content . "\n";
 		$full_path = 'cache file' === $type
