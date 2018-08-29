@@ -3,9 +3,5 @@
 set -ex
 
 # Prepare the database for running the tests
-install_db() {
 	ci=${1-travis}
-	source ./ci/${ci}.sh
-}
-
-install_db
+	./ci/${ci}.sh
