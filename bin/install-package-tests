@@ -4,4 +4,4 @@ set -ex
 
 # Prepare the database for running the tests
 	ci=${1-travis}
-	./ci/${ci}.sh
+	./bin/ci/${ci}.sh
