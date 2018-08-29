@@ -2,9 +2,9 @@
 
 set -ex
 
+host=$'127.0.0.1'
 # Prepare the database for running the tests
 install_db() {
-host=${1-localhost}
 	mysql -e 'CREATE DATABASE IF NOT EXISTS wp_cli_test;' -uroot -h ${host}
 	mysql -e 'GRANT ALL PRIVILEGES ON wp_cli_test.* TO "wp_cli_test"@"${host}" IDENTIFIED BY "password1"' -uroot -h ${host}
 	mysql -e 'GRANT ALL PRIVILEGES ON wp_cli_test_scaffold.* TO "wp_cli_test"@"${host}" IDENTIFIED BY "password1"' -uroot -h ${host}
