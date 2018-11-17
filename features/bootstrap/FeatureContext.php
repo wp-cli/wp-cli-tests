@@ -741,10 +741,14 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		$subdir = $this->replace_variables( $subdir );
 
+		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
+		$env              = self::get_process_env_variables();
+		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
+
 		$this->create_db();
 		$this->create_run_dir();
 		$this->download_wp( $subdir );
-		$this->create_config( $subdir );
+		$this->create_config( $subdir, $config_extra_php );
 
 		$install_args = array(
 			'url'            => 'http://example.com',
@@ -786,7 +790,12 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		$this->composer_command( 'config extra.wordpress-install-dir WordPress --no-interaction' );
 		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader --no-interaction' );
 
-		$config_extra_php = "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';";
+		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
+		$env              = self::get_process_env_variables();
+		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
+
+		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';\n";
+
 		$this->create_config( 'WordPress', $config_extra_php );
 
 		$install_args = array(
