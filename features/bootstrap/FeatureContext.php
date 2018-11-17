@@ -742,7 +742,6 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		$subdir = $this->replace_variables( $subdir );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$env              = self::get_process_env_variables();
 		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
 		$this->create_db();
@@ -791,7 +790,6 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader --no-interaction' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$env              = self::get_process_env_variables();
 		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
 		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';\n";
