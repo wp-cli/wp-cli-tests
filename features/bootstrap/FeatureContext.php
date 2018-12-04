@@ -209,8 +209,9 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		}
 
 		$variables = [
-			'SRC_DIR'        => realpath( dirname( dirname( __DIR__ ) ) ),
 			'FRAMEWORK_ROOT' => realpath( $framework_root ),
+			'SRC_DIR'        => realpath( dirname( dirname(  __DIR__ ) ) ),
+			'PROJECT_DIR'    => realpath( dirname( dirname( dirname( dirname( dirname(  __DIR__ ) ) ) ) ) ),
 		];
 
 		return $variables;
