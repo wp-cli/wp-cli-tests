@@ -41,7 +41,38 @@ To make use of the WP-CLI testing framework, you need to complete the following 
 	```
 	This will make sure that the automated Behat system works across all platforms. This is needed on Windows.
 
-5. Update your composer dependencies and regenerate your autoloader and binary folders:
+5. Optionally add a `phpcs.xml.dist` file to the package root to enable code style and best practice checks using PHP_CodeSniffer.
+
+    Example of a minimal custom ruleset based on the defaults set in the WP-CLI testing framework:
+    ```xml
+    <?xml version="1.0"?>
+    <ruleset name="WP-CLI-PROJECT-NAME">
+    <description>Custom ruleset for WP-CLI PROJECT NAME</description>
+
+        <!-- What to scan. -->
+        <file>.</file>
+
+        <!-- Show progress. -->
+        <arg value="p"/>
+
+        <!-- Strip the filepaths down to the relevant bit. -->
+        <arg name="basepath" value="./"/>
+
+        <!-- Check up to 8 files simultaneously. -->
+        <arg name="parallel" value="8"/>
+
+        <!-- For help understanding the `testVersion` configuration setting:
+             https://github.com/PHPCompatibility/PHPCompatibility#sniffing-your-code-for-compatibility-with-specific-php-versions -->
+        <config name="testVersion" value="5.4-"/>
+
+        <!-- Rules: Include the base ruleset for WP-CLI projects. -->
+        <rule ref="WP_CLI_CS"/>
+
+    </ruleset>
+    ```
+
+    All other [PHPCS configuration options](https://github.com/squizlabs/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
+6. Update your composer dependencies and regenerate your autoloader and binary folders:
 	```bash
 	composer update
 	```
