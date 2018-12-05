@@ -26,10 +26,10 @@
 		https://github.com/PHPCompatibility/PHPCompatibilityWP -->
 	<rule ref="PHPCompatibilityWP">
 		<!-- Polyfill package is used so array_column() is available for PHP 5.4- -->
-		<exclude name="PHPCompatibility.PHP.NewFunctions.array_columnFound"/>
+		<exclude name="PHPCompatibility.Functions.NewFunctions.array_columnFound"/>
 		<!-- Both magic quotes directives set in wp-settings-cli.php to provide consistent starting point. -->
-		<exclude name="PHPCompatibility.PHP.DeprecatedIniDirectives.magic_quotes_runtimeDeprecatedRemoved"/>
-		<exclude name="PHPCompatibility.PHP.DeprecatedIniDirectives.magic_quotes_sybaseDeprecatedRemoved"/>
+		<exclude name="PHPCompatibility.IniDirectives.RemovedIniDirectives.magic_quotes_runtimeDeprecatedRemoved"/>
+		<exclude name="PHPCompatibility.IniDirectives.RemovedIniDirectives.magic_quotes_sybaseDeprecatedRemoved"/>
 	</rule>
 
 	<!-- For help in understanding this testVersion:
