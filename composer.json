@@ -13,7 +13,7 @@
         "dealerdirect/phpcodesniffer-composer-installer": "^0.4.3 || ^0.5",
         "jakub-onderka/php-console-highlighter": "^0.3.2",
         "jakub-onderka/php-parallel-lint": "^1.0",
-        "phpcompatibility/phpcompatibility-wp": "^1",
+        "phpcompatibility/phpcompatibility-wp": "^2",
         "phpunit/phpunit": ">=4.8 <7",
         "roave/security-advisories": "dev-master",
         "wp-cli/config-command": "^1 || ^2",
