@@ -23,8 +23,10 @@ function version_tags(
 		return array();
 	}
 
-	exec( "grep '@{$prefix}-[0-9\.]*' -h -o {$features_folder}/*.feature | uniq",
-		$existing_tags );
+	exec(
+		"grep '@{$prefix}-[0-9\.]*' -h -o {$features_folder}/*.feature | uniq",
+		$existing_tags
+	);
 
 	$skip_tags = array();
 
@@ -51,14 +53,15 @@ if ( $wp_version &&
 	);
 } else {
 	// But make sure @less-than-wp tags always exist for those special cases. (Note: @less-than-wp-latest etc won't work and shouldn't be used).
-	$wp_version_reqs = array_merge( $wp_version_reqs,
-		version_tags( 'less-than-wp', '9999', '>=', $features_folder ) );
+	$wp_version_reqs = array_merge(
+		$wp_version_reqs,
+		version_tags( 'less-than-wp', '9999', '>=', $features_folder )
+	);
 }
 
 $skip_tags = array_merge(
 	$wp_version_reqs,
 	version_tags( 'require-php', PHP_VERSION, '<', $features_folder ),
-
 	// Note: this was '>' prior to WP-CLI 1.5.0 but the change is unlikely to
 	// cause BC issues as usually compared against major.minor only.
 	version_tags( 'less-than-php', PHP_VERSION, '>=', $features_folder )
