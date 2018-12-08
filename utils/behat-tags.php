@@ -44,7 +44,7 @@ $wp_version_reqs = array();
 // Only apply @require-wp tags when WP_VERSION isn't 'latest', 'nightly' or 'trunk'.
 // 'latest', 'nightly' and 'trunk' are expected to work with all features.
 if ( $wp_version &&
-     ! in_array( $wp_version, array( 'latest', 'nightly', 'trunk' ), true ) ) {
+	! in_array( $wp_version, array( 'latest', 'nightly', 'trunk' ), true ) ) {
 	$wp_version_reqs = array_merge(
 		version_tags( 'require-wp', $wp_version, '<', $features_folder ),
 		version_tags( 'less-than-wp', $wp_version, '>=', $features_folder )
