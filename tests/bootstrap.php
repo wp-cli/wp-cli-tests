@@ -1,20 +1,23 @@
 <?php
 define( 'WP_CLI', true );
 define( 'WP_CLI_TESTS_ROOT', dirname( __DIR__ ) );
-define( 'VENDOR_DIR',
+define(
+	'VENDOR_DIR',
 	file_exists( WP_CLI_TESTS_ROOT . '/vendor/autoload.php' )
 		? WP_CLI_TESTS_ROOT . '/vendor'
 		: WP_CLI_TESTS_ROOT . '/../..'
 );
 define( 'PACKAGE_ROOT', VENDOR_DIR . '/..' );
 
-define( 'WP_CLI_ROOT',
+define(
+	'WP_CLI_ROOT',
 	is_readable( PACKAGE_ROOT . '/VERSION' )
 		? PACKAGE_ROOT
 		: VENDOR_DIR . '/wp-cli/wp-cli'
 );
 
-define( 'WP_CLI_VERSION',
+define(
+	'WP_CLI_VERSION',
 	is_readable( WP_CLI_ROOT . '/VERSION' )
 		? trim( file_get_contents( WP_CLI_ROOT . '/VERSION' ) )
 		: '2.x.x'
