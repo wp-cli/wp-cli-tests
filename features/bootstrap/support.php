@@ -36,7 +36,7 @@ function checkString( $output, $expected, $action, $message = false ) {
 	switch ( $action ) {
 
 		case 'be':
-			$r = $expected === rtrim( $output, "\n" );
+			$r = rtrim( $output, "\n" ) === $expected;
 			break;
 
 		case 'contain':
