@@ -980,13 +980,12 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		$log = PHP_EOL . str_repeat( '(', 80 ) . PHP_EOL;
 
 		// Process and proc method run times.
-		$run_times = array_merge( Process::$run_times, self::$proc_method_run_times );
+		$run_times       = array_merge( Process::$run_times, self::$proc_method_run_times );
+		$reduce_callback = function ( $carry, $item ) {
+			return array( $carry[0] + $item[0], $carry[1] + $item[1] );
+		};
 
-		list( $ptime, $calls ) = array_reduce(
-			$run_times, function ( $carry, $item ) {
-				return array( $carry[0] + $item[0], $carry[1] + $item[1] );
-			}, array( 0, 0 )
-		);
+		list( $ptime, $calls ) = array_reduce( $run_times, $reduce_callback, array( 0, 0 ) );
 
 		$overhead = $time - $ptime;
 		$pct      = round( ( $overhead / $time ) * 100 );
@@ -997,20 +996,25 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			$fmt( $ptime ), $fmt( $time ), $overhead, $pct, $calls, $unique, $suite, $run_from
 		);
 
-		uasort(
-			$run_times, function ( $a, $b ) {
-				return $a[0] === $b[0] ? 0 : ( $a[0] < $b[0] ? 1 : -1 ); // Reverse sort.
-			}
-		);
+		$sort_callback = function ( $a, $b ) {
+			return $a[0] === $b[0] ? 0 : ( $a[0] < $b[0] ? 1 : -1 ); // Reverse sort.
+		};
+		uasort( $run_times, $sort_callback );
 
 		$tops = array_slice( $run_times, 0, self::$num_top_processes, true );
 
+		$runtime_callback = function ( $k, $v, $i ) {
+			return sprintf( ' %3d. %7.3f %3d %s', $i + 1, round( $v[0], 3 ), $v[1], $k );
+		};
+
 		$log .= PHP_EOL . 'Top ' . self::$num_top_processes . " process run times for '$suite'";
 		$log .= PHP_EOL . implode(
-			PHP_EOL, array_map(
-				function ( $k, $v, $i ) {
-					return sprintf( ' %3d. %7.3f %3d %s', $i + 1, round( $v[0], 3 ), $v[1], $k );
-				}, array_keys( $tops ), $tops, array_keys( array_keys( $tops ) )
+			PHP_EOL,
+			array_map(
+				$runtime_callback,
+				array_keys( $tops ),
+				$tops,
+				array_keys( array_keys( $tops ) )
 			)
 		) . PHP_EOL;
 
@@ -1019,12 +1023,19 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		$tops = array_slice( self::$scenario_run_times, 0, self::$num_top_scenarios, true );
 
+		$scenario_runtime_callback = function ( $k, $v, $i ) {
+			return sprintf( ' %3d. %7.3f %s', $i + 1, round( $v, 3 ), substr( $k, strpos( $k, ' ' ) + 1 ) );
+		};
+
 		$log .= PHP_EOL . 'Top ' . self::$num_top_scenarios . ' (of ' . self::$scenario_count . ") scenario run times for '$suite'";
+
 		$log .= PHP_EOL . implode(
-			PHP_EOL, array_map(
-				function ( $k, $v, $i ) {
-					return sprintf( ' %3d. %7.3f %s', $i + 1, round( $v, 3 ), substr( $k, strpos( $k, ' ' ) + 1 ) );
-				}, array_keys( $tops ), $tops, array_keys( array_keys( $tops ) )
+			PHP_EOL,
+			array_map(
+				$scenario_runtime_callback,
+				array_keys( $tops ),
+				$tops,
+				array_keys( array_keys( $tops ) )
 			)
 		) . PHP_EOL;
 
