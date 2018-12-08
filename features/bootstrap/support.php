@@ -16,12 +16,14 @@ function assert_regex( $regex, $actual ) {
 }
 
 function assert_equals( $expected, $actual ) {
+	// phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison -- Deliberate loose comparison.
 	if ( $expected != $actual ) {
 		throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 	}
 }
 
 function assert_not_equals( $expected, $actual ) {
+	// phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison -- Deliberate loose comparison.
 	if ( $expected == $actual ) {
 		throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 	}
