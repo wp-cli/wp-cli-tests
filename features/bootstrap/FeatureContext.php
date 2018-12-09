@@ -487,21 +487,24 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			$wp_versions = array();
 
 			$response = Requests::get( 'https://api.wordpress.org/core/version-check/1.7/', null, array( 'timeout' => 30 ) );
-			if ( 200 === $response->status_code && ( $body = json_decode( $response->body ) ) && is_object( $body ) && isset( $body->offers ) && is_array( $body->offers ) ) {
-				// Latest version alias.
-				$wp_versions['{WP_VERSION-latest}'] = count( $body->offers ) ? $body->offers[0]->version : '';
-				foreach ( $body->offers as $offer ) {
-					$sub_ver     = preg_replace( '/(^[0-9]+\.[0-9]+)\.[0-9]+$/', '$1', $offer->version );
-					$sub_ver_key = "{WP_VERSION-{$sub_ver}-latest}";
+			if ( 200 === $response->status_code ) {
+				$body = json_decode( $response->body );
+				if ( is_object( $body ) && isset( $body->offers ) && is_array( $body->offers ) ) {
+					// Latest version alias.
+					$wp_versions['{WP_VERSION-latest}'] = count( $body->offers ) ? $body->offers[0]->version : '';
+					foreach ( $body->offers as $offer ) {
+						$sub_ver     = preg_replace( '/(^[0-9]+\.[0-9]+)\.[0-9]+$/', '$1', $offer->version );
+						$sub_ver_key = "{WP_VERSION-{$sub_ver}-latest}";
 
-					$main_ver     = preg_replace( '/(^[0-9]+)\.[0-9]+$/', '$1', $sub_ver );
-					$main_ver_key = "{WP_VERSION-{$main_ver}-latest}";
+						$main_ver     = preg_replace( '/(^[0-9]+)\.[0-9]+$/', '$1', $sub_ver );
+						$main_ver_key = "{WP_VERSION-{$main_ver}-latest}";
 
-					if ( ! isset( $wp_versions[ $main_ver_key ] ) ) {
-						$wp_versions[ $main_ver_key ] = $offer->version;
-					}
-					if ( ! isset( $wp_versions[ $sub_ver_key ] ) ) {
-						$wp_versions[ $sub_ver_key ] = $offer->version;
+						if ( ! isset( $wp_versions[ $main_ver_key ] ) ) {
+							$wp_versions[ $main_ver_key ] = $offer->version;
+						}
+						if ( ! isset( $wp_versions[ $sub_ver_key ] ) ) {
+							$wp_versions[ $sub_ver_key ] = $offer->version;
+						}
 					}
 				}
 			}
