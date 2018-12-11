@@ -4,9 +4,9 @@ use WP_CLI\Utils;
 
 class BehatTagsTest extends PHPUnit_Framework_TestCase {
 
-	var $temp_dir;
+	public $temp_dir;
 
-	function setUp() {
+	protected function setUp() {
 		parent::setUp();
 
 		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true );
@@ -14,7 +14,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 		mkdir( $this->temp_dir . '/features' );
 	}
 
-	function tearDown() {
+	protected function tearDown() {
 
 		if ( $this->temp_dir && file_exists( $this->temp_dir ) ) {
 			foreach ( glob( $this->temp_dir . '/features/*' ) as $feature_file ) {
@@ -30,7 +30,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 	/**
 	 * @dataProvider data_behat_tags_wp_version_github_token
 	 */
-	function test_behat_tags_wp_version_github_token( $env, $expected ) {
+	public function test_behat_tags_wp_version_github_token( $env, $expected ) {
 		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 
@@ -49,7 +49,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
 
-	function data_behat_tags_wp_version_github_token() {
+	public function data_behat_tags_wp_version_github_token() {
 		return array(
 			array( 'WP_VERSION=4.5', '~@require-wp-4.6&&~@require-wp-4.8&&~@require-wp-4.9&&~@github-api' ),
 			array( 'WP_VERSION=4.6', '~@require-wp-4.8&&~@require-wp-4.9&&~@less-than-wp-4.6&&~@github-api' ),
@@ -65,7 +65,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 		);
 	}
 
-	function test_behat_tags_php_version() {
+	public function test_behat_tags_php_version() {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 
 		putenv( 'GITHUB_TOKEN' );
@@ -109,7 +109,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
 
-	function test_behat_tags_extension() {
+	public function test_behat_tags_extension() {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 
 		putenv( 'GITHUB_TOKEN' );
