@@ -210,8 +210,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		$variables = [
 			'FRAMEWORK_ROOT' => realpath( $framework_root ),
-			'SRC_DIR'        => realpath( dirname( dirname(  __DIR__ ) ) ),
-			'PROJECT_DIR'    => realpath( dirname( dirname( dirname( dirname( dirname(  __DIR__ ) ) ) ) ) ),
+			'SRC_DIR'        => realpath( dirname( dirname( __DIR__ ) ) ),
+			'PROJECT_DIR'    => realpath( dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) ),
 		];
 
 		return $variables;
@@ -531,7 +531,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 */
 	public function create_run_dir() {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
-			self::$run_dir = $this->variables['RUN_DIR'] = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
+			self::$run_dir              = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
+			$this->variables['RUN_DIR'] = self::$run_dir;
 			mkdir( $this->variables['RUN_DIR'] );
 		}
 	}

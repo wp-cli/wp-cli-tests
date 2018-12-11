@@ -73,7 +73,8 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 		$behat_tags = dirname( __DIR__ ) . '/utils/behat-tags.php';
 
 		$php_version = substr( PHP_VERSION, 0, 3 );
-		$contents    = $expected = '';
+		$contents    = '';
+		$expected    = '';
 
 		if ( '5.3' === $php_version ) {
 			$contents = '@require-php-5.2 @require-php-5.3 @require-php-5.4 @less-than-php-5.2 @less-than-php-5.3 @less-than-php-5.4';
