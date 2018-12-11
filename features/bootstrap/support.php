@@ -61,7 +61,7 @@ function checkString( $output, $expected, $action, $message = false ) {
 
 function compareTables( $expected_rows, $actual_rows, $output ) {
 	// the first row is the header and must be present
-	if ( $expected_rows[0] != $actual_rows[0] ) {
+	if ( $expected_rows[0] !== $actual_rows[0] ) {
 		throw new \Exception( $output );
 	}
 
@@ -75,7 +75,7 @@ function compareTables( $expected_rows, $actual_rows, $output ) {
 }
 
 function compareContents( $expected, $actual ) {
-	if ( gettype( $expected ) != gettype( $actual ) ) {
+	if ( gettype( $expected ) !== gettype( $actual ) ) {
 		return false;
 	}
 
@@ -168,12 +168,12 @@ function checkThatCsvStringContainsValues( $actualCSV, $expectedCSV ) {
 		$expected_row = array_combine( $expectedHeaders, $expected_row );
 		foreach ( $actualCSV as $actual_row ) {
 
-			if ( count( $actualHeaders ) != count( $actual_row ) ) {
+			if ( count( $actualHeaders ) !== count( $actual_row ) ) {
 				continue;
 			}
 
 			$actual_row = array_intersect_key( array_combine( $actualHeaders, $actual_row ), $expected_row );
-			if ( $actual_row == $expected_row ) {
+			if ( $actual_row === $expected_row ) {
 				$expectedResult++;
 			}
 		}

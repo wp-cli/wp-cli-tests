@@ -70,7 +70,7 @@ $steps->Then(
 			$expected_rows[] = $world->replace_variables( implode( "\t", $row ) );
 		}
 
-		$start = array_search( $expected_rows[0], $actual_rows );
+		$start = array_search( $expected_rows[0], $actual_rows, true );
 
 		if ( false === $start ) {
 			throw new \Exception( $world->result );
@@ -183,9 +183,9 @@ $steps->Then(
 			$path = $world->variables['RUN_DIR'] . "/$path";
 		}
 
-		if ( 'file' == $type ) {
+		if ( 'file' === $type ) {
 			$test = 'file_exists';
-		} elseif ( 'directory' == $type ) {
+		} elseif ( 'directory' === $type ) {
 			$test = 'is_dir';
 		}
 
@@ -206,9 +206,9 @@ $steps->Then(
 				}
 				$action   = substr( $action, 0, -1 );
 				$expected = $world->replace_variables( (string) $expected );
-				if ( 'file' == $type ) {
+				if ( 'file' === $type ) {
 					$contents = file_get_contents( $path );
-				} elseif ( 'directory' == $type ) {
+				} elseif ( 'directory' === $type ) {
 					$files = glob( rtrim( $path, '/' ) . '/*' );
 					foreach ( $files as &$file ) {
 						$file = str_replace( $path . '/', '', $file );
