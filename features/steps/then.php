@@ -242,7 +242,8 @@ $steps->Then(
 );
 
 $steps->Then(
-	'/^an email should (be sent|not be sent)$/', function( $world, $expected ) {
+	'/^an email should (be sent|not be sent)$/',
+	function( $world, $expected ) {
 		if ( 'be sent' === $expected ) {
 			assertNotEquals( 0, $world->email_sends );
 		} elseif ( 'not be sent' === $expected ) {

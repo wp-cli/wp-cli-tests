@@ -457,9 +457,11 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		}
 
 		$str = preg_replace_callback(
-			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-([^}]*)}/', function ( $matches ) use ( $phar_path, $shell_path ) {
+			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-([^}]*)}/',
+			function ( $matches ) use ( $phar_path, $shell_path ) {
 				return $phar_path ? "php {$matches[1]} {$phar_path}" : ( 'WP_CLI_PHP_ARGS=' . escapeshellarg( $matches[1] ) . ' ' . $shell_path );
-			}, $str
+			},
+			$str
 		);
 
 		return $str;
@@ -995,7 +997,14 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		$log .= sprintf(
 			PHP_EOL . "Total process run time %s (tests %s, overhead %.3f %d%%), calls %d (%d unique) for '%s' run from '%s'" . PHP_EOL,
-			$fmt( $ptime ), $fmt( $time ), $overhead, $pct, $calls, $unique, $suite, $run_from
+			$fmt( $ptime ),
+			$fmt( $time ),
+			$overhead,
+			$pct,
+			$calls,
+			$unique,
+			$suite,
+			$run_from
 		);
 
 		uasort(

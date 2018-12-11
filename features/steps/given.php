@@ -122,7 +122,8 @@ $steps->Given(
 		$world->install_wp();
 		$subdomains = ! empty( $type ) && 'subdomain' === $type ? 1 : 0;
 		$world->proc(
-			'wp core install-network', array(
+			'wp core install-network',
+			array(
 				'title'      => 'WP CLI Network',
 				'subdomains' => $subdomains,
 			)
