@@ -157,25 +157,39 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			'BEHAT_RUN' => 1,
 			'HOME'      => sys_get_temp_dir() . '/wp-cli-home',
 		);
-		if ( $config_path = getenv( 'WP_CLI_CONFIG_PATH' ) ) {
+
+		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
+		if ( false !== $config_path ) {
 			$env['WP_CLI_CONFIG_PATH'] = $config_path;
 		}
-		if ( $term = getenv( 'TERM' ) ) {
+
+		$term = getenv( 'TERM' );
+		if ( false !== $term ) {
 			$env['TERM'] = $term;
 		}
-		if ( $php_args = getenv( 'WP_CLI_PHP_ARGS' ) ) {
+
+		$php_args = getenv( 'WP_CLI_PHP_ARGS' );
+		if ( false !== $php_args ) {
 			$env['WP_CLI_PHP_ARGS'] = $php_args;
 		}
-		if ( $php_used = getenv( 'WP_CLI_PHP_USED' ) ) {
+
+		$php_used = getenv( 'WP_CLI_PHP_USED' );
+		if ( false !== $php_used ) {
 			$env['WP_CLI_PHP_USED'] = $php_used;
 		}
-		if ( $php = getenv( 'WP_CLI_PHP' ) ) {
+
+		$php = getenv( 'WP_CLI_PHP' );
+		if ( false !== $php ) {
 			$env['WP_CLI_PHP'] = $php;
 		}
-		if ( $travis_build_dir = getenv( 'TRAVIS_BUILD_DIR' ) ) {
+
+		$travis_build_dir = getenv( 'TRAVIS_BUILD_DIR' );
+		if ( false !== $travis_build_dir ) {
 			$env['TRAVIS_BUILD_DIR'] = $travis_build_dir;
 		}
-		if ( $github_token = getenv( 'GITHUB_TOKEN' ) ) {
+
+		$github_token = getenv( 'GITHUB_TOKEN' );
+		if ( false !== $github_token ) {
 			$env['GITHUB_TOKEN'] = $github_token;
 		}
 		return $env;
@@ -222,7 +236,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
 	 */
 	private static function cache_wp_files() {
-		$wp_version_suffix = ( $wp_version = getenv( 'WP_VERSION' ) ) ? "-$wp_version" : '';
+		$wp_version        = getenv( 'WP_VERSION' );
+		$wp_version_suffix = ( false !== $wp_version ) ? "-$wp_version" : '';
 		self::$cache_dir   = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 
 		if ( is_readable( self::$cache_dir . '/wp-config-sample.php' ) ) {
@@ -241,7 +256,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 */
 	public static function prepare( SuiteEvent $event ) {
 		// Test performance statistics - useful for detecting slow tests.
-		if ( self::$log_run_times = getenv( 'WP_CLI_TEST_LOG_RUN_TIMES' ) ) {
+		self::$log_run_times = getenv( 'WP_CLI_TEST_LOG_RUN_TIMES' );
+		if ( false !== self::$log_run_times ) {
 			self::log_run_times_before_suite( $event );
 		}
 
@@ -268,7 +284,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		echo PHP_EOL;
 
 		// Remove install cache if any (not setting the static var).
-		$wp_version_suffix = ( $wp_version = getenv( 'WP_VERSION' ) ) ? "-$wp_version" : '';
+		$wp_version        = getenv( 'WP_VERSION' );
+		$wp_version_suffix = ( false !== $wp_version ) ? "-$wp_version" : '';
 		$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( file_exists( $install_cache_dir ) ) {
 			self::remove_dir( $install_cache_dir );
@@ -304,7 +321,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		// Used in the names of the RUN_DIR and SUITE_CACHE_DIR directories.
 		self::$temp_dir_infix = null;
-		if ( $file = self::get_event_file( $event, $line ) ) {
+		$file                 = self::get_event_file( $event, $line );
+		if ( isset( $file ) ) {
 			self::$temp_dir_infix = basename( $file ) . '.' . $line;
 		}
 	}
@@ -440,7 +458,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			$phar_path      = false;
 			$phar_begin     = '#!/usr/bin/env php';
 			$phar_begin_len = strlen( $phar_begin );
-			if ( ( $bin_dir = getenv( 'WP_CLI_BIN_DIR' ) ) && file_exists( $bin_dir . '/wp' ) && file_get_contents( $bin_dir . '/wp', false, null, 0, $phar_begin_len ) === $phar_begin ) {
+			$bin_dir        = getenv( 'WP_CLI_BIN_DIR' );
+			if ( false !== $bin_dir && file_exists( $bin_dir . '/wp' ) && file_get_contents( $bin_dir . '/wp', false, null, 0, $phar_begin_len ) === $phar_begin ) {
 				$phar_path = $bin_dir . '/wp';
 			} else {
 				$src_dir         = dirname( dirname( __DIR__ ) );
@@ -740,7 +759,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	}
 
 	public function install_wp( $subdir = '' ) {
-		$wp_version_suffix       = ( $wp_version = getenv( 'WP_VERSION' ) ) ? "-$wp_version" : '';
+		$wp_version              = getenv( 'WP_VERSION' );
+		$wp_version_suffix       = ( false !== $wp_version ) ? "-$wp_version" : '';
 		self::$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( ! file_exists( self::$install_cache_dir ) ) {
 			mkdir( self::$install_cache_dir );
@@ -893,7 +913,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 * Record the start time of the scenario into the `$scenario_run_times` array.
 	 */
 	private static function log_run_times_before_scenario( $event ) {
-		if ( $scenario_key = self::get_scenario_key( $event ) ) {
+		$scenario_key = self::get_scenario_key( $event );
+		if ( $scenario_key ) {
 			self::$scenario_run_times[ $scenario_key ] = -microtime( true );
 		}
 	}
@@ -902,7 +923,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 * Save the run time of the scenario into the `$scenario_run_times` array. Only the top `self::$num_top_scenarios` are kept.
 	 */
 	private static function log_run_times_after_scenario( $event ) {
-		if ( $scenario_key = self::get_scenario_key( $event ) ) {
+		$scenario_key = self::get_scenario_key( $event );
+		if ( $scenario_key ) {
 			self::$scenario_run_times[ $scenario_key ] += microtime( true );
 			self::$scenario_count++;
 			if ( count( self::$scenario_run_times ) > self::$num_top_scenarios ) {
@@ -921,7 +943,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 * @param string $cop_dir Where to copy any files/directories in `$upd_dir` but not in `$src_dir` to.
 	 */
 	private static function dir_diff_copy( $upd_dir, $src_dir, $cop_dir ) {
-		if ( false === ( $files = scandir( $upd_dir ) ) ) {
+		$files = scandir( $upd_dir );
+		if ( false === $files ) {
 			$error = error_get_last();
 			throw new \RuntimeException( sprintf( "Failed to open updated directory '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_dir, $error['message'] ) );
 		}
@@ -954,7 +977,8 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 */
 	private static function get_scenario_key( $event ) {
 		$scenario_key = '';
-		if ( $file = self::get_event_file( $event, $line ) ) {
+		$file         = self::get_event_file( $event, $line );
+		if ( isset( $file ) ) {
 			$scenario_grandparent = Utils\basename( dirname( dirname( $file ) ) );
 			$scenario_key         = $scenario_grandparent . ' ' . Utils\basename( $file ) . ':' . $line;
 		}
