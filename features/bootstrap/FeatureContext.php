@@ -380,6 +380,9 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			}
 		}
 
+		// Send a SIGTERM first to allow the process to exit cleanly.
+		posix_kill( (int) $master_pid, 15 );
+
 		if ( ! posix_kill( (int) $master_pid, 9 ) ) {
 			$errno = posix_get_last_error();
 			// Ignore "No such process" error as that's what we want.
