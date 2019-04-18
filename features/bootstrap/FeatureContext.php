@@ -6,38 +6,47 @@ use Behat\Behat\Event\SuiteEvent;
 use WP_CLI\Process;
 use WP_CLI\Utils;
 
-// Inside a community package
-if ( file_exists( __DIR__ . '/utils.php' ) ) {
-	require_once __DIR__ . '/utils.php';
-	require_once __DIR__ . '/Process.php';
-	require_once __DIR__ . '/ProcessRun.php';
-	$project_composer = dirname( dirname( dirname( __FILE__ ) ) ) . '/composer.json';
-	if ( file_exists( $project_composer ) ) {
-		$composer = json_decode( file_get_contents( $project_composer ) );
-		if ( ! empty( $composer->autoload->files ) ) {
-			$contents = 'require:' . PHP_EOL;
-			foreach ( $composer->autoload->files as $file ) {
-				$contents .= '  - ' . dirname( dirname( dirname( __FILE__ ) ) ) . '/' . $file . PHP_EOL;
+/**
+ * Load required support files as needed before heading into the Behat context.
+ */
+function wpcli_bootstrap_behat() {
+	// Inside a community package
+	if ( file_exists( __DIR__ . '/utils.php' ) ) {
+		require_once __DIR__ . '/utils.php';
+		require_once __DIR__ . '/Process.php';
+		require_once __DIR__ . '/ProcessRun.php';
+
+		$project_composer = dirname( dirname( dirname( __FILE__ ) ) ) . '/composer.json';
+		if ( file_exists( $project_composer ) ) {
+			$composer = json_decode( file_get_contents( $project_composer ) );
+			if ( ! empty( $composer->autoload->files ) ) {
+				$contents = 'require:' . PHP_EOL;
+				foreach ( $composer->autoload->files as $file ) {
+					$contents .= '  - ' . dirname( dirname( dirname( __FILE__ ) ) ) . '/' . $file . PHP_EOL;
+				}
+				$folder = sys_get_temp_dir() . '/wp-cli-package-test';
+				if ( is_dir( $folder ) || mkdir( $folder ) || is_dir( $folder ) ) {
+					$project_config = "{$folder}/config.yml";
+					file_put_contents( $project_config, $contents );
+					putenv( 'WP_CLI_CONFIG_PATH=' . $project_config );
+				}
 			}
-			$folder = sys_get_temp_dir() . '/wp-cli-package-test';
-			if ( is_dir( $folder ) || mkdir( $folder ) || is_dir( $folder ) ) {
-				$project_config = "{$folder}/config.yml";
-				file_put_contents( $project_config, $contents );
-				putenv( 'WP_CLI_CONFIG_PATH=' . $project_config );
-			};
+		}
+	// Inside WP-CLI
+	} else {
+		require_once dirname( dirname( __DIR__ ) ) . '/php/utils.php';
+		require_once dirname( dirname( __DIR__ ) ) . '/php/WP_CLI/Process.php';
+		require_once dirname( dirname( __DIR__ ) ) . '/php/WP_CLI/ProcessRun.php';
+
+		if ( file_exists( dirname( dirname( __DIR__ ) ) . '/vendor/autoload.php' ) ) {
+			require_once dirname( dirname( __DIR__ ) ) . '/vendor/autoload.php';
+		} elseif ( file_exists( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/autoload.php' ) ) {
+			require_once dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/autoload.php';
 		}
 	}
-	// Inside WP-CLI
-} else {
-	require_once __DIR__ . '/../../php/utils.php';
-	require_once __DIR__ . '/../../php/WP_CLI/Process.php';
-	require_once __DIR__ . '/../../php/WP_CLI/ProcessRun.php';
-	if ( file_exists( __DIR__ . '/../../vendor/autoload.php' ) ) {
-		require_once __DIR__ . '/../../vendor/autoload.php';
-	} elseif ( file_exists( __DIR__ . '/../../../../autoload.php' ) ) {
-		require_once __DIR__ . '/../../../../autoload.php';
-	}
 }
+
+wpcli_bootstrap_behat();
 
 /**
  * Features context.
