@@ -9,7 +9,7 @@ use WP_CLI\Utils;
 /**
  * Load required support files as needed before heading into the Behat context.
  */
-function wpcli_bootstrap_behat() {
+function wpcli_bootstrap_behat_feature_context() {
 	// Inside a community package
 	if ( file_exists( __DIR__ . '/utils.php' ) ) {
 		require_once __DIR__ . '/utils.php';
@@ -46,7 +46,7 @@ function wpcli_bootstrap_behat() {
 	}
 }
 
-wpcli_bootstrap_behat();
+wpcli_bootstrap_behat_feature_context();
 
 /**
  * Features context.
