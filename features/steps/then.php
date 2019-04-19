@@ -2,6 +2,7 @@
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
+use WP_CLI\Tests\Support;
 
 $steps->Then(
 	'/^the return code should( not)? be (\d+)$/',
@@ -20,7 +21,7 @@ $steps->Then(
 
 		$expected = $world->replace_variables( (string) $expected );
 
-		checkString( $world->result->$stream, $expected, $action, $world->result );
+		Support\check_string( $world->result->$stream, $expected, $action, $world->result );
 	}
 );
 
@@ -30,7 +31,7 @@ $steps->Then(
 
 		$stream = strtolower( $stream );
 
-		assertNumeric( trim( $world->result->$stream, "\n" ) );
+		Support\assert_numeric( trim( $world->result->$stream, "\n" ) );
 	}
 );
 
@@ -40,7 +41,7 @@ $steps->Then(
 
 		$stream = strtolower( $stream );
 
-		assertNotNumeric( trim( $world->result->$stream, "\n" ) );
+		Support\assert_not_numeric( trim( $world->result->$stream, "\n" ) );
 	}
 );
 
@@ -55,7 +56,7 @@ $steps->Then(
 			$expected_rows[] = $world->replace_variables( implode( "\t", $row ) );
 		}
 
-		compareTables( $expected_rows, $actual_rows, $output );
+		Support\compare_tables( $expected_rows, $actual_rows, $output );
 	}
 );
 
@@ -73,10 +74,10 @@ $steps->Then(
 		$start = array_search( $expected_rows[0], $actual_rows, true );
 
 		if ( false === $start ) {
-			throw new \Exception( $world->result );
+			throw new Exception( $world->result );
 		}
 
-		compareTables( $expected_rows, array_slice( $actual_rows, $start ), $output );
+		Support\compare_tables( $expected_rows, array_slice( $actual_rows, $start ), $output );
 	}
 );
 
@@ -86,8 +87,8 @@ $steps->Then(
 		$output   = $world->result->stdout;
 		$expected = $world->replace_variables( (string) $expected );
 
-		if ( ! checkThatJsonStringContainsJsonString( $output, $expected ) ) {
-			throw new \Exception( $world->result );
+		if ( ! Support\check_that_json_string_contains_json_string( $output, $expected ) ) {
+			throw new Exception( $world->result );
 		}
 	}
 );
@@ -103,7 +104,7 @@ $steps->Then(
 
 		$missing = array_diff( $expected_values, $actual_values );
 		if ( ! empty( $missing ) ) {
-			throw new \Exception( $world->result );
+			throw new Exception( $world->result );
 		}
 	}
 );
@@ -120,8 +121,8 @@ $steps->Then(
 			}
 		}
 
-		if ( ! checkThatCsvStringContainsValues( $output, $expected_rows ) ) {
-			throw new \Exception( $world->result );
+		if ( ! Support\check_that_csv_string_contains_values( $output, $expected_rows ) ) {
+			throw new Exception( $world->result );
 		}
 	}
 );
@@ -132,8 +133,8 @@ $steps->Then(
 		$output   = $world->result->stdout;
 		$expected = $world->replace_variables( (string) $expected );
 
-		if ( ! checkThatYamlStringContainsYamlString( $output, $expected ) ) {
-			throw new \Exception( $world->result );
+		if ( ! Support\check_that_yaml_string_contains_yaml_string( $output, $expected ) ) {
+			throw new Exception( $world->result );
 		}
 	}
 );
@@ -145,7 +146,7 @@ $steps->Then(
 		$stream = strtolower( $stream );
 
 		if ( ! empty( $world->result->$stream ) ) {
-			throw new \Exception( $world->result );
+			throw new Exception( $world->result );
 		}
 	}
 );
@@ -215,7 +216,7 @@ $steps->Then(
 					}
 					$contents = implode( PHP_EOL, $files );
 				}
-				checkString( $contents, $expected, $action );
+				Support\check_string( $contents, $expected, $action );
 		}
 	}
 );
@@ -229,7 +230,7 @@ $steps->Then(
 			$path = $world->variables['RUN_DIR'] . "/$path";
 		}
 		$contents = file_get_contents( $path );
-		assertRegExp( $expected, $contents );
+		Support\assert_regex( $expected, $contents );
 	}
 );
 
@@ -237,7 +238,7 @@ $steps->Then(
 	'/^(STDOUT|STDERR) should match (((\/.+\/)|(#.+#))([a-z]+)?)$/',
 	function ( $world, $stream, $expected ) {
 		$stream = strtolower( $stream );
-		assertRegExp( $expected, $world->result->$stream );
+		Support\assert_regex( $expected, $world->result->$stream );
 	}
 );
 
@@ -245,9 +246,9 @@ $steps->Then(
 	'/^an email should (be sent|not be sent)$/',
 	function( $world, $expected ) {
 		if ( 'be sent' === $expected ) {
-			assertNotEquals( 0, $world->email_sends );
+			Support\assert_not_equals( 0, $world->email_sends );
 		} elseif ( 'not be sent' === $expected ) {
-			assertEquals( 0, $world->email_sends );
+			Support\assert_equals( 0, $world->email_sends );
 		} else {
 			throw new Exception( 'Invalid expectation' );
 		}
@@ -257,7 +258,7 @@ $steps->Then(
 $steps->Then(
 	'/^the HTTP status code should be (\d+)$/',
 	function ( $world, $return_code ) {
-		$response = \Requests::request( 'http://localhost:8080' );
-		assertEquals( $return_code, $response->status_code );
+		$response = Requests::request( 'http://localhost:8080' );
+		Support\assert_equals( $return_code, $response->status_code );
 	}
 );
