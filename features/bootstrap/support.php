@@ -1,12 +1,13 @@
 <?php
+/**
+ * Utility functions used by the Behat steps.
+ */
 
 namespace WP_CLI\Support;
 
 use Behat\Behat\Exception\PendingException;
 use Exception;
 use Mustangostang\Spyc;
-
-// Utility functions used by Behat steps
 
 function assert_regex( $regex, $actual ) {
 	if ( ! preg_match( $regex, $actual ) ) {
