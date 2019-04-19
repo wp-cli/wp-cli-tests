@@ -20,9 +20,11 @@ function wpcli_bootstrap_behat_feature_context() {
 
 	$vendor_folder = '';
 	foreach ( $vendor_locations as $location ) {
-		if ( is_dir( $location )
-		     && is_readable( $location )
-		     && is_file( "{$location}/autoload.php" ) ) {
+		if (
+			is_dir( $location )
+			&& is_readable( $location )
+			&& is_file( "{$location}/autoload.php" )
+		) {
 			$vendor_folder = $location;
 			break;
 		}
@@ -46,9 +48,11 @@ function wpcli_bootstrap_behat_feature_context() {
 
 	$framework_folder = '';
 	foreach ( $framework_locations as $location ) {
-		if ( is_dir( $location )
-		     && is_readable( $location )
-		     && is_file( "{$location}/php/utils.php" ) ) {
+		if (
+			is_dir( $location )
+			&& is_readable( $location )
+			&& is_file( "{$location}/php/utils.php" )
+		) {
 			$framework_folder = $location;
 			break;
 		}
@@ -77,9 +81,11 @@ function wpcli_bootstrap_behat_feature_context() {
 	}
 
 	$temp_folder = sys_get_temp_dir() . '/wp-cli-package-test';
-	if ( ! is_dir( $temp_folder )
-	     && ! mkdir( $temp_folder )
-	     && ! is_dir( $temp_folder ) ) {
+	if (
+		! is_dir( $temp_folder )
+		&& ! mkdir( $temp_folder )
+		&& ! is_dir( $temp_folder )
+	) {
 		return;
 	}
 
