@@ -99,10 +99,10 @@ $steps->Then(
 		$output   = $world->result->stdout;
 		$expected = $world->replace_variables( (string) $expected );
 
-		$actualValues   = json_decode( $output );
-		$expectedValues = json_decode( $expected );
+		$actual_values   = json_decode( $output );
+		$expected_values = json_decode( $expected );
 
-		$missing = array_diff( $expectedValues, $actualValues );
+		$missing = array_diff( $expected_values, $actual_values );
 		if ( ! empty( $missing ) ) {
 			throw new Exception( $world->result );
 		}

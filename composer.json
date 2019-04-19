@@ -19,11 +19,11 @@
         "wp-cli/config-command": "^1 || ^2",
         "wp-cli/core-command": "^1 || ^2",
         "wp-cli/eval-command": "^1 || ^2",
+        "wp-cli/wp-cli": "^2",
         "wp-coding-standards/wpcs": "^1"
     },
     "require-dev": {
-        "wp-cli/regenerate-readme": "^2",
-        "wp-cli/wp-cli": "^2"
+        "wp-cli/regenerate-readme": "^2"
     },
     "config": {
         "platform": {

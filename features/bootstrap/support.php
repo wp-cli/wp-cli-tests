@@ -106,15 +106,13 @@ function compare_contents( $expected, $actual ) {
 }
 
 /**
- * Compare two strings containing JSON to ensure that @a $actualJson contains at
- * least what the JSON string @a $expectedJson contains.
+ * Compare two strings containing JSON to ensure that $actualJson contains at
+ * least what the JSON string $expectedJson contains.
  *
- * @return whether or not @a $actualJson contains @a $expectedJson
- *     @retval true  @a $actualJson contains @a $expectedJson
- *     @retval false @a $actualJson does not contain @a $expectedJson
+ * @param string $actual_json   the JSON string to be tested
+ * @param string $expected_json the expected JSON string
  *
- * @param[in] $actualJson   the JSON string to be tested
- * @param[in] $expectedJson the expected JSON string
+ * @return bool Whether or not $actual_json contains $expected_json.
  *
  * Examples:
  *   expected: {'a':1,'array':[1,3,5]}
@@ -138,15 +136,15 @@ function compare_contents( $expected, $actual ) {
  *   return: false
  *     the contents of 'array' does not include 3
  */
-function check_that_json_string_contains_json_string( $actualJson, $expectedJson ) {
-	$actualValue   = json_decode( $actualJson );
-	$expectedValue = json_decode( $expectedJson );
+function check_that_json_string_contains_json_string( $actual_json, $expected_json ) {
+	$actual_value   = json_decode( $actual_json );
+	$expected_value = json_decode( $expected_json );
 
-	if ( ! $actualValue ) {
+	if ( ! $actual_value ) {
 		return false;
 	}
 
-	return compare_contents( $expectedValue, $actualValue );
+	return compare_contents( $expected_value, $actual_value );
 }
 
 /**
@@ -154,60 +152,65 @@ function check_that_json_string_contains_json_string( $actualJson, $expectedJson
  * Both strings are expected to have headers for their CSVs.
  * $actualCSV must match all data rows in $expectedCSV
  *
- * @param  string   A CSV string
- * @param  array    A nested array of values
- * @return bool     Whether $actualCSV contains $expectedCSV
+ * @param  string $actual_csv   A CSV string
+ * @param  array  $expected_csv A nested array of values
+ * @return bool   Whether $actual_csv contains $expected_csv
  */
-function check_that_csv_string_contains_values( $actualCSV, $expectedCSV ) {
-	$actualCSV = array_map( 'str_getcsv', explode( PHP_EOL, $actualCSV ) );
+function check_that_csv_string_contains_values( $actual_csv, $expected_csv ) {
+	$actual_csv = array_map( 'str_getcsv', explode( PHP_EOL, $actual_csv ) );
 
-	if ( empty( $actualCSV ) ) {
+	if ( empty( $actual_csv ) ) {
 		return false;
 	}
 
 	// Each sample must have headers
-	$actualHeaders   = array_values( array_shift( $actualCSV ) );
-	$expectedHeaders = array_values( array_shift( $expectedCSV ) );
+	$actual_headers   = array_values( array_shift( $actual_csv ) );
+	$expected_headers = array_values( array_shift( $expected_csv ) );
 
-	// Each expectedCSV must exist somewhere in actualCSV in the proper column
-	$expectedResult = 0;
-	foreach ( $expectedCSV as $expected_row ) {
-		$expected_row = array_combine( $expectedHeaders, $expected_row );
-		foreach ( $actualCSV as $actual_row ) {
+	// Each expected_csv must exist somewhere in actual_csv in the proper column
+	$expected_result = 0;
+	foreach ( $expected_csv as $expected_row ) {
+		$expected_row = array_combine( $expected_headers, $expected_row );
+		foreach ( $actual_csv as $actual_row ) {
 
-			if ( count( $actualHeaders ) !== count( $actual_row ) ) {
+			if ( count( $actual_headers ) !== count( $actual_row ) ) {
 				continue;
 			}
 
-			$actual_row = array_intersect_key( array_combine( $actualHeaders, $actual_row ), $expected_row );
+			$actual_row = array_intersect_key(
+				array_combine(
+					$actual_headers,
+					$actual_row
+				),
+				$expected_row
+			);
+
 			if ( $actual_row === $expected_row ) {
-				$expectedResult++;
+				$expected_result ++;
 			}
 		}
 	}
 
-	return $expectedResult >= count( $expectedCSV );
+	return $expected_result >= count( $expected_csv );
 }
 
 /**
- * Compare two strings containing YAML to ensure that @a $actualYaml contains at
- * least what the YAML string @a $expectedYaml contains.
+ * Compare two strings containing YAML to ensure that $actualYaml contains at
+ * least what the YAML string $expectedYaml contains.
  *
- * @return whether or not @a $actualYaml contains @a $expectedJson
- *     @retval true  @a $actualYaml contains @a $expectedJson
- *     @retval false @a $actualYaml does not contain @a $expectedJson
+ * @param string $actual_yaml   the YAML string to be tested
+ * @param string $expected_yaml the expected YAML string
  *
- * @param[in] $actualYaml   the YAML string to be tested
- * @param[in] $expectedYaml the expected YAML string
+ * @return bool whether or not $actual_yaml contains $expected_json
  */
-function check_that_yaml_string_contains_yaml_string( $actualYaml, $expectedYaml ) {
-	$actualValue   = Spyc::YAMLLoad( $actualYaml );
-	$expectedValue = Spyc::YAMLLoad( $expectedYaml );
+function check_that_yaml_string_contains_yaml_string( $actual_yaml, $expected_yaml ) {
+	$actual_value   = Spyc::YAMLLoad( $actual_yaml );
+	$expected_value = Spyc::YAMLLoad( $expected_yaml );
 
-	if ( ! $actualValue ) {
+	if ( ! $actual_value ) {
 		return false;
 	}
 
-	return compare_contents( $expectedValue, $actualValue );
+	return compare_contents( $expected_value, $actual_value );
 }
 
