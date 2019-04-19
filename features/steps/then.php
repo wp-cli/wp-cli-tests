@@ -7,7 +7,10 @@ use WP_CLI\Tests\Support;
 $steps->Then(
 	'/^the return code should( not)? be (\d+)$/',
 	function ( $world, $not, $return_code ) {
-		if ( ( ! $not && $return_code !== $world->result->return_code ) || ( $not && $return_code === $world->result->return_code ) ) {
+		if (
+			( ! $not && (int) $return_code !== $world->result->return_code )
+			|| ( $not && (int) $return_code === $world->result->return_code )
+		) {
 			throw new RuntimeException( $world->result );
 		}
 	}
