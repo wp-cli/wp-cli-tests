@@ -1,4 +1,6 @@
-<?php namespace WP_CLI\Support;
+<?php
+
+namespace WP_CLI\Support;
 
 use Behat\Behat\Exception\PendingException;
 use Exception;
