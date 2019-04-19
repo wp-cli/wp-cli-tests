@@ -1,13 +1,13 @@
 To make use of the WP-CLI testing framework, you need to complete the following steps from within the package you want to add them to:
 
 1. Add the testing framework as a development requirement:
-	```bash
-	composer require --dev wp-cli/wp-cli-tests
-	```
+    ```bash
+    composer require --dev wp-cli/wp-cli-tests
+    ```
 
 2. Add the required test scripts to the `composer.json` file:
-	```json
-	"scripts": {
+    ```json
+    "scripts": {
         "behat": "run-behat-tests",
         "behat-rerun": "rerun-behat-tests",
         "lint": "run-linter-tests",
@@ -20,31 +20,62 @@ To make use of the WP-CLI testing framework, you need to complete the following 
             "@phpunit",
             "@behat"
         ]
-	}
-	```
-	You can of course remove the ones you don't need.
+    }
+    ```
+    You can of course remove the ones you don't need.
 
 3. Optionally add a modified process timeout to the `composer.json` file to make sure scripts can run until their work is completed:
-	```json
-	"config": {
-		"process-timeout": 1800
-	},
-	```
-	The timeout is expressed in seconds.
+    ```json
+    "config": {
+        "process-timeout": 1800
+    },
+    ```
+    The timeout is expressed in seconds.
 
 4. Optionally add a `behat.yml` file to the package root with the following content:
-	```json
-	default:
-	  paths:
-	    features: features
+    ```json
+    default:
+      paths:
+        features: features
         bootstrap: vendor/wp-cli/wp-cli-tests/features/bootstrap
-	```
-	This will make sure that the automated Behat system works across all platforms. This is needed on Windows.
+    ```
+    This will make sure that the automated Behat system works across all platforms. This is needed on Windows.
 
-5. Update your composer dependencies and regenerate your autoloader and binary folders:
-	```bash
-	composer update
-	```
+5. Optionally add a `phpcs.xml.dist` file to the package root to enable code style and best practice checks using PHP_CodeSniffer.
+
+    Example of a minimal custom ruleset based on the defaults set in the WP-CLI testing framework:
+    ```xml
+    <?xml version="1.0"?>
+    <ruleset name="WP-CLI-PROJECT-NAME">
+    <description>Custom ruleset for WP-CLI PROJECT NAME</description>
+
+        <!-- What to scan. -->
+        <file>.</file>
+
+        <!-- Show progress. -->
+        <arg value="p"/>
+
+        <!-- Strip the filepaths down to the relevant bit. -->
+        <arg name="basepath" value="./"/>
+
+        <!-- Check up to 8 files simultaneously. -->
+        <arg name="parallel" value="8"/>
+
+        <!-- For help understanding the `testVersion` configuration setting:
+             https://github.com/PHPCompatibility/PHPCompatibility#sniffing-your-code-for-compatibility-with-specific-php-versions -->
+        <config name="testVersion" value="5.4-"/>
+
+        <!-- Rules: Include the base ruleset for WP-CLI projects. -->
+        <rule ref="WP_CLI_CS"/>
+
+    </ruleset>
+    ```
+
+    All other [PHPCS configuration options](https://github.com/squizlabs/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
+6. Update your composer dependencies and regenerate your autoloader and binary folders:
+    ```bash
+    composer update
+    ```
 
 You are now ready to use the testing framework from within your package.
 

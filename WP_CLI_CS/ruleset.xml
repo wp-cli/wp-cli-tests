@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="WP_CLI_CS" xsi:noNamespaceSchemaLocation="../vendor/squizlabs/php_codesniffer/phpcs.xsd">
+
+	<description>Coding standard for WP-CLI projects</description>
+
+	<!--
+	To include this ruleset in a WP-CLI project, use `rule ref="WP_CLI_CS"` in brackets.
+	See the instructions in the README/USING for an example.
+
+	For help using PHPCS: https://github.com/squizlabs/PHP_CodeSniffer/wiki/Usage
+	For help understanding this file: https://github.com/squizlabs/PHP_CodeSniffer/wiki/Annotated-ruleset.xml
+	-->
+
+	<!--
+	#############################################################################
+	COMMAND LINE ARGUMENTS
+	#############################################################################
+	-->
+
+	<!-- Ignoring select files/folders for all projects.
+		 https://github.com/squizlabs/PHP_CodeSniffer/wiki/Advanced-Usage#ignoring-files-and-folders -->
+	<exclude-pattern>*/.git/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+
+
+	<!--
+	#############################################################################
+	USE THE PHPCOMPATIBILITY RULESET
+
+	This checks code for PHP cross-version compatibility.
+	See: https://github.com/PHPCompatibility/PHPCompatibility
+	#############################################################################
+	-->
+
+	<rule ref="PHPCompatibility">
+		<!-- Only scan PHP files for PHP compatibility. -->
+		<include-pattern>*\.php$</include-pattern>
+
+		<!-- Polyfill package is included with WP-CLI, so available to all projects. -->
+		<exclude name="PHPCompatibility.FunctionUse.NewFunctions.array_columnFound"/>
+	</rule>
+
+	<!--
+	#############################################################################
+	USE THE WORDPRESS-EXTRA RULESET
+
+	This checks code against the WordPress Core code style requirements, as well as
+	a number of modern PHP style rules and other best practices which are
+	currently not yet covered in the Core style handbook.
+	See: https://make.wordpress.org/core/handbook/best-practices/coding-standards/
+	See: https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards
+	#############################################################################
+	-->
+
+	<rule ref="WordPress-Extra">
+
+		<!-- No need for this sniff as the parallel linter command takes care of linting. -->
+		<exclude name="Generic.PHP.Syntax"/>
+
+		<!-- To make autoloading easier, PSR-4 is mostly adhered to for file naming. -->
+		<exclude name="WordPress.Files.FileName"/>
+
+		<!-- Output is sent to cli, not to HTML, so this sniff is not applicable to WP-CLI.
+			 Note: some output escaping may still be needed/beneficial, however this would probably
+			 require a custom sniff. -->
+		<exclude name="WordPress.Security.EscapeOutput"/>
+
+		<!-- WP-CLI is intended as a developer tool, so using development functions should be fine. -->
+		<exclude name="WordPress.PHP.DevelopmentFunctions"/>
+
+		<!-- Make some allowance for the fact that the code will be run in a command-line environment. -->
+		<exclude name="Generic.PHP.BacktickOperator"/>
+
+	</rule>
+
+
+	<!--
+	#############################################################################
+	SPECIFIC CONFIGURATION FOR SNIFFS
+	#############################################################################
+	-->
+
+	<!-- Verify that everything in the global namespace is either namespaced or prefixed.
+		 See: https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards/wiki/Customizable-sniff-properties#naming-conventions-prefix-everything-in-the-global-namespace -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="WP_CLI"/><!-- Namespaces and non-namespaced classes. -->
+				<element value="wpcli"/><!-- Global variables and functions. -->
+			</property>
+		</properties>
+	</rule>
+
+	<!-- Allow for silencing errors in combination with a select list of functions.
+		 See: https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards/wiki/Customizable-sniff-properties#error-silencing-use-build-in-function-whitelist -->
+	<rule ref="WordPress.PHP.NoSilencedErrors">
+		<properties>
+			<property name="use_default_whitelist" value="true"/>
+		</properties>
+	</rule>
+
+	<!-- Make some allowance for the fact that the code will be run in a command-line environment.
+		 See: https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards/wiki/Customizable-sniff-properties#excluding-a-group-of-checks -->
+	<rule ref="WordPress.PHP.DiscouragedPHPFunctions">
+		<properties>
+			<property name="exclude" type="array">
+				<element value="runtime_configuration"/>
+				<element value="system_calls"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.WP.AlternativeFunctions">
+		<properties>
+			<property name="exclude" type="array">
+				<element value="curl"/>
+				<element value="file_get_contents"/>
+				<element value="file_system_read"/>
+				<!-- As PHP 5.4. is the minimum for most projects, using json_encode() is fine. -->
+				<element value="json_encode"/>
+			</property>
+		</properties>
+	</rule>
+
+</ruleset>
