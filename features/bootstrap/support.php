@@ -1,4 +1,8 @@
-<?php //namespace WP_CLI\Support;
+<?php namespace WP_CLI\Support;
+
+use Behat\Behat\Exception\PendingException;
+use Exception;
+use Mustangostang\Spyc;
 
 // Utility functions used by Behat steps
 
@@ -48,7 +52,7 @@ function check_string( $output, $expected, $action, $message = false ) {
 			break;
 
 		default:
-			throw new Behat\Behat\Exception\PendingException();
+			throw new PendingException();
 	}
 
 	if ( ! $r ) {
@@ -62,7 +66,7 @@ function check_string( $output, $expected, $action, $message = false ) {
 function compare_tables( $expected_rows, $actual_rows, $output ) {
 	// the first row is the header and must be present
 	if ( $expected_rows[0] !== $actual_rows[0] ) {
-		throw new \Exception( $output );
+		throw new Exception( $output );
 	}
 
 	unset( $actual_rows[0] );
@@ -70,7 +74,7 @@ function compare_tables( $expected_rows, $actual_rows, $output ) {
 
 	$missing_rows = array_diff( $expected_rows, $actual_rows );
 	if ( ! empty( $missing_rows ) ) {
-		throw new \Exception( $output );
+		throw new Exception( $output );
 	}
 }
 
@@ -131,7 +135,7 @@ function compare_contents( $expected, $actual ) {
  *   return: false
  *     the contents of 'array' does not include 3
  */
-function checkThatJsonStringContainsJsonString( $actualJson, $expectedJson ) {
+function check_that_json_string_contains_json_string( $actualJson, $expectedJson ) {
 	$actualValue   = json_decode( $actualJson );
 	$expectedValue = json_decode( $expectedJson );
 
@@ -194,8 +198,8 @@ function check_that_csv_string_contains_values( $actualCSV, $expectedCSV ) {
  * @param[in] $expectedYaml the expected YAML string
  */
 function check_that_yaml_string_contains_yaml_string( $actualYaml, $expectedYaml ) {
-	$actualValue   = Mustangostang\Spyc::YAMLLoad( $actualYaml );
-	$expectedValue = Mustangostang\Spyc::YAMLLoad( $expectedYaml );
+	$actualValue   = Spyc::YAMLLoad( $actualYaml );
+	$expectedValue = Spyc::YAMLLoad( $expectedYaml );
 
 	if ( ! $actualValue ) {
 		return false;
