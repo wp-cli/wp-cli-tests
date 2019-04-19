@@ -1,6 +1,9 @@
 <?php
 define( 'WP_CLI', true );
 define( 'WP_CLI_TESTS_ROOT', dirname( __DIR__ ) );
+
+// These constants are actively used by dependent projects, renaming them would be a BC-break.
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
 define(
 	'VENDOR_DIR',
 	file_exists( WP_CLI_TESTS_ROOT . '/vendor/autoload.php' )
@@ -8,6 +11,7 @@ define(
 		: WP_CLI_TESTS_ROOT . '/../..'
 );
 define( 'PACKAGE_ROOT', VENDOR_DIR . '/..' );
+// phpcs:enable
 
 define(
 	'WP_CLI_ROOT',
