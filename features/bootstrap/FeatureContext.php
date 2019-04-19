@@ -15,7 +15,7 @@ function wpcli_bootstrap_behat_feature_context() {
 		// wp-cli/wp-cli-tests is the root project.
 		dirname( dirname( __DIR__ ) ) . '/vendor',
 		// wp-cli/wp-cli-tests is a dependency.
-		dirname( dirname( dirname( __DIR__ ) ) ),
+		dirname( dirname( dirname( dirname( __DIR__ ) ) ) ),
 	];
 
 	$vendor_folder = '';
