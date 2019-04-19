@@ -23,6 +23,7 @@ env:
     - WP_CLI_BIN_DIR="$TRAVIS_BUILD_DIR/vendor/bin"
 
 before_install:
+  - export XMLLINT_INDENT="	"
   - |
     # Remove Xdebug for a huge performance increase:
     if [ -f ~/.phpenv/versions/$(phpenv version-name)/etc/conf.d/xdebug.ini ]; then
@@ -46,9 +47,15 @@ script:
 jobs:
   include:
     - stage: sniff
+      addons:
+        apt:
+          packages:
+            - libxml2-utils
       script:
         - composer lint
+        - xmllint --noout --schema ./vendor/squizlabs/php_codesniffer/phpcs.xsd ./*/ruleset.xml
         - composer phpcs
+        - diff -B --tabsize=4 ./WP_CLI_CS/ruleset.xml <(xmllint --format "./WP_CLI_CS/ruleset.xml")
       env: BUILD=sniff
     - stage: test
       php: 7.2
