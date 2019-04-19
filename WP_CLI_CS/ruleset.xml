@@ -86,8 +86,10 @@
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="WP_CLI"/><!-- Namespaces and non-namespaced classes. -->
-				<element value="wpcli"/><!-- Global variables and functions. -->
+				<!-- Namespaces and non-namespaced classes. -->
+				<element value="WP_CLI"/>
+				<!-- Global variables and functions. -->
+				<element value="wpcli"/>
 			</property>
 		</properties>
 	</rule>
