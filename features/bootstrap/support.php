@@ -1,38 +1,38 @@
-<?php
+<?php //namespace WP_CLI\Support;
 
 // Utility functions used by Behat steps
 
-function assertRegExp( $regex, $actual ) {
+function assert_regex( $regex, $actual ) {
 	if ( ! preg_match( $regex, $actual ) ) {
 		throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 	}
 }
 
-function assertEquals( $expected, $actual ) {
+function assert_equals( $expected, $actual ) {
 	if ( $expected != $actual ) {
 		throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 	}
 }
 
-function assertNotEquals( $expected, $actual ) {
+function assert_not_equals( $expected, $actual ) {
 	if ( $expected == $actual ) {
 		throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 	}
 }
 
-function assertNumeric( $actual ) {
+function assert_numeric( $actual ) {
 	if ( ! is_numeric( $actual ) ) {
 		throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 	}
 }
 
-function assertNotNumeric( $actual ) {
+function assert_not_numeric( $actual ) {
 	if ( is_numeric( $actual ) ) {
 		throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 	}
 }
 
-function checkString( $output, $expected, $action, $message = false ) {
+function check_string( $output, $expected, $action, $message = false ) {
 	switch ( $action ) {
 
 		case 'be':
@@ -59,7 +59,7 @@ function checkString( $output, $expected, $action, $message = false ) {
 	}
 }
 
-function compareTables( $expected_rows, $actual_rows, $output ) {
+function compare_tables( $expected_rows, $actual_rows, $output ) {
 	// the first row is the header and must be present
 	if ( $expected_rows[0] !== $actual_rows[0] ) {
 		throw new \Exception( $output );
@@ -74,20 +74,20 @@ function compareTables( $expected_rows, $actual_rows, $output ) {
 	}
 }
 
-function compareContents( $expected, $actual ) {
+function compare_contents( $expected, $actual ) {
 	if ( gettype( $expected ) !== gettype( $actual ) ) {
 		return false;
 	}
 
 	if ( is_object( $expected ) ) {
 		foreach ( get_object_vars( $expected ) as $name => $value ) {
-			if ( ! compareContents( $value, $actual->$name ) ) {
+			if ( ! compare_contents( $value, $actual->$name ) ) {
 				return false;
 			}
 		}
 	} elseif ( is_array( $expected ) ) {
 		foreach ( $expected as $key => $value ) {
-			if ( ! compareContents( $value, $actual[ $key ] ) ) {
+			if ( ! compare_contents( $value, $actual[ $key ] ) ) {
 				return false;
 			}
 		}
@@ -139,7 +139,7 @@ function checkThatJsonStringContainsJsonString( $actualJson, $expectedJson ) {
 		return false;
 	}
 
-	return compareContents( $expectedValue, $actualValue );
+	return compare_contents( $expectedValue, $actualValue );
 }
 
 /**
@@ -151,7 +151,7 @@ function checkThatJsonStringContainsJsonString( $actualJson, $expectedJson ) {
  * @param  array    A nested array of values
  * @return bool     Whether $actualCSV contains $expectedCSV
  */
-function checkThatCsvStringContainsValues( $actualCSV, $expectedCSV ) {
+function check_that_csv_string_contains_values( $actualCSV, $expectedCSV ) {
 	$actualCSV = array_map( 'str_getcsv', explode( PHP_EOL, $actualCSV ) );
 
 	if ( empty( $actualCSV ) ) {
@@ -193,7 +193,7 @@ function checkThatCsvStringContainsValues( $actualCSV, $expectedCSV ) {
  * @param[in] $actualYaml   the YAML string to be tested
  * @param[in] $expectedYaml the expected YAML string
  */
-function checkThatYamlStringContainsYamlString( $actualYaml, $expectedYaml ) {
+function check_that_yaml_string_contains_yaml_string( $actualYaml, $expectedYaml ) {
 	$actualValue   = Mustangostang\Spyc::YAMLLoad( $actualYaml );
 	$expectedValue = Mustangostang\Spyc::YAMLLoad( $expectedYaml );
 
@@ -201,6 +201,6 @@ function checkThatYamlStringContainsYamlString( $actualYaml, $expectedYaml ) {
 		return false;
 	}
 
-	return compareContents( $expectedValue, $actualValue );
+	return compare_contents( $expectedValue, $actualValue );
 }
 

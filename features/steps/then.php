@@ -20,7 +20,7 @@ $steps->Then(
 
 		$expected = $world->replace_variables( (string) $expected );
 
-		checkString( $world->result->$stream, $expected, $action, $world->result );
+		check_string( $world->result->$stream, $expected, $action, $world->result );
 	}
 );
 
@@ -30,7 +30,7 @@ $steps->Then(
 
 		$stream = strtolower( $stream );
 
-		assertNumeric( trim( $world->result->$stream, "\n" ) );
+		assert_numeric( trim( $world->result->$stream, "\n" ) );
 	}
 );
 
@@ -40,7 +40,7 @@ $steps->Then(
 
 		$stream = strtolower( $stream );
 
-		assertNotNumeric( trim( $world->result->$stream, "\n" ) );
+		assert_not_numeric( trim( $world->result->$stream, "\n" ) );
 	}
 );
 
@@ -55,7 +55,7 @@ $steps->Then(
 			$expected_rows[] = $world->replace_variables( implode( "\t", $row ) );
 		}
 
-		compareTables( $expected_rows, $actual_rows, $output );
+		compare_tables( $expected_rows, $actual_rows, $output );
 	}
 );
 
@@ -76,7 +76,7 @@ $steps->Then(
 			throw new \Exception( $world->result );
 		}
 
-		compareTables( $expected_rows, array_slice( $actual_rows, $start ), $output );
+		compare_tables( $expected_rows, array_slice( $actual_rows, $start ), $output );
 	}
 );
 
@@ -86,7 +86,7 @@ $steps->Then(
 		$output   = $world->result->stdout;
 		$expected = $world->replace_variables( (string) $expected );
 
-		if ( ! checkThatJsonStringContainsJsonString( $output, $expected ) ) {
+		if ( ! check_that_json_string_contains_json_string( $output, $expected ) ) {
 			throw new \Exception( $world->result );
 		}
 	}
@@ -120,7 +120,7 @@ $steps->Then(
 			}
 		}
 
-		if ( ! checkThatCsvStringContainsValues( $output, $expected_rows ) ) {
+		if ( ! check_that_csv_string_contains_values( $output, $expected_rows ) ) {
 			throw new \Exception( $world->result );
 		}
 	}
@@ -132,7 +132,7 @@ $steps->Then(
 		$output   = $world->result->stdout;
 		$expected = $world->replace_variables( (string) $expected );
 
-		if ( ! checkThatYamlStringContainsYamlString( $output, $expected ) ) {
+		if ( ! check_that_yaml_string_contains_yaml_string( $output, $expected ) ) {
 			throw new \Exception( $world->result );
 		}
 	}
@@ -215,7 +215,7 @@ $steps->Then(
 					}
 					$contents = implode( PHP_EOL, $files );
 				}
-				checkString( $contents, $expected, $action );
+				check_string( $contents, $expected, $action );
 		}
 	}
 );
@@ -229,7 +229,7 @@ $steps->Then(
 			$path = $world->variables['RUN_DIR'] . "/$path";
 		}
 		$contents = file_get_contents( $path );
-		assertRegExp( $expected, $contents );
+		assert_regex( $expected, $contents );
 	}
 );
 
@@ -237,7 +237,7 @@ $steps->Then(
 	'/^(STDOUT|STDERR) should match (((\/.+\/)|(#.+#))([a-z]+)?)$/',
 	function ( $world, $stream, $expected ) {
 		$stream = strtolower( $stream );
-		assertRegExp( $expected, $world->result->$stream );
+		assert_regex( $expected, $world->result->$stream );
 	}
 );
 
@@ -245,9 +245,9 @@ $steps->Then(
 	'/^an email should (be sent|not be sent)$/',
 	function( $world, $expected ) {
 		if ( 'be sent' === $expected ) {
-			assertNotEquals( 0, $world->email_sends );
+			assert_not_equals( 0, $world->email_sends );
 		} elseif ( 'not be sent' === $expected ) {
-			assertEquals( 0, $world->email_sends );
+			assert_equals( 0, $world->email_sends );
 		} else {
 			throw new Exception( 'Invalid expectation' );
 		}
@@ -258,6 +258,6 @@ $steps->Then(
 	'/^the HTTP status code should be (\d+)$/',
 	function ( $world, $return_code ) {
 		$response = \Requests::request( 'http://localhost:8080' );
-		assertEquals( $return_code, $response->status_code );
+		assert_equals( $return_code, $response->status_code );
 	}
 );
