@@ -2,7 +2,7 @@
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
-use WP_CLI\Support;
+use WP_CLI\Tests\Support;
 
 $steps->Then(
 	'/^the return code should( not)? be (\d+)$/',

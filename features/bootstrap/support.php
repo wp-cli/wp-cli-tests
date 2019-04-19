@@ -3,7 +3,7 @@
  * Utility functions used by the Behat steps.
  */
 
-namespace WP_CLI\Support;
+namespace WP_CLI\Tests\Support;
 
 use Behat\Behat\Exception\PendingException;
 use Exception;
