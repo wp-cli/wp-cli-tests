@@ -431,7 +431,7 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 				$parent = $matches[1];
 				$child  = $matches[2];
 
-				if ( $parent === $master_pid ) {
+				if ( (int) $parent === (int) $master_pid ) {
 					self::terminate_proc( $child );
 				}
 			}
