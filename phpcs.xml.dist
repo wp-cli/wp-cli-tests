@@ -16,6 +16,9 @@
 	<!-- Show progress. -->
 	<arg value="p"/>
 
+	<!-- Show rule name. -->
+	<arg value="s"/>
+
 	<!-- Strip the filepaths down to the relevant bit. -->
 	<arg name="basepath" value="./"/>
 
