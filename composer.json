@@ -10,7 +10,7 @@
     "type" : "phpcodesniffer-standard",
     "require": {
         "php": ">=5.4",
-        "behat/behat": "^2.5",
+        "behat/behat": "^3.4",
         "dealerdirect/phpcodesniffer-composer-installer": "^0.4.3 || ^0.5",
         "jakub-onderka/php-console-highlighter": "^0.4",
         "jakub-onderka/php-parallel-lint": "^1.0",
