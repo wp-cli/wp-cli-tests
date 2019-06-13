@@ -24,7 +24,8 @@ $steps->Given(
 
 		$temp_dir = sys_get_temp_dir();
 
-		if ( 0 !== strpos( $dir, $temp_dir ) ) {
+		// Also check for temp dir prefixed with `/private` for Mac OS X.
+		if ( 0 !== strpos( $dir, $temp_dir ) && 0 !== strpos( $dir, "/private{$temp_dir}" ) ) {
 			throw new RuntimeException( sprintf( "Attempted to delete directory '%s' that is not in the temp directory '%s'. " . __FILE__ . ':' . __LINE__, $dir, $temp_dir ) );
 		}
 
