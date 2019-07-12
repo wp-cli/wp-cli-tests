@@ -46,7 +46,8 @@ $steps->Given(
 $steps->Given(
 	'/^an? ([^\s]+) (file|cache file):$/',
 	function ( $world, $path, $type, PyStringNode $content ) {
-		$content   = (string) $content . "\n";
+		$path      = $world->replace_variables( (string) $path );
+		$content   = $world->replace_variables( (string) $content ) . "\n";
 		$full_path = 'cache file' === $type
 			? $world->variables['SUITE_CACHE_DIR'] . "/$path"
 			: $world->variables['RUN_DIR'] . "/$path";
