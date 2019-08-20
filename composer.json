@@ -16,7 +16,6 @@
         "jakub-onderka/php-parallel-lint": "^1.0",
         "phpcompatibility/php-compatibility": "^9",
         "phpunit/phpunit": ">=4.8 <7",
-        "roave/security-advisories": "dev-master",
         "wp-cli/config-command": "^1 || ^2",
         "wp-cli/core-command": "^1 || ^2",
         "wp-cli/eval-command": "^1 || ^2",
@@ -24,6 +23,7 @@
         "wp-coding-standards/wpcs": "^2.1"
     },
     "require-dev": {
+        "roave/security-advisories": "dev-master",
         "wp-cli/regenerate-readme": "^2"
     },
     "config": {
