@@ -79,7 +79,3 @@ jobs:
       php: 5.4
       dist: precise
       env: WP_VERSION=5.1
-    - stage: test
-      php: 7.2
-      mysql: 8.0
-      env: WP_VERSION=latest
