@@ -856,7 +856,14 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			if ( $install_cache_path ) {
 				mkdir( $install_cache_path );
 				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
-				self::run_sql( 'mysqldump --no-defaults', array( 'result-file' => "{$install_cache_path}.sql" ), true /*add_database*/ );
+
+				$support_column_statistics = exec( 'mysqldump --help | grep "column-statistics"' );
+				$command                   = '/usr/bin/env mysqldump --no-defaults';
+				if ( $support_column_statistics ) {
+					$command .= ' --skip-column-statistics';
+				}
+
+				self::run_sql( $command, array( 'result-file' => "{$install_cache_path}.sql" ), true /*add_database*/ );
 			}
 		}
 	}
