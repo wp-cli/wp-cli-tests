@@ -1,6 +1,9 @@
 <?php
 /**
  * Polyfills used by Behat to support multiple versions of WP.
+ *
+ * This file will get installed as a must-use plugin in WP installs that are run
+ * by the functional tests.
  */
 
 /*

@@ -76,6 +76,6 @@
 	<!-- This is a procedural stand-alone file that is adding polyfills when
 		 applicable only. -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
-		<exclude-pattern>*/features/bootstrap/polyfills\.php$</exclude-pattern>
+		<exclude-pattern>*/extra/polyfills\.php$</exclude-pattern>
 	</rule>
 </ruleset>
