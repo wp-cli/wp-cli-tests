@@ -73,4 +73,9 @@
 		<exclude-pattern>*/utils/behat-tags\.php$</exclude-pattern>
 	</rule>
 
+	<!-- This is a procedural stand-alone file that is adding polyfills when
+		 applicable only. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>*/extra/polyfills\.php$</exclude-pattern>
+	</rule>
 </ruleset>

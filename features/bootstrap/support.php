@@ -215,4 +215,3 @@ function check_that_yaml_string_contains_yaml_string( $actual_yaml, $expected_ya
 
 	return compare_contents( $expected_value, $actual_value );
 }
-
