@@ -72,6 +72,12 @@
 		<!-- Make some allowance for the fact that the code will be run in a command-line environment. -->
 		<exclude name="Generic.PHP.BacktickOperator"/>
 
+		<!-- We want to stick with short array syntax for WP-CLI. -->
+		<exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+
+		<!-- Keep short ternaries around for WP-CLI. -->
+		<exclude name="WordPress.PHP.DisallowShortTernary"/>
+
 	</rule>
 
 
