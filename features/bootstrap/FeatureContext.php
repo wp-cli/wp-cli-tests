@@ -782,8 +782,11 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		self::copy_dir( self::$cache_dir, $dest_dir );
 
+		if ( ! is_dir( $dest_dir . '/wp-content/mu-plugins' ) ) {
+			mkdir( $dest_dir . '/wp-content/mu-plugins' );
+		}
+
 		// Disable emailing.
-		mkdir( $dest_dir . '/wp-content/mu-plugins' );
 		copy( dirname( __DIR__ ) . '/extra/no-mail.php', $dest_dir . '/wp-content/mu-plugins/no-mail.php' );
 
 		// Add polyfills.
