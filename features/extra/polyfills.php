@@ -52,3 +52,30 @@ if ( ! function_exists( 'get_theme_file_uri' ) ) {
 		return apply_filters( 'theme_file_uri', $url, $file );
 	}
 }
+
+/*
+ * Add a polyfill for the is_customize_preview(), as it is required for the
+ * TwentyTwenty theme's starter content, and will fatal the site if you install
+ * WP 5.3 first (setting TwentyTwenty as the active theme) and then downgrade
+ * to a version of WP lower than 4.0.
+ *
+ * Note: This is a quick fix, and a cleaner solution would be to change the
+ * active theme on downgrading, if the current theme declares it is not
+ * supported.
+ *
+ * See: https://github.com/WordPress/twentytwenty/issues/973
+ */
+if ( ! function_exists( 'is_customize_preview' ) ) {
+	/**
+	 * Whether the site is being previewed in the Customizer.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @global WP_Customize_Manager $wp_customize Customizer instance.
+	 *
+	 * @return bool True if the site is being previewed in the Customizer, false otherwise.
+	 */
+	function is_customize_preview() {
+		return false;
+	}
+}
