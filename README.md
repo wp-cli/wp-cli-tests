@@ -180,7 +180,7 @@ jobs:
 
 #### WP-CLI version
 
-You can point the tests to a specific version ow WP-CLI through the `WP_CLI_BIN_DIR` constant:
+You can point the tests to a specific version of WP-CLI through the `WP_CLI_BIN_DIR` constant:
 ```bash
 WP_CLI_BIN_DIR=~/my-custom-wp-cli/bin composer behat
 ```
