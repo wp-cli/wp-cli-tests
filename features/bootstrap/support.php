@@ -69,7 +69,7 @@ function check_string( $output, $expected, $action, $message = false ) {
 }
 
 function compare_tables( $expected_rows, $actual_rows, $output ) {
-	// the first row is the header and must be present
+	// The first row is the header and must be present.
 	if ( $expected_rows[0] !== $actual_rows[0] ) {
 		throw new Exception( $output );
 	}
@@ -165,11 +165,11 @@ function check_that_csv_string_contains_values( $actual_csv, $expected_csv ) {
 		return false;
 	}
 
-	// Each sample must have headers
+	// Each sample must have headers.
 	$actual_headers   = array_values( array_shift( $actual_csv ) );
 	$expected_headers = array_values( array_shift( $expected_csv ) );
 
-	// Each expected_csv must exist somewhere in actual_csv in the proper column
+	// Each expected_csv must exist somewhere in actual_csv in the proper column.
 	$expected_result = 0;
 	foreach ( $expected_csv as $expected_row ) {
 		$expected_row = array_combine( $expected_headers, $expected_row );

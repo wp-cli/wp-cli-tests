@@ -205,7 +205,7 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	 * Get the environment variables required for launched `wp` processes
 	 */
 	private static function get_process_env_variables() {
-		// Ensure we're using the expected `wp` binary
+		// Ensure we're using the expected `wp` binary.
 		$bin_dir        = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath( dirname( dirname( __DIR__ ) ) . '/bin' );
 		$vendor_dir     = self::get_vendor_dir();
 		$path_separator = Utils\is_windows() ? ';' : ':';
@@ -390,7 +390,7 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	public function afterScenario( $event ) {
 
 		if ( self::$run_dir ) {
-			// remove altered WP install, unless there's an error
+			// Remove altered WP install, unless there's an error.
 			if ( $event->getResult() < 4 ) {
 				self::remove_dir( self::$run_dir );
 			}
