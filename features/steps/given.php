@@ -172,7 +172,7 @@ $steps->Given(
 		foreach ( $table->getHash() as $row ) {
 			$path = $world->replace_variables( $row['path'] );
 			if ( file_exists( $path ) ) {
-				// assume it's the same file and skip re-download
+				// Assume it's the same file and skip re-download.
 				continue;
 			}
 

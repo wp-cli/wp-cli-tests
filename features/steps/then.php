@@ -182,7 +182,7 @@ $steps->Then(
 	function ( $world, $path, $type, $action, $expected = null ) {
 		$path = $world->replace_variables( $path );
 
-		// If it's a relative path, make it relative to the current test dir
+		// If it's a relative path, make it relative to the current test dir.
 		if ( '/' !== $path[0] ) {
 			$path = $world->variables['RUN_DIR'] . "/$path";
 		}
@@ -228,7 +228,7 @@ $steps->Then(
 	'/^the contents of the (.+) file should match (((\/.+\/)|(#.+#))([a-z]+)?)$/',
 	function ( $world, $path, $expected ) {
 		$path = $world->replace_variables( $path );
-		// If it's a relative path, make it relative to the current test dir
+		// If it's a relative path, make it relative to the current test dir.
 		if ( '/' !== $path[0] ) {
 			$path = $world->variables['RUN_DIR'] . "/$path";
 		}

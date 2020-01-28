@@ -67,7 +67,7 @@ $skip_tags = array_merge(
 	version_tags( 'less-than-php', PHP_VERSION, '>=', $features_folder )
 );
 
-// Skip Github API tests if `GITHUB_TOKEN` not available because of rate
+// Skip GitHub API tests if `GITHUB_TOKEN` not available because of rate
 // limiting. See https://github.com/wp-cli/wp-cli/issues/1612
 if ( ! getenv( 'GITHUB_TOKEN' ) ) {
 	$skip_tags[] = '@github-api';
