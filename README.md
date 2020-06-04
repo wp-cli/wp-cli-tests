@@ -218,6 +218,6 @@ Once you've decided to commit the time to seeing your pull request through, [ple
 
 ## Support
 
-GitHub issues aren't for general support questions, but there are other venues you can try: https://wp-cli.org/#support
+Github issues aren't for general support questions, but there are other venues you can try: https://wp-cli.org/#support
 
 
