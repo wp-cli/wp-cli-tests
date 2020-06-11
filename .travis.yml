@@ -1,8 +1,11 @@
-sudo: false
-dist: trusty
+os: linux
+dist: xenial
 
 language: php
-php: 7.2
+php: 7.4
+
+services:
+  - mysql
 
 notifications:
   email:
@@ -51,12 +54,20 @@ jobs:
         apt:
           packages:
             - libxml2-utils
+      install:
+        - composer install
       script:
         - composer lint
         - xmllint --noout --schema ./vendor/squizlabs/php_codesniffer/phpcs.xsd ./*/ruleset.xml
         - composer phpcs
         - diff -B --tabsize=4 ./WP_CLI_CS/ruleset.xml <(xmllint --format "./WP_CLI_CS/ruleset.xml")
       env: BUILD=sniff
+    - stage: test
+      php: 7.4
+      env: WP_VERSION=latest
+    - stage: test
+      php: 7.3
+      env: WP_VERSION=latest
     - stage: test
       php: 7.2
       env: WP_VERSION=latest
@@ -75,7 +86,3 @@ jobs:
     - stage: test
       php: 5.6
       env: WP_VERSION=trunk
-    - stage: test
-      php: 5.4
-      dist: precise
-      env: WP_VERSION=5.1
