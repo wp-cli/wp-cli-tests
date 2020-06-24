@@ -47,7 +47,7 @@ install_db_5_6_or_lower() {
 set -ex
 
 VERSION_STRING=$(mysql -e "SELECT VERSION()" --skip-column-names $HOST_STRING -u"$USER" "$PASSWORD_STRING")
-VERSION=$(echo "$VERSION_STRING" | grep -o '[^-]*$')
+VERSION=$(echo "$VERSION_STRING" | grep -o '^[^-]*')
 MAJOR=$(echo "$VERSION" | cut -d. -f1)
 MINOR=$(echo "$VERSION" | cut -d. -f2)
 
