@@ -34,9 +34,8 @@ set -ex
 # Prepare the database for running the tests.
 install_db() {
 	mysql -e "CREATE DATABASE IF NOT EXISTS wp_cli_test;" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
-	mysql -e "CREATE USER IF NOT EXISTS 'wp_cli_test@$HOST' IDENTIFIED BY 'password1'" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
-	mysql -e "GRANT ALL PRIVILEGES ON wp_cli_test.* TO 'wp_cli_test@$HOST'" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
-	mysql -e "GRANT ALL PRIVILEGES ON wp_cli_test_scaffold.* TO 'wp_cli_test@$HOST'" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
+	mysql -e "GRANT ALL ON wp_cli_test.* TO 'wp_cli_test@$HOST' IDENTIFIED BY 'password1'"" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
+	mysql -e "GRANT ALL ON wp_cli_test_scaffold.* TO 'wp_cli_test@$HOST' IDENTIFIED BY 'password1'"" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
 }
 
 install_db
