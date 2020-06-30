@@ -15,7 +15,7 @@ if [ -n "$WP_CLI_TEST_DBHOST" ]; then
 	esac
   HOST_STRING="-h$HOST"
   if [ -n "$PORT" ]; then
-  	HOST_STRING="$HOST_STRING -P$PORT"
+  	HOST_STRING="$HOST_STRING -P$PORT --protocol=tcp"
 	fi
 fi
 
