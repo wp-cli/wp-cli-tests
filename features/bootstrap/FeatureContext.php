@@ -408,6 +408,12 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			self::$suite_cache_dir = null;
 		}
 
+		// Remove global config file if any.
+		$env = self::get_process_env_variables();
+		if ( isset( $env['HOME'] ) && file_exists( "{$env['HOME']}/.wp-cli/config.yml" ) ) {
+			unlink( "{$env['HOME']}/.wp-cli/config.yml" );
+		}
+
 		// Remove any background processes.
 		foreach ( $this->running_procs as $proc ) {
 			$status = proc_get_status( $proc );
