@@ -26,6 +26,7 @@ env:
     - WP_CLI_BIN_DIR="$TRAVIS_BUILD_DIR/vendor/bin"
 
 before_install:
+  - export XMLLINT_INDENT=" "
   - |
     # Remove Xdebug for a huge performance increase:
     if [ -f ~/.phpenv/versions/$(phpenv version-name)/etc/conf.d/xdebug.ini ]; then
