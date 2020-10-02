@@ -144,7 +144,7 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 	private $running_procs = array();
 
 	/**
-	 * Array of variables available as {VARIABLE_NAME}. Some are always set: CORE_CONFIG_SETTINGS, SRC_DIR, CACHE_DIR, WP_VERSION-version-latest.
+	 * Array of variables available as {VARIABLE_NAME}. Some are always set: CORE_CONFIG_SETTINGS, DB_USER, DB_PASSWORD, DB_HOST, SRC_DIR, CACHE_DIR, WP_VERSION-version-latest.
 	 * Some are step-dependent: RUN_DIR, SUITE_CACHE_DIR, COMPOSER_LOCAL_REPOSITORY, PHAR_PATH. One is set on use: INVOKE_WP_CLI_WITH_PHP_ARGS-args.
 	 * Scenarios can define their own variables using "Given save" steps. Variables are reset for each scenario.
 	 */
@@ -485,6 +485,9 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		$this->drop_db();
 		$this->set_cache_dir();
+		$this->variables['DB_USER']              = self::$db_settings['dbuser'];
+		$this->variables['DB_PASSWORD']          = self::$db_settings['dbpass'];
+		$this->variables['DB_HOST']              = self::$db_settings['dbhost'];
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
 	}
 
