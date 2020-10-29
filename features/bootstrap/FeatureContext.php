@@ -186,7 +186,6 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 			dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) . '/bin/wp',
 		];
 
-		var_dump( $paths );
 		foreach ( $paths as $path ) {
 			if ( file_exists( $path ) && is_executable( $path ) ) {
 				$vendor_dir = (string) realpath( dirname( dirname( $path ) ) );
