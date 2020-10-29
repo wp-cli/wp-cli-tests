@@ -181,14 +181,16 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 		}
 
 		$paths = [
+			dirname( dirname( __DIR__ ) ) . '/vendor/bin/wp',
 			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/bin/wp',
 			dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) . '/bin/wp',
-			dirname( dirname( __DIR__ ) ) . '/vendor/bin/wp',
 		];
 
+		var_dump( $paths );
 		foreach ( $paths as $path ) {
 			if ( file_exists( $path ) && is_executable( $path ) ) {
-				$vendor_dir = (string) realpath( dirname( $path ) );
+				$vendor_dir = (string) realpath( dirname( dirname( $path ) ) );
+
 				break;
 			}
 		}
@@ -632,10 +634,10 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 		// Test running against a package installed as a WP-CLI dependency
 		// WP-CLI bundle installed as a project dependency
-		$make_phar_path = self::get_vendor_dir() . '/../wp-cli/wp-cli-bundle/utils/make-phar.php';
+		$make_phar_path = self::get_vendor_dir() . '/wp-cli/wp-cli-bundle/utils/make-phar.php';
 		if ( ! file_exists( $make_phar_path ) ) {
 			// Running against WP-CLI bundle proper
-			$make_phar_path = self::get_vendor_dir() . '/../../utils/make-phar.php';
+			$make_phar_path = self::get_vendor_dir() . '/../utils/make-phar.php';
 		}
 
 		$this->proc(
