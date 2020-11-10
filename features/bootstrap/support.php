@@ -15,6 +15,12 @@ function assert_regex( $regex, $actual ) {
 	}
 }
 
+function assert_not_regex( $regex, $actual ) {
+	if ( preg_match( $regex, $actual ) ) {
+		throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
+	}
+}
+
 function assert_equals( $expected, $actual ) {
 	// phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison -- Deliberate loose comparison.
 	if ( $expected != $actual ) {

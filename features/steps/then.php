@@ -225,23 +225,31 @@ $steps->Then(
 );
 
 $steps->Then(
-	'/^the contents of the (.+) file should match (((\/.+\/)|(#.+#))([a-z]+)?)$/',
-	function ( $world, $path, $expected ) {
+	'/^the contents of the (.+) file should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/',
+	function ( $world, $path, $not, $expected ) {
 		$path = $world->replace_variables( $path );
 		// If it's a relative path, make it relative to the current test dir.
 		if ( '/' !== $path[0] ) {
 			$path = $world->variables['RUN_DIR'] . "/$path";
 		}
 		$contents = file_get_contents( $path );
-		Support\assert_regex( $expected, $contents );
+		if ( $not ) {
+			Support\assert_not_regex( $expected, $contents );
+		} else {
+			Support\assert_regex( $expected, $contents );
+		}
 	}
 );
 
 $steps->Then(
-	'/^(STDOUT|STDERR) should match (((\/.+\/)|(#.+#))([a-z]+)?)$/',
-	function ( $world, $stream, $expected ) {
+	'/^(STDOUT|STDERR) should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/',
+	function ( $world, $stream, $not, $expected ) {
 		$stream = strtolower( $stream );
-		Support\assert_regex( $expected, $world->result->$stream );
+		if ( $not ) {
+			Support\assert_not_regex( $expected, $world->result->$stream );
+		} else {
+			Support\assert_regex( $expected, $world->result->$stream );
+		}
 	}
 );
 
