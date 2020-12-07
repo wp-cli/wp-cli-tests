@@ -20,11 +20,11 @@
         "wp-cli/core-command": "^1 || ^2",
         "wp-cli/eval-command": "^1 || ^2",
         "wp-cli/wp-cli": "^2",
-        "wp-coding-standards/wpcs": "^2.1"
+        "wp-coding-standards/wpcs": "^2.1",
+        "yoast/phpunit-polyfills": "^0.2.0"
     },
     "require-dev": {
-        "roave/security-advisories": "dev-master",
-        "yoast/phpunit-polyfills": "^0.2.0"
+        "roave/security-advisories": "dev-master"
     },
     "config": {
         "platform": {
