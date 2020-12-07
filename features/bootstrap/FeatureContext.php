@@ -875,7 +875,7 @@ class FeatureContext extends BehatContext implements ClosuredContextInterface {
 
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( 'mysqldump' );
 				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
-				$command                   = 'mysqldump --no-defaults';
+				$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
 				if ( $support_column_statistics ) {
 					$command .= ' --skip-column-statistics';
 				}
