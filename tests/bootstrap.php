@@ -27,15 +27,9 @@ define(
 		: '2.x.x'
 );
 
-/**
- * Compatibility with PHPUnit 6+
- */
-if ( class_exists( 'PHPUnit\Runner\Version' ) ) {
-	require_once __DIR__ . '/phpunit6-compat.php';
-}
-
 require_once VENDOR_DIR . '/autoload.php';
 require_once WP_CLI_ROOT . '/php/utils.php';
+require_once __DIR__ . '/wp-cli-testcase.php';
 
 function wpcli_tests_include_config( array $config_filenames = [] ) {
 	$config_filename = false;
