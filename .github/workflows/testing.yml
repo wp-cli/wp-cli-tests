@@ -154,7 +154,7 @@ jobs:
         if: steps.check_files.outputs.files_exists == 'true'
         run: sudo systemctl start mysql
 
-      - name: Prepare test database
+      - name: Configure DB environment
         if: steps.check_files.outputs.files_exists == 'true'
         run: |
           export MYSQL_HOST=127.0.0.1
@@ -162,7 +162,10 @@ jobs:
           echo "WP_CLI_TEST_DBUSER=wp_cli_test" >> $GITHUB_ENV
           echo "WP_CLI_TEST_DBPASS=password1" >> $GITHUB_ENV
           echo "WP_CLI_TEST_DBHOST=$MYSQL_HOST:$MYSQL_TCP_PORT" >> $GITHUB_ENV
-          composer prepare-tests
+
+      - name: Prepare test database
+        if: steps.check_files.outputs.files_exists == 'true'
+        run: composer prepare-tests
 
       - name: Run Behat
         if: steps.check_files.outputs.files_exists == 'true'
