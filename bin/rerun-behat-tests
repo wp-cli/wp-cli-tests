@@ -26,6 +26,10 @@ done
 BEHAT_ROOT="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 export BEHAT_ROOT
 
+# Set Behat environment variables
+BEHAT_PARAMS="{\"suites\":{\"default\":{\"contexts\":[\"WP_CLI\\Tests\\Context\\FeatureContext\"],\"paths\":[\"features\"]}}}"
+export BEHAT_PARAMS
+
 # Generate the tags to apply environment-specific filters
 BEHAT_TAGS=$(php "$BEHAT_ROOT"/utils/behat-tags.php)
 
