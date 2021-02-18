@@ -141,9 +141,7 @@ jobs:
           echo "WP_CLI_TEST_DBUSER=wp_cli_test" >> $GITHUB_ENV
           echo "WP_CLI_TEST_DBPASS=password1" >> $GITHUB_ENV
           echo "WP_CLI_TEST_DBHOST=$MYSQL_HOST:$MYSQL_TCP_PORT" >> $GITHUB_ENV
-          mysql -e "CREATE DATABASE IF NOT EXISTS \`wp_cli_test\`;" -uroot -proot
-          mysql -e "GRANT ALL PRIVILEGES ON \`wp_cli_test\`.* TO 'wp_cli_test'@'%' IDENTIFIED BY 'password1';" -uroot -proot
-          mysql -e "GRANT ALL PRIVILEGES ON \`wp_cli_test_scaffold\`.* TO 'wp_cli_test'@'%' IDENTIFIED BY 'password1';" -uroot -proot
+          composer prepare-tests
 
       - name: Run Behat
         if: steps.check_files.outputs.files_exists == 'true'
