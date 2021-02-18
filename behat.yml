@@ -1,4 +1,6 @@
 default:
-  paths:
-    features: features
-    bootstrap: features/bootstrap
+  suites:
+    default:
+      contexts: [WP_CLI\Tests\Context\FeatureContext]
+      paths:
+        - features
