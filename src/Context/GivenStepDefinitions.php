@@ -90,7 +90,7 @@ trait GivenStepDefinitions {
 	 * @Given wp-config.php
 	 */
 	public function given_wp_config_php() {
-		 $this->create_config();
+		$this->create_config();
 	}
 
 	/**
@@ -104,7 +104,7 @@ trait GivenStepDefinitions {
 	 * @Given a WP install(ation)
 	 */
 	public function given_a_wp_installation() {
-		 $this->install_wp();
+		$this->install_wp();
 	}
 
 	/**
@@ -157,7 +157,7 @@ trait GivenStepDefinitions {
 	 * @Given a custom wp-content directory
 	 */
 	public function given_a_custom_wp_directory() {
-		 $wp_config_path = $this->variables['RUN_DIR'] . '/wp-config.php';
+		$wp_config_path = $this->variables['RUN_DIR'] . '/wp-config.php';
 
 		$wp_config_code = file_get_contents( $wp_config_path );
 
@@ -247,7 +247,7 @@ trait GivenStepDefinitions {
 	 * @Given a misconfigured WP_CONTENT_DIR constant directory
 	 */
 	public function given_a_misconfigured_wp_content_dir_constant_directory() {
-		 $wp_config_path = $this->variables['RUN_DIR'] . '/wp-config.php';
+		$wp_config_path = $this->variables['RUN_DIR'] . '/wp-config.php';
 
 		$wp_config_code = file_get_contents( $wp_config_path );
 
@@ -270,7 +270,7 @@ trait GivenStepDefinitions {
 	 * @Given a PHP built-in web server
 	 */
 	public function given_a_php_built_in_web_server() {
-		 $this->start_php_server();
+		$this->start_php_server();
 	}
 
 	/**
