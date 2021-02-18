@@ -17,7 +17,7 @@ function wpcli_bootstrap_behat_feature_context() {
 	// We try to detect the vendor folder in the most probable locations.
 	$vendor_locations = [
 		// wp-cli/wp-cli-tests is the root project.
-		dirname(dirname(__DIR__)) . '/vendor',
+		dirname( dirname( __DIR__ ) ) . '/vendor',
 		// wp-cli/wp-cli-tests is a dependency.
 		dirname( dirname( dirname( dirname( __DIR__ ) ) ) ),
 	];
@@ -191,7 +191,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		$paths = [
 			dirname( dirname( __DIR__ ) ) . '/vendor/bin/wp',
 			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/bin/wp',
-			dirname(dirname(dirname(dirname(dirname(__DIR__))))) . '/bin/wp',
+			dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) . '/bin/wp',
 		];
 
 		foreach ( $paths as $path ) {
@@ -215,7 +215,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private static function get_process_env_variables() {
 		// Ensure we're using the expected `wp` binary.
-		$bin_dir        = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath(dirname(dirname(__DIR__)) . '/bin');
+		$bin_dir        = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath( dirname( dirname( __DIR__ ) ) . '/bin' );
 		$vendor_dir     = self::get_vendor_dir();
 		$path_separator = Utils\is_windows() ? ';' : ':';
 		$env            = array(
@@ -498,7 +498,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
 
 		foreach ( $this->getStepDefinitionResources() as $stepDefinitionResource ) {
-			require_once( $stepDefinitionResource );
+			require_once $stepDefinitionResource;
 		}
 	}
 
@@ -809,10 +809,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		// Disable emailing.
-		copy(dirname(dirname(__DIR__)) . '/utils/no-mail.php', $dest_dir . '/wp-content/mu-plugins/no-mail.php' );
+		copy( dirname( dirname( __DIR__ ) ) . '/utils/no-mail.php', $dest_dir . '/wp-content/mu-plugins/no-mail.php' );
 
 		// Add polyfills.
-		copy(dirname(dirname(__DIR__)) . '/utils/polyfills.php', $dest_dir . '/wp-content/mu-plugins/polyfills.php' );
+		copy( dirname( dirname( __DIR__ ) ) . '/utils/polyfills.php', $dest_dir . '/wp-content/mu-plugins/polyfills.php' );
 	}
 
 	public function create_config( $subdir = '', $extra_php = false ) {
