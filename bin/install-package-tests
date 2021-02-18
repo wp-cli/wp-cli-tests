@@ -31,6 +31,16 @@ if [ -n "$WP_CLI_TEST_DBROOTPASS" ]; then
   PASSWORD_STRING="-p$WP_CLI_TEST_DBROOTPASS"
 fi
 
+TEST_USER=wp_cli_test
+if [ -n "$WP_CLI_TEST_DBUSER" ]; then
+  TEST_USER="$WP_CLI_TEST_DBUSER"
+fi
+
+TEST_PASSWORD=password1
+if [ -n "$WP_CLI_TEST_DBPASS" ]; then
+  TEST_PASSWORD="$WP_CLI_TEST_DBPASS"
+fi
+
 # Prepare the database for running the tests with a MySQL version 8.0 or higher.
 install_db_8_0_plus() {
 	mysql -e "CREATE DATABASE IF NOT EXISTS \`wp_cli_test\`;" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
