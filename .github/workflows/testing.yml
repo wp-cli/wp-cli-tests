@@ -77,7 +77,7 @@ jobs:
             test: "composer behat || composer behat-rerun"
           - php: '5.6'
             wp: '3.7'
-            test: "composer behat || composer behat-rerun || true"
+            test: "composer behat || composer behat-rerun"
     runs-on: ubuntu-latest
 
     services:
