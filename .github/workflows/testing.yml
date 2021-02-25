@@ -103,11 +103,12 @@ jobs:
 
     services:
       mysql:
-        image: mysql:${{ matrix.mysql }}
+        image: bitnami/mysql:${{ matrix.mysql }}
         env:
           MYSQL_DATABASE: wp_cli_test
           MYSQL_USER: root
           MYSQL_ROOT_PASSWORD: root
+          MYSQL_AUTHENTICATION_PLUGIN: mysql_native_password
         ports:
           - 3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
@@ -149,10 +150,6 @@ jobs:
       - name: Install dependencies
         if: steps.check_files.outputs.files_exists == 'true'
         run: COMPOSER_ROOT_VERSION=dev-master composer install --prefer-dist --no-progress --no-suggest
-
-      - name: Configure MySQL server
-        if: steps.check_files.outputs.files_exists == 'true'
-        run: echo -e '[mysqld]\ndefault-authentication-plugin=mysql_native_password' > "$HOME/.my.cnf"
 
       - name: Start MySQL server
         if: steps.check_files.outputs.files_exists == 'true'
