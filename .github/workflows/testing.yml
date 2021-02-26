@@ -103,19 +103,13 @@ jobs:
 
     services:
       mysql:
-        image: bitnami/mysql:${{ matrix.mysql }}
+        image: mysql/mysql:${{ matrix.mysql }}
         env:
           MYSQL_DATABASE: wp_cli_test
-          MYSQL_USER: root
           MYSQL_ROOT_PASSWORD: root
-          MYSQL_AUTHENTICATION_PLUGIN: mysql_native_password
         ports:
-          - 3306/tcp
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
+          - 3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=wp_cli_test --entrypoint sh mysql:8 -c "exec docker-entrypoint.sh mysqld --default-authentication-plugin=mysql_native_password"
 
     steps:
       - name: Check out source code
