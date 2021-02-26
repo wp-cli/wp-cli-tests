@@ -103,7 +103,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql/mysql:${{ matrix.mysql }}
+        image: mysql:${{ matrix.mysql }}
         env:
           MYSQL_DATABASE: wp_cli_test
           MYSQL_ROOT_PASSWORD: root
