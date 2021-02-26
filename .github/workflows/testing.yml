@@ -104,9 +104,6 @@ jobs:
     services:
       mysql:
         image: mysql:${{ matrix.mysql }}
-        env:
-          MYSQL_DATABASE: wp_cli_test
-          MYSQL_ROOT_PASSWORD: root
         ports:
           - 3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=wp_cli_test --entrypoint sh mysql:8 -c "exec docker-entrypoint.sh mysqld --default-authentication-plugin=mysql_native_password"
