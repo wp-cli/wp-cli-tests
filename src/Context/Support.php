@@ -98,13 +98,13 @@ trait Support {
 
 		if ( is_object( $expected ) ) {
 			foreach ( get_object_vars( $expected ) as $name => $value ) {
-				if ( ! compare_contents( $value, $actual->$name ) ) {
+				if ( ! $this->compare_contents( $value, $actual->$name ) ) {
 					return false;
 				}
 			}
 		} elseif ( is_array( $expected ) ) {
 			foreach ( $expected as $key => $value ) {
-				if ( ! compare_contents( $value, $actual[ $key ] ) ) {
+				if ( ! $this->compare_contents( $value, $actual[ $key ] ) ) {
 					return false;
 				}
 			}
@@ -154,7 +154,7 @@ trait Support {
 			return false;
 		}
 
-		return compare_contents( $expected_value, $actual_value );
+		return $this->compare_contents( $expected_value, $actual_value );
 	}
 
 	/**
@@ -220,6 +220,6 @@ trait Support {
 			return false;
 		}
 
-		return compare_contents( $expected_value, $actual_value );
+		return $this->compare_contents( $expected_value, $actual_value );
 	}
 }
