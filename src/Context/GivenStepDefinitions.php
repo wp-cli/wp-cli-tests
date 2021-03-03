@@ -4,7 +4,9 @@ namespace WP_CLI\Tests\Context;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
+use RuntimeException;
 use WP_CLI\Process;
+use WP_CLI\Utils;
 
 trait GivenStepDefinitions {
 
@@ -20,7 +22,7 @@ trait GivenStepDefinitions {
 	 */
 	public function given_a_specific_directory( $empty_or_nonexistent, $dir ) {
 		$dir = $this->replace_variables( $dir );
-		if ( ! WP_CLI\Utils\is_path_absolute( $dir ) ) {
+		if ( ! Utils\is_path_absolute( $dir ) ) {
 			$dir = $this->variables['RUN_DIR'] . "/$dir";
 		}
 
@@ -187,7 +189,7 @@ trait GivenStepDefinitions {
 				continue;
 			}
 
-			Process::create( \WP_CLI\Utils\esc_cmd( 'curl -sSL %s > %s', $row['url'], $path ) )->run_check();
+			Process::create( \Utils\esc_cmd( 'curl -sSL %s > %s', $row['url'], $path ) )->run_check();
 		}
 	}
 
