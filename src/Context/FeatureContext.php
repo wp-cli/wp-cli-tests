@@ -498,14 +498,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->variables['DB_PASSWORD']          = self::$db_settings['dbpass'];
 		$this->variables['DB_HOST']              = self::$db_settings['dbhost'];
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
-
-		foreach ( $this->getStepDefinitionResources() as $step_definition_resource ) {
-			require_once $step_definition_resource;
-		}
-	}
-
-	public function getStepDefinitionResources() {
-		return glob( __DIR__ . '/../steps/*.php' );
 	}
 
 	/**
