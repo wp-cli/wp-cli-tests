@@ -3,6 +3,7 @@
 namespace WP_CLI\Tests\Context;
 
 use WP_CLI\Process;
+use Exception;
 
 trait WhenStepDefinitions {
 
@@ -36,7 +37,7 @@ trait WhenStepDefinitions {
 	public function when_i_run( $mode, $cmd ) {
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd ), $mode );
-		list($this->result->stdout, $this->email_sends) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
+		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
 	}
 
 	/**
@@ -45,7 +46,7 @@ trait WhenStepDefinitions {
 	public function when_i_run_from_a_subfolder( $mode, $cmd, $subdir ) {
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd, array(), $subdir ), $mode );
-		list($this->result->stdout, $this->email_sends) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
+		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
 	}
 
 	/**
@@ -53,12 +54,12 @@ trait WhenStepDefinitions {
 	 */
 	public function when_i_run_the_previous_command_again( $mode ) {
 		if ( ! isset( $this->result ) ) {
-			throw new \Exception( 'No previous command.' );
+			throw new Exception( 'No previous command.' );
 		}
 
 		$proc         = Process::create( $this->result->command, $this->result->cwd, $this->result->env );
 		$this->result = $this->wpcli_tests_invoke_proc( $proc, $mode );
-		list($this->result->stdout, $this->email_sends) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
+		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
 	}
 }
 

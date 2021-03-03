@@ -4,6 +4,9 @@ namespace WP_CLI\Tests\Context;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
+use Exception;
+use Requests;
+use RuntimeException;
 
 trait ThenStepDefinitions {
 
