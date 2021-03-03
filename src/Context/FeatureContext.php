@@ -7,6 +7,8 @@ use Behat\Behat\Hook\Scope\AfterScenarioScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Testwork\Hook\Scope\AfterSuiteScope;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
+use Requests;
+use RuntimeException;
 use WP_CLI\Process;
 use WP_CLI\Utils;
 
@@ -827,10 +829,10 @@ class FeatureContext implements SnippetAcceptingContext {
 			$params['extra-php'] = $extra_php;
 		}
 
+		$run_dir           = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 		$config_cache_path = '';
 		if ( self::$install_cache_dir ) {
 			$config_cache_path = self::$install_cache_dir . '/config_' . md5( implode( ':', $params ) . ':subdir=' . $subdir );
-			$run_dir           = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 		}
 
 		if ( $config_cache_path && file_exists( $config_cache_path ) ) {
@@ -1041,7 +1043,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		$files = scandir( $upd_dir );
 		if ( false === $files ) {
 			$error = error_get_last();
-			throw new \RuntimeException( sprintf( "Failed to open updated directory '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_dir, $error['message'] ) );
+			throw new RuntimeException( sprintf( "Failed to open updated directory '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_dir, $error['message'] ) );
 		}
 		foreach ( array_diff( $files, array( '.', '..' ) ) as $file ) {
 			$upd_file = $upd_dir . '/' . $file;
@@ -1051,13 +1053,13 @@ class FeatureContext implements SnippetAcceptingContext {
 				if ( is_dir( $upd_file ) ) {
 					if ( ! file_exists( $cop_file ) && ! mkdir( $cop_file, 0777, true /*recursive*/ ) ) {
 						$error = error_get_last();
-						throw new \RuntimeException( sprintf( "Failed to create copy directory '%s': %s. " . __FILE__ . ':' . __LINE__, $cop_file, $error['message'] ) );
+						throw new RuntimeException( sprintf( "Failed to create copy directory '%s': %s. " . __FILE__ . ':' . __LINE__, $cop_file, $error['message'] ) );
 					}
 					self::copy_dir( $upd_file, $cop_file );
 				} else {
 					if ( ! copy( $upd_file, $cop_file ) ) {
 						$error = error_get_last();
-						throw new \RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
+						throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
 					}
 				}
 			} elseif ( is_dir( $upd_file ) ) {
