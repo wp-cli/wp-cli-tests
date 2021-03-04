@@ -166,7 +166,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static function get_process_env_variables() {
 		// Ensure we're using the expected `wp` binary.
 		$bin_path = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath( self::get_vendor_dir() . '/bin' );
-		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}");
+		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
 
 		if ( ! file_exists( "{$bin_path}/wp" ) ) {
 			wp_cli_behat_env_debug( "WARNING: No file named 'wp' found in the provided/detected path." );
@@ -214,7 +214,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		// Dump environment for debugging purposes, but before adding the GitHub token.
-		wp_cli_behat_env_debug( "Environment:" );
+		wp_cli_behat_env_debug( 'Environment:' );
 		foreach ( $env as $key => $value ) {
 			wp_cli_behat_env_debug( "   [{$key}] => {$value}" );
 		}
@@ -298,7 +298,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		echo $result->stdout;
 		echo PHP_EOL;
 
-		if ( getenv('WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
+		if ( getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
 			exit;
 		}
 
