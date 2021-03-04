@@ -930,9 +930,9 @@ class FeatureContext implements SnippetAcceptingContext {
 			mkdir( self::$composer_local_repository );
 
 			$env = self::get_process_env_variables();
-			$src = isset( $env['TRAVIS_BUILD_DIR'] ) ? $env['TRAVIS_BUILD_DIR'] : realpath(
-				__DIR__ . '/../../wp-cli-tests/'
-			);
+			$src = isset( $env['TRAVIS_BUILD_DIR'] )
+				? $env['TRAVIS_BUILD_DIR']
+				: realpath( self::get_vendor_dir() . '/../' );
 
 			self::copy_dir( $src, self::$composer_local_repository . '/' );
 			self::remove_dir( self::$composer_local_repository . '/.git' );
