@@ -13,96 +13,6 @@ use WP_CLI\Process;
 use WP_CLI\Utils;
 
 /**
- * Load required support files as needed before heading into the Behat context.
- */
-function wpcli_bootstrap_behat_feature_context() {
-	// We try to detect the vendor folder in the most probable locations.
-	$vendor_locations = [
-		// wp-cli/wp-cli-tests is the root project.
-		dirname( dirname( __DIR__ ) ) . '/vendor',
-		// wp-cli/wp-cli-tests is a dependency.
-		dirname( dirname( dirname( dirname( __DIR__ ) ) ) ),
-	];
-
-	$vendor_folder = '';
-	foreach ( $vendor_locations as $location ) {
-		if (
-			is_dir( $location )
-			&& is_readable( $location )
-			&& is_file( "{$location}/autoload.php" )
-		) {
-			$vendor_folder = $location;
-			break;
-		}
-	}
-
-	// Didn't manage to detect a valid vendor folder.
-	if ( empty( $vendor_folder ) ) {
-		return;
-	}
-
-	// We assume the vendor folder is located in the project root folder.
-	$project_folder = dirname( $vendor_folder );
-
-	// Now we need to detect the location of wp-cli/wp-cli package.
-	$framework_locations = [
-		// wp-cli/wp-cli is the root project.
-		$project_folder,
-		// wp-cli/wp-cli is a dependency.
-		"{$vendor_folder}/wp-cli/wp-cli",
-	];
-
-	$framework_folder = '';
-	foreach ( $framework_locations as $location ) {
-		if (
-			is_dir( $location )
-			&& is_readable( $location )
-			&& is_file( "{$location}/php/utils.php" )
-		) {
-			$framework_folder = $location;
-			break;
-		}
-	}
-
-	// Load helper functionality that is needed for the tests.
-	require_once "{$framework_folder}/php/utils.php";
-	require_once "{$framework_folder}/php/WP_CLI/Process.php";
-	require_once "{$framework_folder}/php/WP_CLI/ProcessRun.php";
-
-	// Manually load Composer file includes by generating a config with require:
-	// statements for each file.
-	$project_composer = "{$project_folder}/composer.json";
-	if ( ! file_exists( $project_composer ) ) {
-		return;
-	}
-
-	$composer = json_decode( file_get_contents( $project_composer ) );
-	if ( empty( $composer->autoload->files ) ) {
-		return;
-	}
-
-	$contents = "require:\n";
-	foreach ( $composer->autoload->files as $file ) {
-		$contents .= "  - {$project_folder}/{$file}\n";
-	}
-
-	$temp_folder = sys_get_temp_dir() . '/wp-cli-package-test';
-	if (
-		! is_dir( $temp_folder )
-		&& ! mkdir( $temp_folder )
-		&& ! is_dir( $temp_folder )
-	) {
-		return;
-	}
-
-	$project_config = "{$temp_folder}/config.yml";
-	file_put_contents( $project_config, $contents );
-	putenv( 'WP_CLI_CONFIG_PATH=' . $project_config );
-}
-
-wpcli_bootstrap_behat_feature_context();
-
-/**
  * Features context.
  */
 class FeatureContext implements SnippetAcceptingContext {
@@ -183,33 +93,71 @@ class FeatureContext implements SnippetAcceptingContext {
 	 *
 	 * @return string Absolute path to the Composer vendor folder.
 	 */
-	private static function get_vendor_dir() {
-		static $vendor_dir = null;
+	public static function get_vendor_dir() {
+		static $vendor_folder = null;
 
-		if ( null !== $vendor_dir ) {
-			return $vendor_dir;
+		if ( null !== $vendor_folder ) {
+			return $vendor_folder;
 		}
 
-		$paths = [
-			dirname( dirname( __DIR__ ) ) . '/vendor/bin/wp',
-			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/bin/wp',
-			dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) . '/bin/wp',
+		// We try to detect the vendor folder in the most probable locations.
+		$vendor_locations = [
+			// wp-cli/wp-cli-tests is the root project.
+			dirname( dirname( __DIR__ ) ) . '/vendor',
+			// wp-cli/wp-cli-tests is a dependency.
+			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ),
 		];
 
-		foreach ( $paths as $path ) {
-			if ( file_exists( $path ) && is_executable( $path ) ) {
-				$vendor_dir = (string) realpath( dirname( dirname( $path ) ) );
-
+		$vendor_folder = '';
+		foreach ( $vendor_locations as $location ) {
+			if (
+				is_dir( $location )
+				&& is_readable( $location )
+				&& is_file( "{$location}/autoload.php" )
+			) {
+				$vendor_folder = $location;
 				break;
 			}
 		}
 
-		if ( null === $vendor_dir ) {
-			// Did not detect WP-CLI binary, so make a random guess.
-			$vendor_dir = '/usr/local/bin';
+		return $vendor_folder;
+	}
+
+	/**
+	 * Get the path to the WP-CLI framework folder.
+	 *
+	 * @return string Absolute path to the WP-CLI framework folder.
+	 */
+	public static function get_framework_dir() {
+		static $framework_folder = null;
+
+		if ( null !== $framework_folder ) {
+			return $framework_folder;
 		}
 
-		return $vendor_dir;
+		$vendor_folder = self::get_vendor_dir();
+
+		// Now we need to detect the location of wp-cli/wp-cli package.
+		$framework_locations = [
+			// wp-cli/wp-cli is the root project.
+			dirname( $vendor_folder ),
+			// wp-cli/wp-cli is a dependency.
+			"{$vendor_folder}/wp-cli/wp-cli",
+		];
+
+		$framework_folder = '';
+		foreach ( $framework_locations as $location ) {
+			if (
+				is_dir( $location )
+				&& is_readable( $location )
+				&& is_file( "{$location}/php/utils.php" )
+			) {
+				$framework_folder = $location;
+				break;
+			}
+		}
+
+		return $framework_folder;
 	}
 
 	/**
@@ -217,11 +165,20 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private static function get_process_env_variables() {
 		// Ensure we're using the expected `wp` binary.
-		$bin_dir        = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath( dirname( dirname( __DIR__ ) ) . '/bin' );
-		$vendor_dir     = self::get_vendor_dir();
+		$bin_path = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath( self::get_vendor_dir() . '/bin' );
+		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}");
+
+		if ( ! file_exists( "{$bin_path}/wp" ) ) {
+			wp_cli_behat_env_debug( "WARNING: No file named 'wp' found in the provided/detected path." );
+		}
+
+		if ( ! is_executable( "{$bin_path}/wp" ) ) {
+			wp_cli_behat_env_debug( "WARNING: File named 'wp' found in the provided/detected path is not executable." );
+		}
+
 		$path_separator = Utils\is_windows() ? ';' : ':';
 		$env            = array(
-			'PATH'      => $bin_dir . $path_separator . $vendor_dir . $path_separator . getenv( 'PATH' ),
+			'PATH'      => $bin_path . $path_separator . getenv( 'PATH' ),
 			'BEHAT_RUN' => 1,
 			'HOME'      => sys_get_temp_dir() . '/wp-cli-home',
 		);
@@ -260,6 +217,12 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( false !== $github_token ) {
 			$env['GITHUB_TOKEN'] = $github_token;
 		}
+
+		wp_cli_behat_env_debug( "Environment:" );
+		foreach ( $env as $key => $value ) {
+			wp_cli_behat_env_debug( "   [{$key}] => {$value}" );
+		}
+
 		return $env;
 	}
 
@@ -333,6 +296,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		echo PHP_EOL;
 		echo $result->stdout;
 		echo PHP_EOL;
+
+		if ( getenv('WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
+			exit;
+		}
 
 		self::cache_wp_files();
 
@@ -929,7 +896,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 			$env = self::get_process_env_variables();
 			$src = isset( $env['TRAVIS_BUILD_DIR'] ) ? $env['TRAVIS_BUILD_DIR'] : realpath(
-				__DIR__ . '/../wp-cli-tests/'
+				__DIR__ . '/../../wp-cli-tests/'
 			);
 
 			self::copy_dir( $src, self::$composer_local_repository . '/' );
@@ -1185,5 +1152,77 @@ class FeatureContext implements SnippetAcceptingContext {
 		self::$proc_method_run_times[ $key ][0] += $run_time;
 		self::$proc_method_run_times[ $key ][1]++;
 	}
+}
+
+function wp_cli_behat_env_debug( $message ) {
+	if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
+		return;
+	}
+
+	echo "{$message}\n";
+}
+
+/**
+ * Load required support files as needed before heading into the Behat context.
+ */
+function wpcli_bootstrap_behat_feature_context() {
+	$vendor_folder = FeatureContext::get_vendor_dir();
+	wp_cli_behat_env_debug( "Vendor folder location: {$vendor_folder}" );
+
+	// Didn't manage to detect a valid vendor folder.
+	if ( empty( $vendor_folder ) ) {
+		return;
+	}
+
+	// We assume the vendor folder is located in the project root folder.
+	$project_folder = dirname( $vendor_folder );
+
+	$framework_folder = FeatureContext::get_framework_dir();
+	wp_cli_behat_env_debug( "Framework folder location: {$framework_folder}" );
+
+	// Didn't manage to detect a valid framework folder.
+	if ( empty( $vendor_folder ) ) {
+		return;
+	}
+
+	// Load helper functionality that is needed for the tests.
+	require_once "{$framework_folder}/php/utils.php";
+	require_once "{$framework_folder}/php/WP_CLI/Process.php";
+	require_once "{$framework_folder}/php/WP_CLI/ProcessRun.php";
+
+	// Manually load Composer file includes by generating a config with require:
+	// statements for each file.
+	$project_composer = "{$project_folder}/composer.json";
+	if ( ! file_exists( $project_composer ) ) {
+		return;
+	}
+
+	$composer = json_decode( file_get_contents( $project_composer ) );
+	if ( empty( $composer->autoload->files ) ) {
+		return;
+	}
+
+	$contents = "require:\n";
+	foreach ( $composer->autoload->files as $file ) {
+		$contents .= "  - {$project_folder}/{$file}\n";
+	}
+
+	$temp_folder = sys_get_temp_dir() . '/wp-cli-package-test';
+	if (
+		! is_dir( $temp_folder )
+		&& ! mkdir( $temp_folder )
+		&& ! is_dir( $temp_folder )
+	) {
+		return;
+	}
+
+	$project_config = "{$temp_folder}/config.yml";
+	file_put_contents( $project_config, $contents );
+	putenv( 'WP_CLI_CONFIG_PATH=' . $project_config );
+
+	wp_cli_behat_env_debug( "Project config file location: {$project_config}" );
+	wp_cli_behat_env_debug( "Project config:\n{$contents}" );
 
 }
+
+wpcli_bootstrap_behat_feature_context();
