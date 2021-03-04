@@ -160,20 +160,54 @@ class FeatureContext implements SnippetAcceptingContext {
 		return $framework_folder;
 	}
 
+
+	/**
+	 * Get the path to the WP-CLI binary.
+	 *
+	 * @return string Absolute path to the WP-CLI binary.
+	 */
+	public static function get_bin_path() {
+		static $bin_path = null;
+
+		if ( null !== $bin_path ) {
+			return $bin_path;
+		}
+
+		$bin_path = getenv( 'WP_CLI_BIN_DIR' );
+
+		if ( ! empty( $bin_path ) ) {
+			return $bin_path;
+		}
+
+		$bin_paths = [
+			self::get_vendor_dir() . '/bin',
+			self::get_framework_dir() . '/bin',
+		];
+
+		foreach ( $bin_paths as $path ) {
+			if ( is_file( "{$path}/wp" ) && is_executable( "{$path}/wp" ) ) {
+				$bin_path = $path;
+				break;
+			}
+		}
+
+		return $bin_path;
+	}
+
 	/**
 	 * Get the environment variables required for launched `wp` processes
 	 */
 	private static function get_process_env_variables() {
 		// Ensure we're using the expected `wp` binary.
-		$bin_path = getenv( 'WP_CLI_BIN_DIR' ) ?: realpath( self::get_vendor_dir() . '/bin' );
+		$bin_path = self::get_bin_path();
 		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
 
 		if ( ! file_exists( "{$bin_path}/wp" ) ) {
-			wp_cli_behat_env_debug( "WARNING: No file named 'wp' found in the provided/detected path." );
+			wp_cli_behat_env_debug( "WARNING: No file named 'wp' found in the provided/detected binary path." );
 		}
 
 		if ( ! is_executable( "{$bin_path}/wp" ) ) {
-			wp_cli_behat_env_debug( "WARNING: File named 'wp' found in the provided/detected path is not executable." );
+			wp_cli_behat_env_debug( "WARNING: File named 'wp' found in the provided/detected binary path is not executable." );
 		}
 
 		$path_separator = Utils\is_windows() ? ';' : ':';
