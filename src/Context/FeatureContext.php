@@ -213,14 +213,15 @@ class FeatureContext implements SnippetAcceptingContext {
 			$env['TRAVIS_BUILD_DIR'] = $travis_build_dir;
 		}
 
-		$github_token = getenv( 'GITHUB_TOKEN' );
-		if ( false !== $github_token ) {
-			$env['GITHUB_TOKEN'] = $github_token;
-		}
-
+		// Dump environment for debugging purposes, but before adding the GitHub token.
 		wp_cli_behat_env_debug( "Environment:" );
 		foreach ( $env as $key => $value ) {
 			wp_cli_behat_env_debug( "   [{$key}] => {$value}" );
+		}
+
+		$github_token = getenv( 'GITHUB_TOKEN' );
+		if ( false !== $github_token ) {
+			$env['GITHUB_TOKEN'] = $github_token;
 		}
 
 		return $env;
