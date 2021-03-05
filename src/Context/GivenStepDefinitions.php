@@ -126,7 +126,7 @@ trait GivenStepDefinitions {
 	/**
 	 * @Given a WP install(ation) with Composer and a custom vendor directory :vendor_directory
 	 */
-	public function given_a_wp_installation_with_composer_and_a_custom_vendor_folder( $_, $vendor_directory ) {
+	public function given_a_wp_installation_with_composer_and_a_custom_vendor_folder( $vendor_directory ) {
 		$this->install_wp_with_composer( $vendor_directory );
 	}
 
