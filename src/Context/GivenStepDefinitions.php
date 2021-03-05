@@ -189,7 +189,7 @@ trait GivenStepDefinitions {
 				continue;
 			}
 
-			Process::create( \Utils\esc_cmd( 'curl -sSL %s > %s', $row['url'], $path ) )->run_check();
+			Process::create( Utils\esc_cmd( 'curl -sSL %s > %s', $row['url'], $path ) )->run_check();
 		}
 	}
 
