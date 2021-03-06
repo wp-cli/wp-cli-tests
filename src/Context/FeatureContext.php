@@ -502,14 +502,14 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['DB_HOST'] = getenv( 'WP_CLI_TEST_DBHOST' );
 		}
 
-		$this->drop_db();
-		$this->set_cache_dir();
-
 		self::$db_settings['dbuser'] = $this->variables['DB_USER'];
 		self::$db_settings['dbpass'] = $this->variables['DB_PASSWORD'];
 		self::$db_settings['dbhost'] = $this->variables['DB_HOST'];
 
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
+
+		$this->drop_db();
+		$this->set_cache_dir();
 	}
 
 	/**
