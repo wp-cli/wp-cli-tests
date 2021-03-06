@@ -483,33 +483,33 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	public function __construct() {
 		if ( getenv( 'WP_CLI_TEST_DBROOTUSER' ) ) {
-			self::$db_settings['dbrootuser'] = getenv( 'WP_CLI_TEST_DBROOTUSER' );
+			$this->variables['DB_ROOT_USER'] = getenv( 'WP_CLI_TEST_DBROOTUSER' );
 		}
 
 		if ( false !== getenv( 'WP_CLI_TEST_DBROOTPASS' ) ) {
-			self::$db_settings['dbrootpass'] = getenv( 'WP_CLI_TEST_DBROOTPASS' );
+			$this->variables['DB_ROOT_PASSWORD'] = getenv( 'WP_CLI_TEST_DBROOTPASS' );
 		}
 
 		if ( getenv( 'WP_CLI_TEST_DBUSER' ) ) {
-			self::$db_settings['dbuser'] = getenv( 'WP_CLI_TEST_DBUSER' );
+			$this->variables['DB_USER'] = getenv( 'WP_CLI_TEST_DBUSER' );
 		}
 
 		if ( false !== getenv( 'WP_CLI_TEST_DBPASS' ) ) {
-			self::$db_settings['dbpass'] = getenv( 'WP_CLI_TEST_DBPASS' );
+			$this->variables['DB_PASSWORD'] = getenv( 'WP_CLI_TEST_DBPASS' );
 		}
 
 		if ( getenv( 'WP_CLI_TEST_DBHOST' ) ) {
-			self::$db_settings['dbhost'] = getenv( 'WP_CLI_TEST_DBHOST' );
+			$this->variables['DB_HOST'] = getenv( 'WP_CLI_TEST_DBHOST' );
 		}
 
 		$this->drop_db();
 		$this->set_cache_dir();
-		$this->variables['DB_USER']              = self::$db_settings['dbuser'];
-		$this->variables['DB_PASSWORD']          = self::$db_settings['dbpass'];
-		$this->variables['DB_HOST']              = self::$db_settings['dbhost'];
+
+		self::$db_settings['dbuser'] = $this->variables['DB_USER'];
+		self::$db_settings['dbpass'] = $this->variables['DB_PASSWORD'];
+		self::$db_settings['dbhost'] = $this->variables['DB_HOST'];
+
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
-		$this->variables['DB_ROOT_USER']         = self::$db_settings['dbrootuser'];
-		$this->variables['DB_ROOT_PASSWORD']     = self::$db_settings['dbrootpass'];
 	}
 
 	/**
