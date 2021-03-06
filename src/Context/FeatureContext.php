@@ -482,6 +482,14 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * Every scenario gets its own context object.
 	 */
 	public function __construct() {
+		if ( getenv( 'WP_CLI_TEST_DBROOTUSER' ) ) {
+			self::$db_settings['dbrootuser'] = getenv( 'WP_CLI_TEST_DBROOTUSER' );
+		}
+
+		if ( false !== getenv( 'WP_CLI_TEST_DBROOTPASS' ) ) {
+			self::$db_settings['dbrootpass'] = getenv( 'WP_CLI_TEST_DBROOTPASS' );
+		}
+
 		if ( getenv( 'WP_CLI_TEST_DBUSER' ) ) {
 			self::$db_settings['dbuser'] = getenv( 'WP_CLI_TEST_DBUSER' );
 		}
@@ -496,6 +504,8 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$this->drop_db();
 		$this->set_cache_dir();
+		$this->variables['DB_ROOT_USER']         = self::$db_settings['dbrootuser'];
+		$this->variables['DB_ROOT_PASSWORD']     = self::$db_settings['dbrootpass'];
 		$this->variables['DB_USER']              = self::$db_settings['dbuser'];
 		$this->variables['DB_PASSWORD']          = self::$db_settings['dbpass'];
 		$this->variables['DB_HOST']              = self::$db_settings['dbhost'];
