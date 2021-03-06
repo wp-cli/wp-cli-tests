@@ -504,12 +504,12 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$this->drop_db();
 		$this->set_cache_dir();
-		$this->variables['DB_ROOT_USER']         = self::$db_settings['dbrootuser'];
-		$this->variables['DB_ROOT_PASSWORD']     = self::$db_settings['dbrootpass'];
 		$this->variables['DB_USER']              = self::$db_settings['dbuser'];
 		$this->variables['DB_PASSWORD']          = self::$db_settings['dbpass'];
 		$this->variables['DB_HOST']              = self::$db_settings['dbhost'];
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
+		$this->variables['DB_ROOT_USER']         = self::$db_settings['dbrootuser'];
+		$this->variables['DB_ROOT_PASSWORD']     = self::$db_settings['dbrootpass'];
 	}
 
 	/**
