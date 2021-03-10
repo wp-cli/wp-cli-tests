@@ -498,10 +498,6 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['DB_PASSWORD'] = getenv( 'WP_CLI_TEST_DBPASS' );
 		}
 
-		if ( false !== getenv( 'WP_CLI_TEST_DBPASS' ) ) {
-			$this->variables['DB_PASSWORD'] = getenv( 'WP_CLI_TEST_DBPASS' );
-		}
-
 		if ( getenv( 'WP_CLI_TEST_DBHOST' ) ) {
 			$this->variables['DB_HOST'] = getenv( 'WP_CLI_TEST_DBHOST' );
 		}
