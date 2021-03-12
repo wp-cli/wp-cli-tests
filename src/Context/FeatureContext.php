@@ -502,6 +502,14 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['DB_HOST'] = getenv( 'WP_CLI_TEST_DBHOST' );
 		}
 
+		if ( getenv( 'MYSQL_TCP_PORT' ) ) {
+			$this->variables['MYSQL_PORT'] = getenv( 'MYSQL_TCP_PORT' );
+		}
+
+		if ( getenv( 'MYSQL_HOST' ) ) {
+			$this->variables['MYSQL_HOST'] = getenv( 'MYSQL_HOST' );
+		}
+
 		self::$db_settings['dbuser'] = $this->variables['DB_USER'];
 		self::$db_settings['dbpass'] = $this->variables['DB_PASSWORD'];
 		self::$db_settings['dbhost'] = $this->variables['DB_HOST'];
