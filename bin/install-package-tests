@@ -42,7 +42,8 @@ if [ -n "$WP_CLI_TEST_DBPASS" ]; then
 fi
 
 # Prepare the database for running the tests with a MySQL version 8.0 or higher.
-install_db_8_0_plus() {
+install_mysql_db_8_0_plus() {
+	set -ex
 	mysql -e "CREATE DATABASE IF NOT EXISTS \`wp_cli_test\`;" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
 	mysql -e "CREATE USER IF NOT EXISTS \`wp_cli_test\`@'%' IDENTIFIED WITH mysql_native_password BY '$TEST_PASSWORD'" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
 	mysql -e "GRANT ALL PRIVILEGES ON \`wp_cli_test\`.* TO '$TEST_USER'@'%'" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
@@ -50,21 +51,29 @@ install_db_8_0_plus() {
 }
 
 # Prepare the database for running the tests with a MySQL version lower than 8.0.
-install_db_lower_than_8_0() {
+install_mysql_db_lower_than_8_0() {
+	set -ex
 	mysql -e "CREATE DATABASE IF NOT EXISTS \`wp_cli_test\`;" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
 	mysql -e "GRANT ALL ON \`wp_cli_test\`.* TO '$TEST_USER'@'%' IDENTIFIED BY '$TEST_PASSWORD'" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
 	mysql -e "GRANT ALL ON \`wp_cli_test_scaffold\`.* TO '$TEST_USER'@'%' IDENTIFIED BY '$TEST_PASSWORD'" $HOST_STRING -u"$USER" "$PASSWORD_STRING"
 }
 
-set -ex
-
 VERSION_STRING=$(mysql -e "SELECT VERSION()" --skip-column-names $HOST_STRING -u"$USER" "$PASSWORD_STRING")
 VERSION=$(echo "$VERSION_STRING" | grep -o '^[^-]*')
 MAJOR=$(echo "$VERSION" | cut -d. -f1)
 MINOR=$(echo "$VERSION" | cut -d. -f2)
+TYPE="MySQL"
+case "$VERSION_STRING" in
+	*"MariaDB"*)
+		TYPE="MariaDB"
+		;;
+esac
 
-if [ "$MAJOR" -ge 8 ]; then
-	install_db_8_0_plus
+echo "Detected $TYPE at version $MAJOR.$MINOR"
+
+
+if [ "$TYPE" != "MariaDB" ] && [ "$MAJOR" -ge 8 ]; then
+	install_mysql_db_8_0_plus
 else
-	install_db_lower_than_8_0
+	install_mysql_db_lower_than_8_0
 fi
