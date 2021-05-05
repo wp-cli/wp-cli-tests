@@ -510,9 +510,17 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['MYSQL_HOST'] = getenv( 'MYSQL_HOST' );
 		}
 
-		self::$db_settings['dbuser'] = $this->variables['DB_USER'];
-		self::$db_settings['dbpass'] = $this->variables['DB_PASSWORD'];
-		self::$db_settings['dbhost'] = $this->variables['DB_HOST'];
+		self::$db_settings['dbuser'] = array_key_exists( 'DB_USER', $this->variables )
+			? $this->variables['DB_USER']
+			: 'wp_cli_test';
+
+		self::$db_settings['dbpass'] = array_key_exists( 'DB_PASSWORD', $this->variables )
+			? $this->variables['DB_PASSWORD']
+			: 'password1';
+
+		self::$db_settings['dbhost'] = array_key_exists( 'DB_HOST', $this->variables )
+			? $this->variables['DB_HOST']
+			: 'localhost';
 
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
 
