@@ -3,7 +3,7 @@ wp-cli/wp-cli-tests
 
 WP-CLI testing framework
 
-[![Build Status](https://travis-ci.org/wp-cli/wp-cli-tests.svg?branch=master)](https://travis-ci.org/wp-cli/wp-cli-tests)
+
 
 Quick links: [Using](#using) | [Contributing](#contributing) | [Support](#support)
 
@@ -218,6 +218,6 @@ Once you've decided to commit the time to seeing your pull request through, [ple
 
 ## Support
 
-GitHub issues aren't for general support questions, but there are other venues you can try: https://wp-cli.org/#support
+Github issues aren't for general support questions, but there are other venues you can try: https://wp-cli.org/#support
 
 
