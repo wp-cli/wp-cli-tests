@@ -3,7 +3,7 @@ wp-cli/wp-cli-tests
 
 WP-CLI testing framework
 
-[![Build Status](https://travis-ci.org/wp-cli/wp-cli-tests.svg?branch=master)](https://travis-ci.org/wp-cli/wp-cli-tests)
+[![Testing](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml/badge.svg)](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml)
 
 Quick links: [Using](#using) | [Contributing](#contributing) | [Support](#support)
 
