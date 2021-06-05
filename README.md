@@ -44,11 +44,14 @@ To make use of the WP-CLI testing framework, you need to complete the following 
     The timeout is expressed in seconds.
 
 4. Optionally add a `behat.yml` file to the package root with the following content:
-    ```json
+    ```yaml
     default:
-      paths:
-        features: features
-        bootstrap: vendor/wp-cli/wp-cli-tests/features/bootstrap
+      suites:
+        default:
+          contexts:
+            - WP_CLI\Tests\Context\FeatureContext
+          paths:
+            - features
     ```
     This will make sure that the automated Behat system works across all platforms. This is needed on Windows.
 
