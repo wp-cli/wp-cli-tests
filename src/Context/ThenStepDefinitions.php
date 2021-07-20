@@ -196,25 +196,32 @@ trait ThenStepDefinitions {
 			$path = $this->variables['RUN_DIR'] . "/$path";
 		}
 
-		if ( 'file' === $type ) {
-			$test = 'file_exists';
-		} elseif ( 'directory' === $type ) {
-			$test = 'is_dir';
-		}
+		$exists = function ( $path ) use ( $type ) {
+			// Clear the stat cache for the path first to avoid
+			// potentially inaccurate results when files change outside of PHP.
+			// See https://www.php.net/manual/en/function.clearstatcache.php
+			clearstatcache( false, $path );
+
+			if ( 'directory' === $type ) {
+				return is_dir( $path );
+			}
+
+			return file_exists( $path );
+		};
 
 		switch ( $action ) {
 			case 'exist':
-				if ( ! $test( $path ) ) {
+				if ( ! $exists( $path ) ) {
 					throw new Exception( "$path doesn't exist." );
 				}
 				break;
 			case 'not exist':
-				if ( $test( $path ) ) {
+				if ( $exists( $path ) ) {
 					throw new Exception( "$path exists." );
 				}
 				break;
 			default:
-				if ( ! $test( $path ) ) {
+				if ( ! $exists( $path ) ) {
 					throw new Exception( "$path doesn't exist." );
 				}
 				$action   = substr( $action, 0, -1 );
