@@ -51,24 +51,24 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * The test database settings. All but `dbname` can be set via environment variables. The database is dropped at the start of each scenario and created on a "Given a WP installation" step.
 	 */
-	private static $db_settings = array(
+	private static $db_settings = [
 		'dbname' => 'wp_cli_test',
 		'dbuser' => 'wp_cli_test',
 		'dbpass' => 'password1',
 		'dbhost' => '127.0.0.1',
-	);
+	];
 
 	/**
 	 * Array of background process ids started by the current scenario. Used to terminate them at the end of the scenario.
 	 */
-	private $running_procs = array();
+	private $running_procs = [];
 
 	/**
 	 * Array of variables available as {VARIABLE_NAME}. Some are always set: CORE_CONFIG_SETTINGS, DB_USER, DB_PASSWORD, DB_HOST, SRC_DIR, CACHE_DIR, WP_VERSION-version-latest.
 	 * Some are step-dependent: RUN_DIR, SUITE_CACHE_DIR, COMPOSER_LOCAL_REPOSITORY, PHAR_PATH. One is set on use: INVOKE_WP_CLI_WITH_PHP_ARGS-args.
 	 * Scenarios can define their own variables using "Given save" steps. Variables are reset for each scenario.
 	 */
-	public $variables = array();
+	public $variables = [];
 
 	/**
 	 * The current feature file and scenario line number as '<file>.<line>'. Used in RUN_DIR and SUITE_CACHE_DIR directory names. Set at the start of each scenario.
@@ -84,9 +84,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $num_top_processes; // Number of processes/methods to output by longest run times. Set on `@BeforeSuite`.
 	private static $num_top_scenarios; // Number of scenarios to output by longest run times. Set on `@BeforeSuite`.
 
-	private static $scenario_run_times    = array(); // Scenario run times (top `self::$num_top_scenarios` only).
+	private static $scenario_run_times    = []; // Scenario run times (top `self::$num_top_scenarios` only).
 	private static $scenario_count        = 0; // Scenario count, incremented on `@AfterScenario`.
-	private static $proc_method_run_times = array(); // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
+	private static $proc_method_run_times = []; // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
 
 	/**
 	 * Get the path to the Composer vendor folder.
@@ -211,11 +211,11 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$path_separator = Utils\is_windows() ? ';' : ':';
-		$env            = array(
+		$env            = [
 			'PATH'      => $bin_path . $path_separator . getenv( 'PATH' ),
 			'BEHAT_RUN' => 1,
 			'HOME'      => sys_get_temp_dir() . '/wp-cli-home',
-		);
+		];
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
 		if ( false !== $config_path ) {
@@ -490,16 +490,28 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['DB_ROOT_PASSWORD'] = getenv( 'WP_CLI_TEST_DBROOTPASS' );
 		}
 
+		if ( getenv( 'WP_CLI_TEST_DBNAME' ) ) {
+			$this->variables['DB_NAME'] = getenv( 'WP_CLI_TEST_DBNAME' );
+		} else {
+			$this->variables['DB_NAME'] = 'wp_cli_test';
+		}
+
 		if ( getenv( 'WP_CLI_TEST_DBUSER' ) ) {
 			$this->variables['DB_USER'] = getenv( 'WP_CLI_TEST_DBUSER' );
+		} else {
+			$this->variables['DB_USER'] = 'wp_cli_test';
 		}
 
 		if ( false !== getenv( 'WP_CLI_TEST_DBPASS' ) ) {
 			$this->variables['DB_PASSWORD'] = getenv( 'WP_CLI_TEST_DBPASS' );
+		} else {
+			$this->variables['DB_PASSWORD'] = 'password1';
 		}
 
 		if ( getenv( 'WP_CLI_TEST_DBHOST' ) ) {
 			$this->variables['DB_HOST'] = getenv( 'WP_CLI_TEST_DBHOST' );
+		} else {
+			$this->variables['DB_HOST'] = 'localhost';
 		}
 
 		if ( getenv( 'MYSQL_TCP_PORT' ) ) {
@@ -510,17 +522,10 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['MYSQL_HOST'] = getenv( 'MYSQL_HOST' );
 		}
 
-		self::$db_settings['dbuser'] = array_key_exists( 'DB_USER', $this->variables )
-			? $this->variables['DB_USER']
-			: 'wp_cli_test';
-
-		self::$db_settings['dbpass'] = array_key_exists( 'DB_PASSWORD', $this->variables )
-			? $this->variables['DB_PASSWORD']
-			: 'password1';
-
-		self::$db_settings['dbhost'] = array_key_exists( 'DB_HOST', $this->variables )
-			? $this->variables['DB_HOST']
-			: 'localhost';
+		self::$db_settings['dbname'] = $this->variables['DB_NAME'];
+		self::$db_settings['dbuser'] = $this->variables['DB_USER'];
+		self::$db_settings['dbpass'] = $this->variables['DB_PASSWORD'];
+		self::$db_settings['dbhost'] = $this->variables['DB_HOST'];
 
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
 
@@ -536,7 +541,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( false !== strpos( $str, '{INVOKE_WP_CLI_WITH_PHP_ARGS-' ) ) {
 			$str = $this->replace_invoke_wp_cli_with_php_args( $str );
 		}
-		$str = preg_replace_callback( '/\{([A-Z_][A-Z_0-9]*)\}/', array( $this, 'replace_var' ), $str );
+		$str = preg_replace_callback( '/\{([A-Z_][A-Z_0-9]*)\}/', [ $this, 'replace_var' ], $str );
 		if ( false !== strpos( $str, '{WP_VERSION-' ) ) {
 			$str = $this->replace_wp_versions( $str );
 		}
@@ -600,9 +605,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	private function replace_wp_versions( $str ) {
 		static $wp_versions = null;
 		if ( null === $wp_versions ) {
-			$wp_versions = array();
+			$wp_versions = [];
 
-			$response = Requests::get( 'https://api.wordpress.org/core/version-check/1.7/', null, array( 'timeout' => 30 ) );
+			$response = Requests::get( 'https://api.wordpress.org/core/version-check/1.7/', null, [ 'timeout' => 30 ] );
 			if ( 200 === $response->status_code ) {
 				$body = json_decode( $response->body );
 				if ( is_object( $body ) && isset( $body->offers ) && is_array( $body->offers ) ) {
@@ -724,12 +729,12 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param array $assoc_args Optional. Associative array of options. Default empty.
 	 * @param bool $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
 	 */
-	private static function run_sql( $sql_cmd, $assoc_args = array(), $add_database = false ) {
-		$default_assoc_args = array(
+	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
+		$default_assoc_args = [
 			'host' => self::$db_settings['dbhost'],
 			'user' => self::$db_settings['dbuser'],
 			'pass' => self::$db_settings['dbpass'],
-		);
+		];
 		if ( $add_database ) {
 			$sql_cmd .= ' ' . escapeshellarg( self::$db_settings['dbname'] );
 		}
@@ -742,15 +747,15 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	public function create_db() {
 		$dbname = self::$db_settings['dbname'];
-		self::run_sql( 'mysql --no-defaults', array( 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ) );
+		self::run_sql( 'mysql --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
 	public function drop_db() {
 		$dbname = self::$db_settings['dbname'];
-		self::run_sql( 'mysql --no-defaults', array( 'execute' => "DROP DATABASE IF EXISTS $dbname" ) );
+		self::run_sql( 'mysql --no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
-	public function proc( $command, $assoc_args = array(), $path = '' ) {
+	public function proc( $command, $assoc_args = [], $path = '' ) {
 		if ( ! empty( $assoc_args ) ) {
 			$command .= Utils\assoc_args_to_str( $assoc_args );
 		}
@@ -773,11 +778,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * Start a background process. Will automatically be closed when the tests finish.
 	 */
 	public function background_proc( $cmd ) {
-		$descriptors = array(
+		$descriptors = [
 			0 => STDIN,
-			1 => array( 'pipe', 'w' ),
-			2 => array( 'pipe', 'w' ),
-		);
+			1 => [ 'pipe', 'w' ],
+			2 => [ 'pipe', 'w' ],
+		];
 
 		$proc = proc_open( $cmd, $descriptors, $pipes, $this->variables['RUN_DIR'], self::get_process_env_variables() );
 
@@ -883,14 +888,14 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->download_wp( $subdir );
 		$this->create_config( $subdir, $config_extra_php );
 
-		$install_args = array(
+		$install_args = [
 			'url'            => 'http://example.com',
 			'title'          => 'WP CLI Site',
 			'admin_user'     => 'admin',
 			'admin_email'    => 'admin@example.com',
 			'admin_password' => 'password1',
 			'skip-email'     => true,
-		);
+		];
 
 		$install_cache_path = '';
 		if ( self::$install_cache_dir ) {
@@ -900,7 +905,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
 			self::copy_dir( $install_cache_path, $run_dir );
-			self::run_sql( 'mysql --no-defaults', array( 'execute' => "source {$install_cache_path}.sql" ), true /*add_database*/ );
+			self::run_sql( 'mysql --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
 			if ( $install_cache_path ) {
@@ -914,7 +919,7 @@ class FeatureContext implements SnippetAcceptingContext {
 					$command .= ' --skip-column-statistics';
 				}
 
-				self::run_sql( $command, array( 'result-file' => "{$install_cache_path}.sql" ), true /*add_database*/ );
+				self::run_sql( $command, [ 'result-file' => "{$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		}
 	}
@@ -938,14 +943,14 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$this->create_config( 'WordPress', $config_extra_php );
 
-		$install_args = array(
+		$install_args = [
 			'url'            => 'http://localhost:8080',
 			'title'          => 'WP CLI Site with both WordPress and wp-cli as Composer dependencies',
 			'admin_user'     => 'admin',
 			'admin_email'    => 'admin@example.com',
 			'admin_password' => 'password1',
 			'skip-email'     => true,
-		);
+		];
 
 		$this->proc( 'wp core install', $install_args )->run_check();
 	}
@@ -1065,7 +1070,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			$error = error_get_last();
 			throw new RuntimeException( sprintf( "Failed to open updated directory '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_dir, $error['message'] ) );
 		}
-		foreach ( array_diff( $files, array( '.', '..' ) ) as $file ) {
+		foreach ( array_diff( $files, [ '.', '..' ] ) as $file ) {
 			$upd_file = $upd_dir . '/' . $file;
 			$src_file = $src_dir . '/' . $file;
 			$cop_file = $cop_dir . '/' . $file;
@@ -1129,10 +1134,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		// Process and proc method run times.
 		$run_times       = array_merge( Process::$run_times, self::$proc_method_run_times );
 		$reduce_callback = function ( $carry, $item ) {
-			return array( $carry[0] + $item[0], $carry[1] + $item[1] );
+			return [ $carry[0] + $item[0], $carry[1] + $item[1] ];
 		};
 
-		list( $ptime, $calls ) = array_reduce( $run_times, $reduce_callback, array( 0, 0 ) );
+		list( $ptime, $calls ) = array_reduce( $run_times, $reduce_callback, [ 0, 0 ] );
 
 		$overhead = $time - $ptime;
 		$pct      = round( ( $overhead / $time ) * 100 );
@@ -1208,7 +1213,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static function log_proc_method_run_time( $key, $start_time ) {
 		$run_time = microtime( true ) - $start_time;
 		if ( ! isset( self::$proc_method_run_times[ $key ] ) ) {
-			self::$proc_method_run_times[ $key ] = array( 0, 0 );
+			self::$proc_method_run_times[ $key ] = [ 0, 0 ];
 		}
 		self::$proc_method_run_times[ $key ][0] += $run_time;
 		self::$proc_method_run_times[ $key ][1]++;
