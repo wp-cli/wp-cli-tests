@@ -25,15 +25,15 @@ trait ThenStepDefinitions {
 	}
 
 	/**
-	 * @Then /^(STDOUT|STDERR) should (be|contain|not contain):$/
+	 * @Then /^(STDOUT|STDERR) should( strictly)? (be|contain|not contain):$/
 	 */
-	public function then_stdout_stderr_should_contain( $stream, $action, PyStringNode $expected ) {
+	public function then_stdout_stderr_should_contain( $stream, $strictly, $action, PyStringNode $expected ) {
 
 		$stream = strtolower( $stream );
 
 		$expected = $this->replace_variables( (string) $expected );
 
-		$this->check_string( $this->result->$stream, $expected, $action, $this->result );
+		$this->check_string( $this->result->$stream, $expected, $action, $this->result, (bool) $strictly );
 	}
 
 	/**
