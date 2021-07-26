@@ -186,9 +186,9 @@ trait ThenStepDefinitions {
 	}
 
 	/**
-	 * @Then /^the (.+) (file|directory) should (exist|not exist|be:|contain:|not contain:)$/
+	 * @Then /^the (.+) (file|directory) should( strictly)? (exist|not exist|be:|contain:|not contain:)$/
 	 */
-	public function then_a_specific_file_folder_should_exist( $path, $type, $action, $expected = null ) {
+	public function then_a_specific_file_folder_should_exist( $path, $type, $strictly, $action, $expected = null ) {
 		$path = $this->replace_variables( $path );
 
 		// If it's a relative path, make it relative to the current test dir.
@@ -235,7 +235,7 @@ trait ThenStepDefinitions {
 					}
 					$contents = implode( PHP_EOL, $files );
 				}
-				$this->check_string( $contents, $expected, $action );
+				$this->check_string( $contents, $expected, $action, false, (bool) $strictly );
 		}
 	}
 
