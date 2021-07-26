@@ -50,9 +50,11 @@ trait Support {
 		}
 	}
 
-	protected function check_string( $output, $expected, $action, $message = false ) {
+	protected function check_string( $output, $expected, $action, $message = false, $strictly = false ) {
 		// Strip ANSI color codes before comparing strings.
-		$output = preg_replace( '/\e[[][A-Za-z0-9];?[0-9]*m?/', '', $output );
+		if ( ! $strictly ) {
+			$output = preg_replace( '/\e[[][A-Za-z0-9];?[0-9]*m?/', '', $output );
+		}
 
 		switch ( $action ) {
 			case 'be':
