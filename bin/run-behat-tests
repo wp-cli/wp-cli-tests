@@ -2,6 +2,7 @@
 
 # Run the Behat tests only if a features folder exists
 if [ ! -d "features" ]; then
+	echo 'Could not find "features" directory. Please run from a folder with a "features" directory'
   exit 0;
 fi
 
