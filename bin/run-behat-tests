@@ -6,6 +6,13 @@ if [ ! -d "features" ]; then
   exit 0;
 fi
 
+if ! command -v jq &> /dev/null
+then
+    echo "jq command not found please install it."
+    echo "See https://stedolan.github.io/jq/download/ for installation instructions."
+    exit 1;
+fi
+
 rm -f ".behat-progress.log"
 
 # Turn WP_VERSION into an actual number to make sure our tags work correctly.
