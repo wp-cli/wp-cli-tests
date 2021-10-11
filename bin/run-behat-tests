@@ -2,7 +2,15 @@
 
 # Run the Behat tests only if a features folder exists
 if [ ! -d "features" ]; then
+	echo 'Did not detect "features" directory, skipping Behat tests.'
   exit 0;
+fi
+
+if ! command -v jq &> /dev/null
+then
+    echo 'The required "jq" command was not found, please install it to run the Behat tests.'
+    echo "See https://stedolan.github.io/jq/download/ for installation instructions."
+    exit 1;
 fi
 
 rm -f ".behat-progress.log"

@@ -197,6 +197,24 @@ WP_VERSION=4.2 composer behat
 
 The `WP_VERSION` constant also understands the `latest` and `trunk` as valid version targets.
 
+#### The database credentials
+
+By default, the tests are run in a database named `wp_cli_test` with the user also named `wp_cli_test` with password `password1`.
+This should be set up via the `composer prepare-tests` command.
+
+The following environment variables can be set to override the default database credentials.
+
+  - `WP_CLI_TEST_DBHOST` is the host to use and can include a port, i.e "127.0.0.1:33060" (defaults to "localhost")
+  - `WP_CLI_TEST_DBROOTUSER` is the user that has permission to administer databases and users (defaults to "root").
+  - `WP_CLI_TEST_DBROOTPASS` is the password to use for the above user (defaults to an empty password).
+  - `WP_CLI_TEST_DBNAME` is the database that the tests run under (defaults to "wp_cli_test").
+  - `WP_CLI_TEST_DBUSER` is the user that the tests run under (defaults to "wp_cli_test").
+  - `WP_CLI_TEST_DBPASS` is the password to use for the above user (defaults to "password1").
+
+Environment variables can be set for the whole session via the following syntax: `export WP_CLI_TEST_DBNAME=custom_db`.
+
+They can also be set for a single execution by prepending them before the Behat command: `WP_CLI_TEST_DBNAME=custom_db composer behat`.
+
 ## Contributing
 
 We appreciate you taking the initiative to contribute to this project.
