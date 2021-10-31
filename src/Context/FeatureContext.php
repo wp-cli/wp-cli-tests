@@ -222,6 +222,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			$env['WP_CLI_CONFIG_PATH'] = $config_path;
 		}
 
+		$allow_root = getenv( 'WP_CLI_ALLOW_ROOT' );
+		if ( false !== $allow_root ) {
+			$env['WP_CLI_ALLOW_ROOT'] = $allow_root;
+		}
+
 		$term = getenv( 'TERM' );
 		if ( false !== $term ) {
 			$env['TERM'] = $term;
