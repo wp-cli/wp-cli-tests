@@ -23,7 +23,7 @@
         "yoast/phpunit-polyfills": "^1.0"
     },
     "require-dev": {
-        "roave/security-advisories": "dev-master"
+        "roave/security-advisories": "dev-latest"
     },
     "config": {
         "platform": {
