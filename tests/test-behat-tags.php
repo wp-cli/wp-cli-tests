@@ -1,20 +1,21 @@
 <?php
 
+use WP_CLI\Tests\TestCase;
 use WP_CLI\Utils;
 
-class BehatTagsTest extends PHPUnit_Framework_TestCase {
+class BehatTagsTest extends TestCase {
 
 	public $temp_dir;
 
-	protected function setUp() {
-		parent::setUp();
+	protected function set_up() {
+		parent::set_up();
 
 		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true );
 		mkdir( $this->temp_dir );
 		mkdir( $this->temp_dir . '/features' );
 	}
 
-	protected function tearDown() {
+	protected function tear_down() {
 
 		if ( $this->temp_dir && file_exists( $this->temp_dir ) ) {
 			foreach ( glob( $this->temp_dir . '/features/*' ) as $feature_file ) {
@@ -24,7 +25,7 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 			rmdir( $this->temp_dir );
 		}
 
-		parent::tearDown();
+		parent::tear_down();
 	}
 
 	/**
@@ -97,6 +98,18 @@ class BehatTagsTest extends PHPUnit_Framework_TestCase {
 		} elseif ( '7.2' === $php_version ) {
 			$contents = '@require-php-7.1 @require-php-7.2 @require-php-7.3 @less-than-php-7.1 @less-than-php-7.2 @less-than-php-7.3';
 			$expected = '~@require-php-7.3&&~@less-than-php-7.1&&~@less-than-php-7.2';
+		} elseif ( '7.3' === $php_version ) {
+			$contents = '@require-php-7.2 @require-php-7.3 @require-php-7.4 @less-than-php-7.2 @less-than-php-7.3 @less-than-php-7.4';
+			$expected = '~@require-php-7.4&&~@less-than-php-7.2&&~@less-than-php-7.3';
+		} elseif ( '7.4' === $php_version ) {
+			$contents = '@require-php-7.3 @require-php-7.4 @require-php-8.0 @less-than-php-7.3 @less-than-php-7.4 @less-than-php-8.0';
+			$expected = '~@require-php-8.0&&~@less-than-php-7.3&&~@less-than-php-7.4';
+		} elseif ( '8.0' === $php_version ) {
+			$contents = '@require-php-7.4 @require-php-8.0 @require-php-8.1 @less-than-php-7.4 @less-than-php-8.0 @less-than-php-8.1';
+			$expected = '~@require-php-8.1&&~@less-than-php-7.4&&~@less-than-php-8.0';
+		} elseif ( '8.1' === $php_version ) {
+			$contents = '@require-php-8.0 @require-php-8.1 @require-php-8.2 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2';
+			$expected = '~@require-php-8.2&&~@less-than-php-8.0&&~@less-than-php-8.1';
 		} else {
 			$this->markTestSkipped( "No test for PHP_VERSION $php_version." );
 		}
