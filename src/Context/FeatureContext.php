@@ -894,7 +894,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->create_config( $subdir, $config_extra_php );
 
 		$install_args = [
-			'url'            => 'http://example.com',
+			'url'            => 'https://example.com',
 			'title'          => 'WP CLI Site',
 			'admin_user'     => 'admin',
 			'admin_email'    => 'admin@example.com',
