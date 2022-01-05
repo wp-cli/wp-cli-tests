@@ -981,7 +981,8 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	public function composer_require_current_wp_cli() {
 		$this->composer_add_wp_cli_local_repository();
-		$this->composer_command( 'require wp-cli/wp-cli:dev-master --optimize-autoloader --no-interaction' );
+		// TODO: Specific alias version should be deduced to keep up-to-date.
+		$this->composer_command( 'require "wp-cli/wp-cli:dev-master as v2.5.x-dev" --optimize-autoloader --no-interaction' );
 	}
 
 	public function start_php_server( $subdir = '' ) {
