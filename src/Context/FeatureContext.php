@@ -941,6 +941,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->composer_command( 'config extra.wordpress-install-dir WordPress' );
 		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
 
+		// Allow for all Composer plugins to run to avoid warnings.
+		$this->composer_command( 'config allow-plugins true' );
+
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
@@ -982,7 +985,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	public function composer_require_current_wp_cli() {
 		$this->composer_add_wp_cli_local_repository();
 		// TODO: Specific alias version should be deduced to keep up-to-date.
-		$this->composer_command( 'require "wp-cli/wp-cli:dev-master as v2.5.x-dev" --optimize-autoloader' );
+		$this->composer_command( 'require "wp-cli/wp-cli:dev-master as 2.5.x-dev" --optimize-autoloader' );
 	}
 
 	public function start_php_server( $subdir = '' ) {
