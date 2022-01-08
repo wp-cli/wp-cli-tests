@@ -936,10 +936,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		$yml_path = $this->variables['RUN_DIR'] . '/wp-cli.yml';
 		file_put_contents( $yml_path, 'path: WordPress' );
 
-		$this->composer_command( 'init --name="wp-cli/composer-test" --type="project" --no-interaction' );
+		$this->composer_command( 'init --name="wp-cli/composer-test" --type="project"' );
 		$this->composer_command( 'config vendor-dir ' . $vendor_directory );
-		$this->composer_command( 'config extra.wordpress-install-dir WordPress --no-interaction' );
-		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader --no-interaction' );
+		$this->composer_command( 'config extra.wordpress-install-dir WordPress' );
+		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
@@ -982,7 +982,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	public function composer_require_current_wp_cli() {
 		$this->composer_add_wp_cli_local_repository();
 		// TODO: Specific alias version should be deduced to keep up-to-date.
-		$this->composer_command( 'require "wp-cli/wp-cli:dev-master as v2.5.x-dev" --optimize-autoloader --no-interaction' );
+		$this->composer_command( 'require "wp-cli/wp-cli:dev-master as v2.5.x-dev" --optimize-autoloader' );
 	}
 
 	public function start_php_server( $subdir = '' ) {
@@ -1005,7 +1005,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( ! isset( $this->variables['COMPOSER_PATH'] ) ) {
 			$this->variables['COMPOSER_PATH'] = exec( 'which composer' );
 		}
-		$this->proc( $this->variables['COMPOSER_PATH'] . ' ' . $cmd )->run_check();
+		$this->proc( $this->variables['COMPOSER_PATH'] . ' --no-interaction ' . $cmd )->run_check();
 	}
 
 	/**
