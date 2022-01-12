@@ -18,7 +18,7 @@
         "wp-cli/config-command": "^1 || ^2",
         "wp-cli/core-command": "^1 || ^2",
         "wp-cli/eval-command": "^1 || ^2",
-        "wp-cli/wp-cli": "dev-master as 2.5.1",
+        "wp-cli/wp-cli": "^2.5.1",
         "wp-coding-standards/wpcs": "^2.3.0",
         "yoast/phpunit-polyfills": "^1.0.3"
     },
@@ -33,7 +33,7 @@
     },
     "extra": {
         "branch-alias": {
-            "dev-master": "3.0.x-dev"
+            "dev-main": "3.0.x-dev"
         },
         "readme": {
             "sections": [
