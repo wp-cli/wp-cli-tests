@@ -939,10 +939,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->composer_command( 'init --name="wp-cli/composer-test" --type="project"' );
 		$this->composer_command( 'config vendor-dir ' . $vendor_directory );
 		$this->composer_command( 'config extra.wordpress-install-dir WordPress' );
-		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
 
 		// Allow for all Composer plugins to run to avoid warnings.
-		$this->composer_command( 'config allow-plugins true' );
+		$this->composer_command( 'config --no-plugins allow-plugins true' );
+		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
