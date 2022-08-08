@@ -978,7 +978,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::remove_dir( self::$composer_local_repository . '/vendor' );
 		}
 		$dest = self::$composer_local_repository . '/';
-		$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false}}'" );
+		$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-master\"}}}'" );
 		$this->variables['COMPOSER_LOCAL_REPOSITORY'] = self::$composer_local_repository;
 	}
 
