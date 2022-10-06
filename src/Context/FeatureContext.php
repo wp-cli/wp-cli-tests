@@ -337,10 +337,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		echo $result->stdout;
 		echo PHP_EOL;
 
-		if ( getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
-			exit;
-		}
-
 		self::cache_wp_files();
 
 		$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
