@@ -973,14 +973,14 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::remove_dir( self::$composer_local_repository . '/vendor' );
 		}
 		$dest = self::$composer_local_repository . '/';
-		$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-master\"}}}'" );
+		$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
 		$this->variables['COMPOSER_LOCAL_REPOSITORY'] = self::$composer_local_repository;
 	}
 
 	public function composer_require_current_wp_cli() {
 		$this->composer_add_wp_cli_local_repository();
 		// TODO: Specific alias version should be deduced to keep up-to-date.
-		$this->composer_command( 'require "wp-cli/wp-cli:dev-master as 2.5.x-dev" --optimize-autoloader' );
+		$this->composer_command( 'require "wp-cli/wp-cli:dev-main as 2.5.x-dev" --optimize-autoloader' );
 	}
 
 	public function start_php_server( $subdir = '' ) {
