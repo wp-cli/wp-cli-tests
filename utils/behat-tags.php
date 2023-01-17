@@ -76,6 +76,10 @@ if ( ! getenv( 'GITHUB_TOKEN' ) ) {
 # Skip tests known to be broken.
 $skip_tags[] = '@broken';
 
+if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) ) {
+	$skip_tags[] = '@broken-trunk';
+}
+
 # Require PHP extension, eg 'imagick'.
 function extension_tags( $features_folder = 'features' ) {
 	$extension_tags = array();

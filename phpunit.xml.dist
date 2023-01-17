@@ -3,7 +3,7 @@
 	colors="true"
 	>
 	<testsuites>
-		<testsuite>
+		<testsuite name="default">
 			<directory prefix="spec-" suffix=".php">tests/</directory>
 			<directory prefix="test-" suffix=".php">tests/</directory>
 		</testsuite>

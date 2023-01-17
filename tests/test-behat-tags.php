@@ -44,7 +44,12 @@ class BehatTagsTest extends TestCase {
 		file_put_contents( $this->temp_dir . '/features/wp_version.feature', $contents );
 
 		$output = exec( "cd {$this->temp_dir}; $env php $behat_tags" );
-		$this->assertSame( '--tags=' . $expected . '&&~@broken', $output );
+
+		$expected .= '&&~@broken';
+		if ( in_array( $env, array( 'WP_VERSION=trunk', 'WP_VERSION=nightly' ), true ) ) {
+			$expected .= '&&~@broken-trunk';
+		}
+		$this->assertSame( '--tags=' . $expected, $output );
 
 		putenv( false === $env_wp_version ? 'WP_VERSION' : "WP_VERSION=$env_wp_version" );
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
