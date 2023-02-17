@@ -23,6 +23,7 @@ To make use of the WP-CLI testing framework, you need to complete the following 
         "behat-rerun": "rerun-behat-tests",
         "lint": "run-linter-tests",
         "phpcs": "run-phpcs-tests",
+        "phpcbf": "run-phpcbf-cleanup",
         "phpunit": "run-php-unit-tests",
         "prepare-tests": "install-package-tests",
         "test": [
@@ -101,6 +102,7 @@ You can use the following commands to control the tests:
 * `composer test` - Run all test suites.
 * `composer lint` - Run only the linting test suite.
 * `composer phpcs` - Run only the code sniffer test suite.
+* `composer phpcbf` - Run only the code sniffer cleanup.
 * `composer phpunit` - Run only the unit test suite.
 * `composer behat` - Run only the functional test suite.
 
