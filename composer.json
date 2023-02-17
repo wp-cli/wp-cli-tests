@@ -7,7 +7,7 @@
     ],
     "homepage": "https://wp-cli.org",
     "license": "MIT",
-    "type" : "phpcodesniffer-standard",
+    "type": "phpcodesniffer-standard",
     "require": {
         "php": ">=5.6",
         "behat/behat": "^3.7",
@@ -60,13 +60,15 @@
         "bin/run-behat-tests",
         "bin/run-linter-tests",
         "bin/run-php-unit-tests",
-        "bin/run-phpcs-tests"
+        "bin/run-phpcs-tests",
+        "bin/run-phpcbf-cleanup"
     ],
     "scripts": {
         "behat": "run-behat-tests",
         "behat-rerun": "rerun-behat-tests",
         "lint": "run-linter-tests",
         "phpcs": "run-phpcs-tests",
+        "phpcbf": "run-phpcbf-cleanup",
         "phpunit": "run-php-unit-tests",
         "prepare-tests": "install-package-tests",
         "test": [
