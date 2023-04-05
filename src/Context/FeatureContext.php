@@ -21,6 +21,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	use ThenStepDefinitions;
 	use WhenStepDefinitions;
 
+	private $result;
+	private $email_sends;
+
 	/**
 	 * The current working directory for scenarios that have a "Given a WP installation" or "Given an empty directory" step. Variable RUN_DIR. Lives until the end of the scenario.
 	 */
