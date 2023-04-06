@@ -22,6 +22,16 @@ class FeatureContext implements SnippetAcceptingContext {
 	use WhenStepDefinitions;
 
 	/**
+	 * The result of the last command run with `When I run` or `When I try`. Lives until the end of the scenario.
+	 */
+	private $result;
+
+	/**
+	 * The number of emails sent by the last command run with `When I run` or `When I try`. Lives until the end of the scenario.
+	 */
+	private $email_sends;
+
+	/**
 	 * The current working directory for scenarios that have a "Given a WP installation" or "Given an empty directory" step. Variable RUN_DIR. Lives until the end of the scenario.
 	 */
 	private static $run_dir;
