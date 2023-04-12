@@ -47,10 +47,16 @@ if [ -n "${WP_CLI_TEST_DBPASS}" ]; then
   TEST_PASSWORD="${WP_CLI_TEST_DBPASS}"
 fi
 
+echo 'Checking if MySQL is ready...'
 while ! mysql --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
 do
-  echo 'Waiting for MySQL query...'
-  sleep 1
+  echo 'Waiting for MySQL...'
+  sleep 3
+  let "i+=1"
+  if [ $i -gt 20 ]; then
+	echo 'MySQL failed to start. Aborting.'
+	exit 1
+  fi
 done
 
 # Prepare the database for running the tests with a MySQL version 8.0 or higher.
