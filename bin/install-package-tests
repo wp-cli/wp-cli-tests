@@ -52,7 +52,7 @@ while ! mysql --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" 
 do
   echo 'Waiting for MySQL...'
   sleep 5
-  let "i+=1"
+  i=$((i+1))
   if [ $i -gt 36 ]; then
 	echo 'MySQL failed to start. Aborting.'
 	exit 1
