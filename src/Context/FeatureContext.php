@@ -7,7 +7,6 @@ use Behat\Behat\Hook\Scope\AfterScenarioScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Testwork\Hook\Scope\AfterSuiteScope;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
-use Requests;
 use RuntimeException;
 use WP_CLI\Process;
 use WP_CLI\Utils;
@@ -617,7 +616,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( null === $wp_versions ) {
 			$wp_versions = [];
 
-			$response = Requests::get( 'https://api.wordpress.org/core/version-check/1.7/', null, [ 'timeout' => 30 ] );
+			$response = Utils\http_request( 'GET', 'https://api.wordpress.org/core/version-check/1.7/', null, [], [ 'timeout' => 30 ] );
 			if ( 200 === $response->status_code ) {
 				$body = json_decode( $response->body );
 				if ( is_object( $body ) && isset( $body->offers ) && is_array( $body->offers ) ) {
