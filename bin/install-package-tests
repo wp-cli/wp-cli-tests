@@ -48,7 +48,7 @@ if [ -n "${WP_CLI_TEST_DBPASS}" ]; then
 fi
 
 echo 'Checking if MySQL is ready...'
-while ! mysql --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
+while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
 do
   echo 'Waiting for MySQL...'
   sleep 5
