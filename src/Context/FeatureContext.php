@@ -1061,7 +1061,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		$scenario_key = self::get_scenario_key( $scope );
 		if ( $scenario_key ) {
 			self::$scenario_run_times[ $scenario_key ] += microtime( true );
-			self::$scenario_count++;
+			++self::$scenario_count;
 			if ( count( self::$scenario_run_times ) > self::$num_top_scenarios ) {
 				arsort( self::$scenario_run_times );
 				array_pop( self::$scenario_run_times );
@@ -1094,11 +1094,9 @@ class FeatureContext implements SnippetAcceptingContext {
 						throw new RuntimeException( sprintf( "Failed to create copy directory '%s': %s. " . __FILE__ . ':' . __LINE__, $cop_file, $error['message'] ) );
 					}
 					self::copy_dir( $upd_file, $cop_file );
-				} else {
-					if ( ! copy( $upd_file, $cop_file ) ) {
+				} elseif ( ! copy( $upd_file, $cop_file ) ) {
 						$error = error_get_last();
 						throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
-					}
 				}
 			} elseif ( is_dir( $upd_file ) ) {
 				self::dir_diff_copy( $upd_file, $src_file, $cop_file );
@@ -1229,7 +1227,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::$proc_method_run_times[ $key ] = [ 0, 0 ];
 		}
 		self::$proc_method_run_times[ $key ][0] += $run_time;
-		self::$proc_method_run_times[ $key ][1]++;
+		++self::$proc_method_run_times[ $key ][1];
 	}
 }
 
@@ -1301,7 +1299,6 @@ function wpcli_bootstrap_behat_feature_context() {
 
 	wp_cli_behat_env_debug( "Project config file location: {$project_config}" );
 	wp_cli_behat_env_debug( "Project config:\n{$contents}" );
-
 }
 
 wpcli_bootstrap_behat_feature_context();

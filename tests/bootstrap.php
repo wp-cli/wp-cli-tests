@@ -59,4 +59,3 @@ wpcli_tests_include_config(
 		'.phpunit.xml.dist',
 	]
 );
-

@@ -200,7 +200,7 @@ trait Support {
 				);
 
 				if ( $actual_row === $expected_row ) {
-					$expected_result++;
+					++$expected_result;
 				}
 			}
 		}
