@@ -32,7 +32,7 @@ trait Support {
 	}
 
 	protected function assert_not_equals( $expected, $actual ) {
-		// phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- Deliberate loose comparison.
+		// phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- Deliberate loose comparison.
 		if ( $expected == $actual ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}
