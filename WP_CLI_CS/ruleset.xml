@@ -75,6 +75,9 @@
 		<!-- We want to stick with short array syntax for WP-CLI. -->
 		<exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
 
+		<!-- Keep short ternaries around for WP-CLI. -->
+		<exclude name="WordPress.PHP.DisallowShortTernary"/>
+
 	</rule>
 
 
