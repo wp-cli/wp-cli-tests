@@ -25,14 +25,14 @@ trait Support {
 	}
 
 	protected function assert_equals( $expected, $actual ) {
-		// phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison -- Deliberate loose comparison.
+		// phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- Deliberate loose comparison.
 		if ( $expected != $actual ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}
 	}
 
 	protected function assert_not_equals( $expected, $actual ) {
-		// phpcs:ignore WordPress.PHP.StrictComparisons.LooseComparison -- Deliberate loose comparison.
+		// phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- Deliberate loose comparison.
 		if ( $expected == $actual ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}

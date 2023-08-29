@@ -1231,6 +1231,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 }
 
+// phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
 function wp_cli_behat_env_debug( $message ) {
 	if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
 		return;
