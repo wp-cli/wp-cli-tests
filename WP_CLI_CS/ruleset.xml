@@ -77,6 +77,10 @@
 
 		<!-- Keep short ternaries around for WP-CLI. -->
 		<exclude name="Universal.Operators.DisallowShortTernary.Found"/>
+
+		<!-- Allow filesystem operations because WordPress APIs may not be available -->
+		<exclude name="WordPress.WP.AlternativeFunctions.rename_rename" />
+		<exclude name="WordPress.WP.AlternativeFunctions.unlink_unlink" />
 	</rule>
 
 
