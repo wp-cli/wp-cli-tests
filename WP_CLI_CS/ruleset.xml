@@ -145,7 +145,7 @@
 			<property name="exclude" type="array">
 				<element value="curl"/>
 				<element value="file_get_contents"/>
-				<element value="file_system_read"/>
+				<element value="file_system_operations"/>
 				<!-- As PHP 5.4. is the minimum for most projects, using json_encode() is fine. -->
 				<element value="json_encode"/>
 			</property>
