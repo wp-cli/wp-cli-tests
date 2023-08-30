@@ -79,26 +79,8 @@
 		<exclude name="Universal.Operators.DisallowShortTernary.Found"/>
 
 		<!-- Allow filesystem operations because WordPress APIs may not be available -->
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_chgrp" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_chmod" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_chown" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fclose" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fopen" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fputs" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fread" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fsockopen" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_fwrite" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_is_writable" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_is_writeable" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_mkdir" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_pfsockopen" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_readfile" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_rmdir" />
-		<exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_touch" />
 		<exclude name="WordPress.WP.AlternativeFunctions.rename_rename" />
 		<exclude name="WordPress.WP.AlternativeFunctions.unlink_unlink" />
-
 	</rule>
 
 
@@ -125,7 +107,7 @@
 		 See: https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards/wiki/Customizable-sniff-properties#error-silencing-use-build-in-function-whitelist -->
 	<rule ref="WordPress.PHP.NoSilencedErrors">
 		<properties>
-			<property name="use_default_whitelist" value="true"/>
+			<property name="usePHPFunctionsList" value="true"/>
 		</properties>
 	</rule>
 
@@ -145,6 +127,7 @@
 			<property name="exclude" type="array">
 				<element value="curl"/>
 				<element value="file_get_contents"/>
+				<!-- Allow filesystem operations because WordPress APIs may not be available -->
 				<element value="file_system_operations"/>
 				<!-- As PHP 5.4. is the minimum for most projects, using json_encode() is fine. -->
 				<element value="json_encode"/>
