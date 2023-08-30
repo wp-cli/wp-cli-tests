@@ -62,4 +62,3 @@ trait WhenStepDefinitions {
 		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
 	}
 }
-
