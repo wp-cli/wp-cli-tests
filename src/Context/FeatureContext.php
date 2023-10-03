@@ -111,6 +111,8 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		// We try to detect the vendor folder in the most probable locations.
 		$vendor_locations = [
+			// wp-cli/wp-cli-tests is a dependency of the current working dir.
+			getcwd() . '/vendor',
 			// wp-cli/wp-cli-tests is the root project.
 			dirname( dirname( __DIR__ ) ) . '/vendor',
 			// wp-cli/wp-cli-tests is a dependency.
