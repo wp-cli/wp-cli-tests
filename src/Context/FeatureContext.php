@@ -999,7 +999,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
 			self::copy_dir( $install_cache_path, $run_dir );
 
-			/* This is the sqlite equivilant of restoring a database dump in MySQL*/
+			// This is the sqlite equivalent of restoring a database dump in MySQL
 			if ( 'SQLITE' === self::$db_type ) {
 				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
 			} else {
