@@ -384,11 +384,14 @@ class FeatureContext implements SnippetAcceptingContext {
 		$wp_version_suffix = ( false !== $wp_version ) ? "-$wp_version" : '';
 		self::$cache_dir   = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 
+		/* Make sure we are using the right database type if we previously used a different one */
 		if ( is_readable( self::$cache_dir . '/wp-config-sample.php' ) ) {
 			if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
 				if ( ! is_readable( self::$cache_dir . '/wp-content/db.php' ) ) {
 					self::download_and_configure_sqlite_plugin( self::$cache_dir );
 				}
+			} elseif ( is_readable( self::$cache_dir . '/wp-content/db.php' ) ) {
+					unlink( self::$cache_dir . '/wp-content/db.php' );
 			}
 			return;
 		}
