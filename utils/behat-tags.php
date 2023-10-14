@@ -73,6 +73,10 @@ if ( ! getenv( 'GITHUB_TOKEN' ) ) {
 	$skip_tags[] = '@github-api';
 }
 
+if ( 'SQLITE' === getenv( 'DB_TYPE' ) ) {
+	$skip_tags[] = '@require-mysql';
+}
+
 # Skip tests known to be broken.
 $skip_tags[] = '@broken';
 
