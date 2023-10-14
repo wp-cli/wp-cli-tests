@@ -34,6 +34,7 @@ class BehatTagsTest extends TestCase {
 	public function test_behat_tags_wp_version_github_token( $env, $expected ) {
 		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
+		$db_type          = getenv( 'DB_TYPE' );
 
 		putenv( 'WP_VERSION' );
 		putenv( 'GITHUB_TOKEN' );
@@ -49,6 +50,14 @@ class BehatTagsTest extends TestCase {
 		if ( in_array( $env, array( 'WP_VERSION=trunk', 'WP_VERSION=nightly' ), true ) ) {
 			$expected .= '&&~@broken-trunk';
 		}
+
+		if ( 'sqlite' !== $db_type ) {
+			$expected .= '&&~@require-sqlite';
+		}
+		if ( 'sqlite' === $db_type ) {
+			$expected .= '&&~@require-mysql';
+		}
+
 		$this->assertSame( '--tags=' . $expected, $output );
 
 		putenv( false === $env_wp_version ? 'WP_VERSION' : "WP_VERSION=$env_wp_version" );
@@ -129,6 +138,7 @@ class BehatTagsTest extends TestCase {
 
 	public function test_behat_tags_extension() {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
+		$db_type          = getenv( 'DB_TYPE' );
 
 		putenv( 'GITHUB_TOKEN' );
 
@@ -137,12 +147,20 @@ class BehatTagsTest extends TestCase {
 		file_put_contents( $this->temp_dir . '/features/extension.feature', '@require-extension-imagick @require-extension-curl' );
 
 		$expecteds = array();
+
+		if ( 'sqlite' !== $db_type ) {
+			$expecteds[] = '~@require-sqlite';
+		}
+		if ( 'sqlite' === $db_type ) {
+			$expecteds[] = '~@require-mysql';
+		}
 		if ( ! extension_loaded( 'imagick' ) ) {
 			$expecteds[] = '~@require-extension-imagick';
 		}
 		if ( ! extension_loaded( 'curl' ) ) {
 			$expecteds[] = '~@require-extension-curl';
 		}
+
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
 		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
 		$this->assertSame( $expected, $output );
