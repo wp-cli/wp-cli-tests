@@ -77,7 +77,7 @@ if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
 	$skip_tags[] = '@require-mysql';
 }
 
-if ( 'mysql' === getenv( 'DB_TYPE' ) ) {
+if ( 'sqlite' !== getenv( 'DB_TYPE' ) ) {
 	$skip_tags[] = '@require-sqlite';
 }
 
