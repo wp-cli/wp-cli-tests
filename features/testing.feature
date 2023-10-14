@@ -23,3 +23,21 @@ Feature: Test that WP-CLI loads.
       """
       DISABLE_WP_CRON is: true
       """
+
+  @require-sqlite
+  Scenario: Uses SQLite
+  Given a WP install
+  When I run `wp eval 'echo DB_ENGINE;'`
+  Then STDOUT should contain:
+    """
+    sqlite
+    """
+
+  @require-mysql
+  Scenario: Uses MySQL
+  Given a WP install
+  When I run `wp eval 'var_export( defined("DB_ENGINE") );'`
+  Then STDOUT should be:
+    """
+    false
+    """

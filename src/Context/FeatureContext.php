@@ -70,7 +70,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 *  What type of database should WordPress use for the test installations. Default to MySQL
 	 */
-	private static $db_type = 'MYSQL';
+	private static $db_type = 'mysql';
 
 	/**
 	 * Array of background process ids started by the current scenario. Used to terminate them at the end of the scenario.
@@ -333,7 +333,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		$download_location = $dir . '/wp-content/plugins/sqlite-database-integration.zip';
 		Process::create(
 			Utils\esc_cmd(
-				'curl -sSfL %1$s > %2$s && chmod +x %2$s',
+				'curl -sSfL %1$s > %2$s',
 				$download_url,
 				$download_location
 			)
@@ -346,6 +346,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( $zip->open( $new_zip_file ) === true ) {
 			if ( $zip->extractTo( $plugins_folder ) ) {
 				$zip->close();
+				unlink( $new_zip_file );
 			} else {
 				$error_message = $zip->getStatusString();
 				throw new RuntimeException( sprintf( 'Failed to extract files from the zip: %s', $error_message ) );
@@ -384,7 +385,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		self::$cache_dir   = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 
 		if ( is_readable( self::$cache_dir . '/wp-config-sample.php' ) ) {
-			if ( 'SQLITE' === getenv( 'DB_TYPE' ) ) {
+			if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
 				if ( ! is_readable( self::$cache_dir . '/wp-content/db.php' ) ) {
 					self::download_and_configure_sqlite_plugin( self::$cache_dir );
 				}
@@ -398,7 +399,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 		Process::create( $cmd, null, self::get_process_env_variables() )->run_check();
 
-		if ( 'SQLITE' === getenv( 'DB_TYPE' ) ) {
+		if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
 			self::download_and_configure_sqlite_plugin( self::$cache_dir );
 		}
 	}
@@ -597,8 +598,8 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['MYSQL_HOST'] = getenv( 'MYSQL_HOST' );
 		}
 
-		if ( 'SQLITE' === getenv( 'DB_TYPE' ) ) {
-			self::$db_type = 'SQLITE';
+		if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
+			self::$db_type = 'sqlite';
 		}
 
 		self::$db_settings['dbname'] = $this->variables['DB_NAME'];
@@ -810,7 +811,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
 		/* Can't run SQL against SQLite yet */
-		if ( 'SQLITE' === self::$db_type ) {
+		if ( 'sqlite' === self::$db_type ) {
 			return;
 		}
 
@@ -830,7 +831,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	public function create_db() {
-		if ( 'SQLITE' === self::$db_type ) {
+		if ( 'sqlite' === self::$db_type ) {
 			return;
 		}
 
@@ -839,7 +840,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	public function drop_db() {
-		if ( 'SQLITE' === self::$db_type ) {
+		if ( 'sqlite' === self::$db_type ) {
 			return;
 		}
 		$dbname = self::$db_settings['dbname'];
@@ -974,7 +975,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
-		if ( 'MYSQL' === self::$db_type ) {
+		if ( 'mysql' === self::$db_type ) {
 			$this->create_db();
 		}
 		$this->create_run_dir();
@@ -1000,7 +1001,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::copy_dir( $install_cache_path, $run_dir );
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
-			if ( 'SQLITE' === self::$db_type ) {
+			if ( 'sqlite' === self::$db_type ) {
 				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
 			} else {
 				self::run_sql( 'mysql --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
@@ -1011,7 +1012,7 @@ class FeatureContext implements SnippetAcceptingContext {
 				mkdir( $install_cache_path );
 				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
-				if ( 'MYSQL' === self::$db_type ) {
+				if ( 'mysql' === self::$db_type ) {
 					$mysqldump_binary          = Utils\force_env_on_nix_systems( 'mysqldump' );
 					$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
 					$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
@@ -1021,7 +1022,7 @@ class FeatureContext implements SnippetAcceptingContext {
 					self::run_sql( $command, [ 'result-file' => "{$install_cache_path}.sql" ], true /*add_database*/ );
 				}
 
-				if ( 'SQLITE' === self::$db_type ) {
+				if ( 'sqlite' === self::$db_type ) {
 					/* This is the sqlite equivilant of creating a database dump in MySQL*/
 					copy( "$run_dir/wp-content/database/.ht.sqlite", "{$install_cache_path}.sqlite" );
 				}
@@ -1060,7 +1061,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			'skip-email'     => true,
 		];
 
-		if ( 'SQLITE' === self::$db_type ) {
+		if ( 'sqlite' === self::$db_type ) {
 			self::download_and_configure_sqlite_plugin( $this->variables['RUN_DIR'] . '/WordPress' );
 		}
 
