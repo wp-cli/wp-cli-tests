@@ -24,7 +24,7 @@ Feature: Test that WP-CLI loads.
       DISABLE_WP_CRON is: true
       """
 
-  @require-wp-6.0 @require-sqlite
+  @require-sqlite
   Scenario: Uses SQLite
   Given a WP install
   When I run `wp eval 'echo DB_ENGINE;'`
