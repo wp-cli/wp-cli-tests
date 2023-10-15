@@ -46,7 +46,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $install_cache_dir;
 
 	/**
-	 * The direction that holds a copy of the sqlite-database-integration plugin, and which is copied to RUN_DIR during a "Given a WP installation" step. Lives until manually deleted.
+	 * The directory that holds a copy of the sqlite-database-integration plugin, and which is copied to RUN_DIR during a "Given a WP installation" step. Lives until manually deleted.
 	 */
 	private static $sqlite_cache_dir;
 
