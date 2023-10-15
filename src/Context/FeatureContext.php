@@ -357,7 +357,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$db_copy   = $plugins_folder . '/sqlite-database-integration/db.copy';
-		$db_dropin = self::$cache_dir . '/wp-content/db.php';
+		$db_dropin = $dir . '/wp-content/db.php';
 
 		/* similar to https://github.com/WordPress/sqlite-database-integration/blob/3306576c9b606bc23bbb26c15383fef08e03ab11/activate.php#L95 */
 		$file_contents = str_replace(
