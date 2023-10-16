@@ -1042,7 +1042,7 @@ class FeatureContext implements SnippetAcceptingContext {
 				}
 
 				if ( 'sqlite' === self::$db_type ) {
-					/* This is the sqlite equivilant of creating a database dump in MySQL*/
+					// This is the sqlite equivalent of creating a database dump in MySQL
 					copy( "$run_dir/wp-content/database/.ht.sqlite", "{$install_cache_path}.sqlite" );
 				}
 			}
