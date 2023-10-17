@@ -822,7 +822,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * Copy a directory (recursive). Destination directory must exist.
 	 */
 	public static function copy_dir( $src_dir, $dest_dir ) {
-		Process::create( Utils\esc_cmd( 'cp -r %s/* %s', $src_dir, $dest_dir ) )->run_check();
+		if ( 'Darwin' === PHP_OS ) {
+			Process::create( Utils\esc_cmd( 'cp -R %s/* %s', $src_dir, $dest_dir ) )->run_check();
+		} else {
+			Process::create( Utils\esc_cmd( 'cp -r %s/* %s', $src_dir, $dest_dir ) )->run_check();
+		}
 	}
 
 	public function add_line_to_wp_config( &$wp_config_code, $line ) {
