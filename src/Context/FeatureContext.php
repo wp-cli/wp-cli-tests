@@ -823,11 +823,6 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param bool $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
 	 */
 	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
-		/* Can't run SQL against SQLite yet */
-		if ( 'sqlite' === self::$db_type ) {
-			return;
-		}
-
 		$default_assoc_args = [
 			'host' => self::$db_settings['dbhost'],
 			'user' => self::$db_settings['dbuser'],
