@@ -46,6 +46,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $install_cache_dir;
 
 	/**
+	 * The directory that holds a copy of the sqlite-database-integration plugin, and which is copied to RUN_DIR during a "Given a WP installation" step. Lives until manually deleted.
+	 */
+	private static $sqlite_cache_dir;
+
+	/**
 	 * The directory that the WP-CLI cache (WP_CLI_CACHE_DIR, normally "$HOME/.wp-cli/cache") is set to on a "Given an empty cache" step.
 	 * Variable SUITE_CACHE_DIR. Lives until the end of the scenario (or until another "Given an empty cache" step within the scenario).
 	 */
@@ -66,6 +71,11 @@ class FeatureContext implements SnippetAcceptingContext {
 		'dbpass' => 'password1',
 		'dbhost' => '127.0.0.1',
 	];
+
+	/**
+	 *  What type of database should WordPress use for the test installations. Default to MySQL
+	 */
+	private static $db_type = 'mysql';
 
 	/**
 	 * Array of background process ids started by the current scenario. Used to terminate them at the end of the scenario.
@@ -320,13 +330,81 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	* Download and extract a single copy of the sqlite-database-integration plugin
+	* for use in subsequent WordPress copies
+	*/
+	private static function download_sqlite_plugin( $dir ) {
+		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip';
+		$download_location = $dir . '/sqlite-database-integration.zip';
+
+		if ( ! is_dir( $dir ) ) {
+			mkdir( $dir );
+		}
+
+		Process::create(
+			Utils\esc_cmd(
+				'curl -sSfL %1$s > %2$s',
+				$download_url,
+				$download_location
+			)
+		)->run_check();
+
+		$zip          = new \ZipArchive();
+		$new_zip_file = $download_location;
+
+		if ( $zip->open( $new_zip_file ) === true ) {
+			if ( $zip->extractTo( $dir ) ) {
+				$zip->close();
+				unlink( $new_zip_file );
+			} else {
+				$error_message = $zip->getStatusString();
+				throw new RuntimeException( sprintf( 'Failed to extract files from the zip: %s', $error_message ) );
+			}
+		} else {
+			$error_message = $zip->getStatusString();
+			throw new RuntimeException( sprintf( 'Failed to open the zip file: %s', $error_message ) );
+		}
+	}
+
+	/**
+	* Given a WordPress installation with the sqlite-database-integration plugin,
+	* configure it to use SQLite as the database by placing the db.php dropin file
+	*/
+	private static function configure_sqlite( $dir ) {
+		$db_copy   = $dir . '/wp-content/plugins/sqlite-database-integration/db.copy';
+		$db_dropin = $dir . '/wp-content/db.php';
+
+		/* similar to https://github.com/WordPress/sqlite-database-integration/blob/3306576c9b606bc23bbb26c15383fef08e03ab11/activate.php#L95 */
+		$file_contents = str_replace(
+			array(
+				'\'{SQLITE_IMPLEMENTATION_FOLDER_PATH}\'',
+				'{SQLITE_PLUGIN}',
+			),
+			array(
+				'__DIR__ . \'plugins/sqlite-database-integration\'',
+				'sqlite-database-integration/load.php',
+			),
+			file_get_contents( $db_copy )
+		);
+
+		file_put_contents( $db_dropin, $file_contents );
+	}
+
+	/**
 	 * We cache the results of `wp core download` to improve test performance.
 	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
 	 */
 	private static function cache_wp_files() {
-		$wp_version        = getenv( 'WP_VERSION' );
-		$wp_version_suffix = ( false !== $wp_version ) ? "-$wp_version" : '';
-		self::$cache_dir   = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+		$wp_version             = getenv( 'WP_VERSION' );
+		$wp_version_suffix      = ( false !== $wp_version ) ? "-$wp_version" : '';
+		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
+
+		if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
+			if ( ! is_readable( self::$sqlite_cache_dir . '/sqlite-database-integration/db.copy' ) ) {
+				self::download_sqlite_plugin( self::$sqlite_cache_dir );
+			}
+		}
 
 		if ( is_readable( self::$cache_dir . '/wp-config-sample.php' ) ) {
 			return;
@@ -531,6 +609,10 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		if ( getenv( 'MYSQL_HOST' ) ) {
 			$this->variables['MYSQL_HOST'] = getenv( 'MYSQL_HOST' );
+		}
+
+		if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
+			self::$db_type = 'sqlite';
 		}
 
 		self::$db_settings['dbname'] = $this->variables['DB_NAME'];
@@ -757,11 +839,18 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	public function create_db() {
+		if ( 'sqlite' === self::$db_type ) {
+			return;
+		}
+
 		$dbname = self::$db_settings['dbname'];
 		self::run_sql( 'mysql --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
 	public function drop_db() {
+		if ( 'sqlite' === self::$db_type ) {
+			return;
+		}
 		$dbname = self::$db_settings['dbname'];
 		self::run_sql( 'mysql --no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
@@ -854,6 +943,12 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		// Add polyfills.
 		copy( dirname( dirname( __DIR__ ) ) . '/utils/polyfills.php', $dest_dir . '/wp-content/mu-plugins/polyfills.php' );
+
+		if ( 'sqlite' === self::$db_type ) {
+			self::copy_dir( self::$sqlite_cache_dir, $dest_dir . '/wp-content/plugins' );
+			self::configure_sqlite( $dest_dir );
+
+		}
 	}
 
 	public function create_config( $subdir = '', $extra_php = false ) {
@@ -897,7 +992,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
-		$this->create_db();
+		if ( 'mysql' === self::$db_type ) {
+			$this->create_db();
+		}
 		$this->create_run_dir();
 		$this->download_wp( $subdir );
 		$this->create_config( $subdir, $config_extra_php );
@@ -919,21 +1016,33 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
 			self::copy_dir( $install_cache_path, $run_dir );
-			self::run_sql( 'mysql --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
+
+			// This is the sqlite equivalent of restoring a database dump in MySQL
+			if ( 'sqlite' === self::$db_type ) {
+				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
+			} else {
+				self::run_sql( 'mysql --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
+			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
 			if ( $install_cache_path ) {
 				mkdir( $install_cache_path );
 				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
-				$mysqldump_binary          = Utils\force_env_on_nix_systems( 'mysqldump' );
-				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
-				$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
-				if ( $support_column_statistics ) {
-					$command .= ' --skip-column-statistics';
+				if ( 'mysql' === self::$db_type ) {
+					$mysqldump_binary          = Utils\force_env_on_nix_systems( 'mysqldump' );
+					$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
+					$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
+					if ( $support_column_statistics ) {
+						$command .= ' --skip-column-statistics';
+					}
+					self::run_sql( $command, [ 'result-file' => "{$install_cache_path}.sql" ], true /*add_database*/ );
 				}
 
-				self::run_sql( $command, [ 'result-file' => "{$install_cache_path}.sql" ], true /*add_database*/ );
+				if ( 'sqlite' === self::$db_type ) {
+					// This is the sqlite equivalent of creating a database dump in MySQL
+					copy( "$run_dir/wp-content/database/.ht.sqlite", "{$install_cache_path}.sqlite" );
+				}
 			}
 		}
 	}
@@ -968,6 +1077,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			'admin_password' => 'password1',
 			'skip-email'     => true,
 		];
+
+		if ( 'sqlite' === self::$db_type ) {
+			self::copy_dir( self::$sqlite_cache_dir, $this->variables['RUN_DIR'] . '/WordPress/wp-content/plugins' );
+			self::configure_sqlite( $this->variables['RUN_DIR'] . '/WordPress' );
+		}
 
 		$this->proc( 'wp core install', $install_args )->run_check();
 	}

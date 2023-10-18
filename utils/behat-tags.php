@@ -72,13 +72,21 @@ $skip_tags = array_merge(
 if ( ! getenv( 'GITHUB_TOKEN' ) ) {
 	$skip_tags[] = '@github-api';
 }
-
 # Skip tests known to be broken.
 $skip_tags[] = '@broken';
 
 if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) ) {
 	$skip_tags[] = '@broken-trunk';
 }
+
+if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
+	$skip_tags[] = '@require-mysql';
+}
+
+if ( 'sqlite' !== getenv( 'DB_TYPE' ) ) {
+	$skip_tags[] = '@require-sqlite';
+}
+
 
 # Require PHP extension, eg 'imagick'.
 function extension_tags( $features_folder = 'features' ) {
