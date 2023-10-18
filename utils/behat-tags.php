@@ -79,11 +79,11 @@ if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) )
 	$skip_tags[] = '@broken-trunk';
 }
 
-if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
+if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 	$skip_tags[] = '@require-mysql';
 }
 
-if ( 'sqlite' !== getenv( 'DB_TYPE' ) ) {
+if ( 'sqlite' !== getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 	$skip_tags[] = '@require-sqlite';
 }
 

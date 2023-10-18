@@ -34,7 +34,7 @@ class BehatTagsTest extends TestCase {
 	public function test_behat_tags_wp_version_github_token( $env, $expected ) {
 		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
-		$db_type          = getenv( 'DB_TYPE' );
+		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
 
 		putenv( 'WP_VERSION' );
 		putenv( 'GITHUB_TOKEN' );
@@ -138,7 +138,7 @@ class BehatTagsTest extends TestCase {
 
 	public function test_behat_tags_extension() {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
-		$db_type          = getenv( 'DB_TYPE' );
+		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
 
 		putenv( 'GITHUB_TOKEN' );
 

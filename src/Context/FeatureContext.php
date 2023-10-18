@@ -400,7 +400,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
-		if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 			if ( ! is_readable( self::$sqlite_cache_dir . '/sqlite-database-integration/db.copy' ) ) {
 				self::download_sqlite_plugin( self::$sqlite_cache_dir );
 			}
@@ -603,6 +603,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['DB_HOST'] = 'localhost';
 		}
 
+		if ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
+			$this->variables['DB_TYPE'] = getenv( 'WP_CLI_TEST_DBTYPE' );
+		} else {
+			$this->variables['DB_TYPE'] = 'mysql';
+		}
+
 		if ( getenv( 'MYSQL_TCP_PORT' ) ) {
 			$this->variables['MYSQL_PORT'] = getenv( 'MYSQL_TCP_PORT' );
 		}
@@ -611,14 +617,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables['MYSQL_HOST'] = getenv( 'MYSQL_HOST' );
 		}
 
-		if ( 'sqlite' === getenv( 'DB_TYPE' ) ) {
-			self::$db_type = 'sqlite';
-		}
-
 		self::$db_settings['dbname'] = $this->variables['DB_NAME'];
 		self::$db_settings['dbuser'] = $this->variables['DB_USER'];
 		self::$db_settings['dbpass'] = $this->variables['DB_PASSWORD'];
 		self::$db_settings['dbhost'] = $this->variables['DB_HOST'];
+
+		self::$db_type = $this->variables['DB_TYPE'];
 
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
 
