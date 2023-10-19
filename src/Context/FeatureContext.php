@@ -967,6 +967,9 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$params['skip-salts'] = true;
 
+		// Do not check database connection as we might be running SQLite and the check would fail.
+		$params['skip-check'] = true;
+
 		if ( false !== $extra_php ) {
 			$params['extra-php'] = $extra_php;
 		}
