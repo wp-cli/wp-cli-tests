@@ -936,7 +936,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			mkdir( $dest_dir );
 		}
 
+		error_log( 'Copy WP from Cache Dir to Run Dir ' . $dest_dir );
+		error_log( print_r( scandir( $dest_dir ), true ) );
+
 		self::copy_dir( self::$cache_dir, $dest_dir );
+
+		error_log( print_r( scandir( $dest_dir ), true ) );
 
 		if ( ! is_dir( $dest_dir . '/wp-content/mu-plugins' ) ) {
 			mkdir( $dest_dir . '/wp-content/mu-plugins' );
@@ -971,6 +976,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( self::$install_cache_dir ) {
 			$config_cache_path = self::$install_cache_dir . '/config_' . md5( implode( ':', $params ) . ':subdir=' . $subdir );
 		}
+
+		error_log( 'Creating wp-config.php in Run Dir: ' . $run_dir );
+		error_log( 'Config Cache Path: ' . $config_cache_path );
 
 		if ( $config_cache_path && file_exists( $config_cache_path ) ) {
 			copy( $config_cache_path, $run_dir . '/wp-config.php' );
