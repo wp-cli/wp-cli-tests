@@ -978,7 +978,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		error_log( 'Creating wp-config.php in Run Dir: ' . $run_dir );
-		error_log( 'Config Cache Path: ' . $config_cache_path );
+		error_log( 'Config Cache Path: ' . $config_cache_path . ' ' . file_exists( $config_cache_path ) );
+
+		error_log( print_r( scandir( $run_dir ), true ) );
 
 		if ( $config_cache_path && file_exists( $config_cache_path ) ) {
 			copy( $config_cache_path, $run_dir . '/wp-config.php' );
@@ -988,6 +990,8 @@ class FeatureContext implements SnippetAcceptingContext {
 				copy( $run_dir . '/wp-config.php', $config_cache_path );
 			}
 		}
+
+		error_log( print_r( scandir( $run_dir ), true ) );
 	}
 
 	public function install_wp( $subdir = '' ) {
