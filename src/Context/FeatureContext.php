@@ -1019,6 +1019,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		error_log( 'Install Cache Dir: ' . self::$install_cache_dir );
+		error_log( 'Install Cache Path: ' . $install_cache_path );
 		error_log( 'Cache Dir: ' . self::$cache_dir );
 		error_log( print_r( scandir( self::$cache_dir ), true ) );
 		error_log( 'SQLite Cache Dir: ' . self::$sqlite_cache_dir );
@@ -1033,6 +1034,8 @@ class FeatureContext implements SnippetAcceptingContext {
 
 			self::copy_dir( $install_cache_path, $run_dir );
 
+			error_log( 'Run Dir after Copy:' );
+
 			error_log( print_r( scandir( $run_dir ), true ) );
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
@@ -1043,11 +1046,18 @@ class FeatureContext implements SnippetAcceptingContext {
 			}
 		} else {
 			error_log( '$subdir: ' . $subdir );
-			error_log( print_r( scandir( $subdir ), true ) );
+			if ( $subdir ) {
+				error_log( print_r( scandir( $subdir ), true ) );
+			}
 
-			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
+			$result = $this->proc( 'wp core install', $install_args, $subdir )->run_check();
+			error_log( $result->stderr );
+			error_log( $result->stdout );
 			if ( $install_cache_path ) {
-				mkdir( $install_cache_path );
+				if ( ! file_exists( $install_cache_path ) ) {
+					mkdir( $install_cache_path );
+				}
+
 				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
 				if ( 'mysql' === self::$db_type ) {
