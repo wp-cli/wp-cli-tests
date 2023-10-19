@@ -936,12 +936,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			mkdir( $dest_dir );
 		}
 
-		error_log( 'Copy WP from Cache Dir to Run Dir ' . $dest_dir );
-		error_log( print_r( scandir( $dest_dir ), true ) );
-
 		self::copy_dir( self::$cache_dir, $dest_dir );
-
-		error_log( print_r( scandir( $dest_dir ), true ) );
 
 		if ( ! is_dir( $dest_dir . '/wp-content/mu-plugins' ) ) {
 			mkdir( $dest_dir . '/wp-content/mu-plugins' );
@@ -980,24 +975,16 @@ class FeatureContext implements SnippetAcceptingContext {
 			$config_cache_path = self::$install_cache_dir . '/config_' . md5( implode( ':', $params ) . ':subdir=' . $subdir );
 		}
 
-		error_log( 'Creating wp-config.php in Run Dir: ' . $run_dir );
-		error_log( 'Config Cache Path: ' . $config_cache_path . ' ' . (int) file_exists( $config_cache_path ) );
-
-		error_log( print_r( scandir( $run_dir ), true ) );
-
 		if ( $config_cache_path && file_exists( $config_cache_path ) ) {
 			copy( $config_cache_path, $run_dir . '/wp-config.php' );
 		} else {
-			$result = $this->proc( 'wp config create', $params, $subdir )->run_check();
-			error_log( 'Running wp config create ' . Utils\assoc_args_to_str( $params ) . ' in Run Dir:' .  $run_dir );
-			error_log( $result->stderr );
-			error_log( $result->stdout );
+			// TODO: Fail scenario if wp-config.php cannot be written.
+			$this->proc( 'wp config create', $params, $subdir )->run_check();
 			if ( $config_cache_path && file_exists( $run_dir . '/wp-config.php' ) ) {
 				copy( $run_dir . '/wp-config.php', $config_cache_path );
 			}
 		}
 
-		error_log( print_r( scandir( $run_dir ), true ) );
 	}
 
 	public function install_wp( $subdir = '' ) {
@@ -1036,25 +1023,8 @@ class FeatureContext implements SnippetAcceptingContext {
 			$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
 		}
 
-		error_log( 'Install Cache Dir: ' . self::$install_cache_dir );
-		error_log( 'Install Cache Path: ' . $install_cache_path );
-		error_log( 'Cache Dir: ' . self::$cache_dir );
-		error_log( print_r( scandir( self::$cache_dir ), true ) );
-		error_log( 'SQLite Cache Dir: ' . self::$sqlite_cache_dir );
-		error_log( print_r( scandir( self::$sqlite_cache_dir ), true ) );
-		error_log( 'Run Dir: ' . $run_dir );
-		error_log( print_r( scandir( $run_dir ), true ) );
-
 		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
-			error_log( 'Install Cache Dir: ' . $install_cache_path );
-			error_log( print_r( scandir( $install_cache_path ), true ) );
-			error_log( print_r( scandir( $install_cache_path . '/wp-content' ), true ) );
-
 			self::copy_dir( $install_cache_path, $run_dir );
-
-			error_log( 'Run Dir after Copy:' );
-
-			error_log( print_r( scandir( $run_dir ), true ) );
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
 			if ( 'sqlite' === self::$db_type ) {
@@ -1063,14 +1033,8 @@ class FeatureContext implements SnippetAcceptingContext {
 				self::run_sql( 'mysql --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
-			error_log( '$subdir: ' . $subdir );
-			if ( $subdir ) {
-				error_log( print_r( scandir( $subdir ), true ) );
-			}
+			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
 
-			$result = $this->proc( 'wp core install', $install_args, $subdir )->run_check();
-			error_log( $result->stderr );
-			error_log( $result->stdout );
 			if ( $install_cache_path ) {
 				if ( ! file_exists( $install_cache_path ) ) {
 					mkdir( $install_cache_path );
