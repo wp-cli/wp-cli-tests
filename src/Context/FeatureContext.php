@@ -984,7 +984,6 @@ class FeatureContext implements SnippetAcceptingContext {
 				copy( $run_dir . '/wp-config.php', $config_cache_path );
 			}
 		}
-
 	}
 
 	public function install_wp( $subdir = '' ) {
