@@ -1018,8 +1018,22 @@ class FeatureContext implements SnippetAcceptingContext {
 			$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
 		}
 
+		error_log( 'Install Cache Dir: ' . self::$install_cache_dir );
+		error_log( 'Cache Dir: ' . self::$cache_dir );
+		error_log( print_r( scandir( self::$cache_dir ), true ) );
+		error_log( 'SQLite Cache Dir: ' . self::$sqlite_cache_dir );
+		error_log( print_r( scandir( self::$sqlite_cache_dir ), true ) );
+		error_log( 'Run Dir: ' . $run_dir );
+		error_log( print_r( scandir( $run_dir ), true ) );
+
 		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
+			error_log( 'Install Cache Dir: ' . $install_cache_path );
+			error_log( print_r( scandir( $install_cache_path ), true ) );
+			error_log( print_r( scandir( $install_cache_path . '/wp-content' ), true ) );
+
 			self::copy_dir( $install_cache_path, $run_dir );
+
+			error_log( print_r( scandir( $run_dir ), true ) );
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
 			if ( 'sqlite' === self::$db_type ) {
@@ -1028,6 +1042,9 @@ class FeatureContext implements SnippetAcceptingContext {
 				self::run_sql( 'mysql --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
+			error_log( '$subdir: ' . $subdir );
+			error_log( print_r( scandir( $subdir ), true ) );
+
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
 			if ( $install_cache_path ) {
 				mkdir( $install_cache_path );
