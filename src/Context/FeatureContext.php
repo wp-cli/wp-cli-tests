@@ -951,7 +951,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( 'sqlite' === self::$db_type ) {
 			self::copy_dir( self::$sqlite_cache_dir, $dest_dir . '/wp-content/plugins' );
 			self::configure_sqlite( $dest_dir );
-
 		}
 	}
 
@@ -1012,10 +1011,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			'skip-email'     => true,
 		];
 
+		$run_dir            = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 		$install_cache_path = '';
+
 		if ( self::$install_cache_dir ) {
 			$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
-			$run_dir            = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 		}
 
 		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
