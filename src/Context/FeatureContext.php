@@ -1034,9 +1034,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
 
 			if ( $install_cache_path ) {
-				if ( ! file_exists( $install_cache_path ) ) {
-					mkdir( $install_cache_path );
-				}
+				mkdir( $install_cache_path );
 
 				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
