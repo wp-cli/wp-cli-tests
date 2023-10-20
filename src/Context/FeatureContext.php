@@ -978,7 +978,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( $config_cache_path && file_exists( $config_cache_path ) ) {
 			copy( $config_cache_path, $run_dir . '/wp-config.php' );
 		} else {
-			// TODO: Fail scenario if wp-config.php cannot be written.
 			$this->proc( 'wp config create', $params, $subdir )->run_check();
 			if ( $config_cache_path && file_exists( $run_dir . '/wp-config.php' ) ) {
 				copy( $run_dir . '/wp-config.php', $config_cache_path );
