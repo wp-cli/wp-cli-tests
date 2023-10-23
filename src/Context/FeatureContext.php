@@ -951,7 +951,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( 'sqlite' === self::$db_type ) {
 			self::copy_dir( self::$sqlite_cache_dir, $dest_dir . '/wp-content/plugins' );
 			self::configure_sqlite( $dest_dir );
-
 		}
 	}
 
@@ -962,6 +961,11 @@ class FeatureContext implements SnippetAcceptingContext {
 		$params['dbprefix'] = $subdir ? preg_replace( '#[^a-zA-Z\_0-9]#', '_', $subdir ) : 'wp_';
 
 		$params['skip-salts'] = true;
+
+		// Do not check database connection if running SQLite as the check would fail.
+		if ( 'sqlite' === self::$db_type ) {
+			$params['skip-check'] = true;
+		}
 
 		if ( false !== $extra_php ) {
 			$params['extra-php'] = $extra_php;
@@ -1012,10 +1016,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			'skip-email'     => true,
 		];
 
+		$run_dir            = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 		$install_cache_path = '';
+
 		if ( self::$install_cache_dir ) {
 			$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
-			$run_dir            = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 		}
 
 		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
@@ -1029,8 +1034,10 @@ class FeatureContext implements SnippetAcceptingContext {
 			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
+
 			if ( $install_cache_path ) {
 				mkdir( $install_cache_path );
+
 				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
 				if ( 'mysql' === self::$db_type ) {
