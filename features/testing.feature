@@ -41,3 +41,14 @@ Feature: Test that WP-CLI loads.
       """
       false
       """
+
+  @require-sqlite
+  Scenario: Custom wp-content directory
+    Given a WP install
+    And a custom wp-content directory
+
+    When I run `wp eval 'echo DB_ENGINE;'`
+    Then STDOUT should contain:
+      """
+      sqlite
+      """
