@@ -5,3 +5,5 @@ default:
         - WP_CLI\Tests\Context\FeatureContext
       paths:
         - features
+  extensions:
+    Liuggio\Fastest\Behat\ListFeaturesExtension\Extension: ~

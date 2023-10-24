@@ -960,6 +960,11 @@ class FeatureContext implements SnippetAcceptingContext {
 		// Replaces all characters that are not alphanumeric or an underscore into an underscore.
 		$params['dbprefix'] = $subdir ? preg_replace( '#[^a-zA-Z\_0-9]#', '_', $subdir ) : 'wp_';
 
+		// If running tests in parallel, use different prefixes.
+		if ( getenv( 'ENV_TEST_CHANNEL' ) ) {
+			$params['dbprefix'] = 'wp_cli_test_' . (int) getenv( 'ENV_TEST_CHANNEL' ) . '_' . $params['dbprefix'];
+		}
+
 		$params['skip-salts'] = true;
 
 		// Do not check database connection if running SQLite as the check would fail.
@@ -1019,8 +1024,13 @@ class FeatureContext implements SnippetAcceptingContext {
 		$run_dir            = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 		$install_cache_path = '';
 
+		$channel = (int) getenv( 'ENV_TEST_CHANNEL' );
+		if ( ! $channel ) {
+			$channel = 1;
+		}
+
 		if ( self::$install_cache_dir ) {
-			$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
+			$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir . ':channel=' . $channel );
 		}
 
 		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
