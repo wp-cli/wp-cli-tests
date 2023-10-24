@@ -176,6 +176,19 @@ trait GivenStepDefinitions {
 		);
 
 		file_put_contents( $wp_config_path, $wp_config_code );
+
+		if ( 'sqlite' === self::$db_type ) {
+			$db_dropin = $this->variables['RUN_DIR'] . '/my-content/db.php';
+
+			/* similar to https://github.com/WordPress/sqlite-database-integration/blob/3306576c9b606bc23bbb26c15383fef08e03ab11/activate.php#L95 */
+			$file_contents = str_replace(
+				'plugins/',
+				'../my-plugins/',
+				file_get_contents( $db_dropin )
+			);
+
+			file_put_contents( $db_dropin, $file_contents );
+		}
 	}
 
 	/**
