@@ -1091,7 +1091,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			'skip-email'     => true,
 		];
 
+		if ( ! is_dir( $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins' ) ) {
+			mkdir( $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins' );
+		}
+
 		if ( 'sqlite' === self::$db_type ) {
+			mkdir( $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins/sqlite-database-integration' );
 			self::copy_dir( self::$sqlite_cache_dir, $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins' );
 			self::configure_sqlite( $this->variables['RUN_DIR'] . '/WordPress' );
 		}
