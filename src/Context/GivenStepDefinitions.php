@@ -175,6 +175,12 @@ trait GivenStepDefinitions {
 			"define( 'WP_PLUGIN_DIR', __DIR__ . '/my-plugins' );"
 		);
 
+		$this->move_files( 'my-content/mu-plugins', 'my-mu-plugins' );
+		$this->add_line_to_wp_config(
+			$wp_config_code,
+			"define( 'WPMU_PLUGIN_DIR', __DIR__ . '/my-mu-plugins' );"
+		);
+
 		file_put_contents( $wp_config_path, $wp_config_code );
 
 		if ( 'sqlite' === self::$db_type ) {
@@ -182,8 +188,8 @@ trait GivenStepDefinitions {
 
 			/* similar to https://github.com/WordPress/sqlite-database-integration/blob/3306576c9b606bc23bbb26c15383fef08e03ab11/activate.php#L95 */
 			$file_contents = str_replace(
-				'plugins/',
-				'../my-plugins/',
+				'mu-plugins/',
+				'../my-mu-plugins/',
 				file_get_contents( $db_dropin )
 			);
 
