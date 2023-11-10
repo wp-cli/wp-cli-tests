@@ -371,7 +371,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	* configure it to use SQLite as the database by placing the db.php dropin file
 	*/
 	private static function configure_sqlite( $dir ) {
-		$db_copy   = $dir . '/wp-content/plugins/sqlite-database-integration/db.copy';
+		$db_copy   = $dir . '/wp-content/mu-plugins/sqlite-database-integration/db.copy';
 		$db_dropin = $dir . '/wp-content/db.php';
 
 		/* similar to https://github.com/WordPress/sqlite-database-integration/blob/3306576c9b606bc23bbb26c15383fef08e03ab11/activate.php#L95 */
@@ -379,10 +379,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			array(
 				'\'{SQLITE_IMPLEMENTATION_FOLDER_PATH}\'',
 				'{SQLITE_PLUGIN}',
+				'/plugins/',
 			),
 			array(
-				'__DIR__ . \'plugins/sqlite-database-integration\'',
+				'__DIR__ . \'mu-plugins/sqlite-database-integration\'',
 				'sqlite-database-integration/load.php',
+				'/mu-plugins/',
 			),
 			file_get_contents( $db_copy )
 		);
@@ -949,7 +951,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		copy( dirname( dirname( __DIR__ ) ) . '/utils/polyfills.php', $dest_dir . '/wp-content/mu-plugins/polyfills.php' );
 
 		if ( 'sqlite' === self::$db_type ) {
-			self::copy_dir( self::$sqlite_cache_dir, $dest_dir . '/wp-content/plugins' );
+			self::copy_dir( self::$sqlite_cache_dir, $dest_dir . '/wp-content/mu-plugins' );
 			self::configure_sqlite( $dest_dir );
 		}
 	}
@@ -1090,7 +1092,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		];
 
 		if ( 'sqlite' === self::$db_type ) {
-			self::copy_dir( self::$sqlite_cache_dir, $this->variables['RUN_DIR'] . '/WordPress/wp-content/plugins' );
+			self::copy_dir( self::$sqlite_cache_dir, $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins' );
 			self::configure_sqlite( $this->variables['RUN_DIR'] . '/WordPress' );
 		}
 
