@@ -52,3 +52,13 @@ Feature: Test that WP-CLI loads.
       """
       sqlite
       """
+
+  @require-sqlite
+  Scenario: Composer installation
+    Given a WP install with Composer
+
+    When I run `wp eval 'echo DB_ENGINE;'`
+    Then STDOUT should contain:
+      """
+      sqlite
+      """
