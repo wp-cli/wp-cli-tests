@@ -1,12 +1,20 @@
 #!/bin/sh
 
 # Database credentials can be provided via environment variables:
-# - WP_CLI_TEST_DBHOST is the host to use and can include a port, i.e "127.0.0.1:33060" (defaults to "localhost")
+# - WP_CLI_TEST_DBHOST is the host to use and can include a port or a socket after a colon, i.e "127.0.0.1:33060" (defaults to "localhost")
 # - WP_CLI_TEST_DBROOTUSER is the user that has permission to administer databases and users (defaults to "root").
 # - WP_CLI_TEST_DBROOTPASS is the password to use for the above user (defaults to an empty password).
 # - WP_CLI_TEST_DBNAME is the database that the tests run under (defaults to "wp_cli_test").
 # - WP_CLI_TEST_DBUSER is the user that the tests run under (defaults to "wp_cli_test").
 # - WP_CLI_TEST_DBPASS is the password to use for the above user (defaults to "password1").
+
+# POSIX compliant function to check if a string is numeric.
+is_numeric() {
+    case $1 in
+        ''|*[!0-9]*) return 1;;  # returns 1 if not numeric
+        *) return 0;;           # returns 0 if numeric
+    esac
+}
 
 HOST=localhost
 PORT=""
@@ -16,9 +24,14 @@ if [ -n "${WP_CLI_TEST_DBHOST}" ]; then
 		(*:*) HOST=${WP_CLI_TEST_DBHOST%:*} PORT=${WP_CLI_TEST_DBHOST##*:};;
 		(*)   HOST=${WP_CLI_TEST_DBHOST};;
 	esac
-  HOST_STRING="-h${HOST}"
-  if [ -n "${PORT}" ]; then
-  	HOST_STRING="${HOST_STRING} -P${PORT} --protocol=tcp"
+	HOST_STRING="-h${HOST}"
+	if [ -n "${PORT}" ]; then
+		# If the port is not numeric, then we assume it is a socket path.
+		if is_numeric "${PORT}"; then
+			HOST_STRING="${HOST_STRING} -P${PORT} --protocol=tcp"
+		else
+			HOST_STRING="${HOST_STRING} --socket=${PORT}"
+		fi
 	fi
 fi
 
