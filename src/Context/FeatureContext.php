@@ -364,6 +364,13 @@ class FeatureContext implements SnippetAcceptingContext {
 			$error_message = $zip->getStatusString();
 			throw new RuntimeException( sprintf( 'Failed to open the zip file: %s', $error_message ) );
 		}
+
+		// For the release downloaded from GitHub, the unzipped folder will contain the version number.
+		// We're renaming the folder here for consistency's sake.
+		rename(
+			$dir . '/sqlite-database-integration-2.1.3/',
+			$dir . '/sqlite-database-integration/'
+		);
 	}
 
 	/**
