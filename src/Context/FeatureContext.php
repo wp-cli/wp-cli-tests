@@ -334,7 +334,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	* for use in subsequent WordPress copies
 	*/
 	private static function download_sqlite_plugin( $dir ) {
-		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip';
+		$download_url      = 'https://github.com/WordPress/sqlite-database-integration/archive/refs/tags/v2.1.3.zip';
 		$download_location = $dir . '/sqlite-database-integration.zip';
 
 		if ( ! is_dir( $dir ) ) {
