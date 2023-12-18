@@ -28,7 +28,7 @@ if [ -n "${WP_CLI_TEST_DBHOST}" ]; then
 	if [ -n "${PORT}" ]; then
 		# If the port is not numeric, then we assume it is a socket path.
 		if is_numeric "${PORT}"; then
-			HOST_STRING="${HOST_STRING} --port${PORT} --protocol=tcp"
+			HOST_STRING="${HOST_STRING} --port=${PORT} --protocol=tcp"
 		else
 			HOST_STRING="${HOST_STRING} --socket=${PORT} --protocol=socket"
 		fi
