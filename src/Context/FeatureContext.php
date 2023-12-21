@@ -700,13 +700,17 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * Replace variables callback.
 	 */
 	private function replace_var( $matches ) {
-		$cmd = $matches[0];
+		$str = $matches[0];
 
 		foreach ( array_slice( $matches, 1 ) as $key ) {
-			$cmd = str_replace( '{' . $key . '}', $this->variables[ $key ], $cmd );
+			$str = str_replace(
+				'{' . $key . '}',
+				array_key_exists( $key, $this->variables ) ? $this->variables[ $key ] : '',
+				$str
+			);
 		}
 
-		return $cmd;
+		return $str;
 	}
 
 	/**
