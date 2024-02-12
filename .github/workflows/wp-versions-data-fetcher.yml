@@ -71,6 +71,7 @@ jobs:
               echo "::error::Failed to fetch WP versions from $WP_ORG_API_URL after $MAX_RETRIES attempts"
               exit 1
             fi
+            echo "Retrying in $BACKOFF seconds"
             sleep $BACKOFF
             BACKOFF=$((BACKOFF * 2))
           done
