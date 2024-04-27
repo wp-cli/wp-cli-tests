@@ -19,11 +19,6 @@ if [[ "$@" == *"--help"* ]]; then
     exit $ret
 fi
 
-# Turn WP_VERSION into an actual number to make sure our tags work correctly.
-if [ "${WP_VERSION-latest}" = "latest" ]; then
-	export WP_VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r ".offers[0].current")
-fi
-
 # To retrieve the WP-CLI tests package root folder, we start with this scripts
 # location.
 SOURCE="${BASH_SOURCE[0]}"
