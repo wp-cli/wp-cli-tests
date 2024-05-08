@@ -689,6 +689,7 @@
 	"6.4.2" : "insecure",
 	"6.4.3" : "insecure",
 	"6.5" : "insecure",
+	"6.5.2" : "insecure",
 	"4.1.40" : "outdated",
 	"4.2.37" : "outdated",
 	"4.3.33" : "outdated",
@@ -713,5 +714,5 @@
 	"6.2.5" : "outdated",
 	"6.3.4" : "outdated",
 	"6.4.4" : "outdated",
-	"6.5.2" : "latest"
+	"6.5.3" : "latest"
 }
