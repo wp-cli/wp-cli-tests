@@ -20,7 +20,7 @@
         "wp-cli/eval-command": "^1 || ^2",
         "wp-cli/wp-cli": "^2.5.1",
         "wp-coding-standards/wpcs": "^3",
-        "yoast/phpunit-polyfills": "^1.0.3"
+        "yoast/phpunit-polyfills": "^1.0.3 || ^2.0.1"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest"

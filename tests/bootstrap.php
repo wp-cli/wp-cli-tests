@@ -29,7 +29,7 @@ define(
 
 require_once VENDOR_DIR . '/autoload.php';
 require_once WP_CLI_ROOT . '/php/utils.php';
-require_once __DIR__ . '/wp-cli-testcase.php';
+require_once __DIR__ . '/includes/TestCase.php';
 
 function wpcli_tests_include_config( array $config_filenames = [] ) {
 	$config_filename = false;
