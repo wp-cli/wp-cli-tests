@@ -27,6 +27,7 @@ class TestWPVersionResolverTest extends TestCase {
 
 	private function wp_versions_data() {
 		return array(
+			'5.4'   => 'insecure',
 			'5.9'   => 'insecure',
 			'5.9.1' => 'insecure',
 			'5.9.2' => 'insecure',
@@ -46,22 +47,22 @@ class TestWPVersionResolverTest extends TestCase {
 
 	private function data_wp_version_resolver() {
 		return array(
-			// array( '5.0', '5.0' ), // Does not match any version. So return as it is.
-			array( '5', '6.5.2' ), // Return the latest major version.
-			// array( '5.9', '5.9.2' ), // Return the latest patch version.
-			// array( '5.9.1', '5.9.1' ), // Return the exact version.
-			// array( '6', '6.5.2' ), // Return the latest minor version.
-			// array( '6.0', '6.0.2' ), // Return the latest patch version.
-			// array( '6.0.0', '6.0' ), // Return the requested version.
-			// array( '', '6.5.2' ), // Return the latest version.
-			// array( 'latest', '6.5.2' ), // Return the latest version.
-			// array( 'some-mismatched-version', 'some-mismatched-version' ), // Does not match any version. So return as it is.
-			// array( '6.5-alpha', '6.5.2' ), // Return the latest version.
-			// array( '6.5-beta', '6.5.2' ), // Return the latest version.
-			// array( '6.5-rc', '6.5.2' ), // Return the latest version.
-			// array( '6.5-nightly', '6.5-nightly' ), // Does not match any version. So return as it is.
-			// array( '6.5.0.0', '6.5' ), // Return the latest version.
-			// array( '6.5.2.0', '6.5.2' ), // Return the latest version.
+			array( '5.0', '5.0' ), // Does not match any version. So return as it is.
+			array( '5', '5.9.2' ), // Return the latest major version.
+			array( '5.9', '5.9.2' ), // Return the latest patch version.
+			array( '5.9.1', '5.9.1' ), // Return the exact version.
+			array( '6', '6.5.2' ), // Return the latest minor version.
+			array( '6.0', '6.0.2' ), // Return the latest patch version.
+			array( '6.0.0', '6.0' ), // Return the requested version.
+			array( '', '6.5.2' ), // Return the latest version.
+			array( 'latest', '6.5.2' ), // Return the latest version.
+			array( 'some-mismatched-version', 'some-mismatched-version' ), // Does not match any version. So return as it is.
+			array( '6.5-alpha', '6.5.2' ), // Return the latest version.
+			array( '6.5-beta', '6.5.2' ), // Return the latest version.
+			array( '6.5-rc', '6.5.2' ), // Return the latest version.
+			array( '6.5-nightly', '6.5-nightly' ), // Does not match any version. So return as it is.
+			array( '6.5.0.0', '6.5' ), // Return the latest version.
+			array( '6.5.2.0', '6.5.2' ), // Return the latest version.
 		);
 	}
 
@@ -77,9 +78,6 @@ class TestWPVersionResolverTest extends TestCase {
 
 		// Reset the environment variable.
 		putenv( 'WP_VERSION' );
-
-		echo $expected;
-		echo $output;
 
 		$this->assertSame( $expected, $output );
 	}
