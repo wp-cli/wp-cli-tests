@@ -75,7 +75,7 @@ class WPVersionResolverTest extends TestCase {
 
 		$output = exec( 'php ' . dirname( __DIR__ ) . '/utils/wp-version-resolver.php' );
 
-		$this->assertEquals( $expected, $output );
+		$this->assertSame( $expected, $output );
 
 		// Reset the environment variable.
 		putenv( 'WP_VERSION' );
