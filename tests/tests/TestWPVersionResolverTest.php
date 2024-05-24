@@ -45,7 +45,7 @@ class TestWPVersionResolverTest extends TestCase {
 		);
 	}
 
-	private function data_wp_version_resolver() {
+	public function data_wp_version_resolver() {
 		return array(
 			array( '5.0', '5.0' ), // Does not match any version. So return as it is.
 			array( '5', '5.9.2' ), // Return the latest major version.
