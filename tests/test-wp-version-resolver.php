@@ -10,7 +10,7 @@ class WPVersionResolverTest extends TestCase {
 	protected function set_up() {
 		parent::set_up();
 
-		$this->temp_file =  Utils\get_temp_dir() . 'wp-cli-tests-wp-versions.json';
+		$this->temp_file = Utils\get_temp_dir() . 'wp-cli-tests-wp-versions.json';
 
 		$fp = fopen( $this->temp_file, 'w' );
 		fwrite( $fp, json_encode( $this->wp_versions_data() ) );
@@ -27,19 +27,19 @@ class WPVersionResolverTest extends TestCase {
 
 	private function wp_versions_data() {
 		return array(
-			'5.9' => 'insecure',
+			'5.9'   => 'insecure',
 			'5.9.1' => 'insecure',
 			'5.9.2' => 'insecure',
-			'6.0' => 'insecure',
+			'6.0'   => 'insecure',
 			'6.0.1' => 'insecure',
 			'6.0.2' => 'insecure',
-			'6.1' => 'insecure',
+			'6.1'   => 'insecure',
 			'6.1.1' => 'insecure',
 			'6.1.2' => 'insecure',
-			'6.2' => 'insecure',
+			'6.2'   => 'insecure',
 			'6.2.1' => 'insecure',
 			'6.2.2' => 'insecure',
-			'6.5' => 'insecure',
+			'6.5'   => 'insecure',
 			'6.5.2' => 'latest',
 		);
 	}
