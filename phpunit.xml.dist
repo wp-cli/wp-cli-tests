@@ -4,8 +4,8 @@
 	>
 	<testsuites>
 		<testsuite name="default">
-			<directory prefix="spec-" suffix=".php">tests/</directory>
-			<directory prefix="test-" suffix=".php">tests/</directory>
+			<directory prefix="Spec" suffix=".php">tests/</directory>
+			<directory prefix="Test" suffix=".php">tests/tests</directory>
 		</testsuite>
 	</testsuites>
 </phpunit>
