@@ -23,12 +23,7 @@ if ( ! file_exists( $wp_versions_file_path ) ) {
 	fclose( $fp );
 }
 
-$wp_versions_json = json_decode( file_get_contents( sys_get_temp_dir() . WP_VERSIONS_JSON_FILE ), true );
-
-if ( empty( $wp_version_env ) ) {
-	echo $wp_version_env;
-	exit( 0 );
-}
+$wp_versions_json = json_decode( file_get_contents( $wp_versions_file_path ), true );
 
 if ( empty( $wp_version_env ) || 'latest' === $wp_version_env ) {
 	$wp_version = array_search( 'latest', $wp_versions_json, true );
