@@ -42,7 +42,7 @@ $wp_versions   = array_keys( $wp_versions_json );
 $version_count = count( explode( '.', $wp_version_env ) );
 
 if ( 1 === $version_count ) {
-	$constraint = ">=$wp_version_env"; // Get the latest minor version.
+	$constraint = "^$wp_version_env"; // Get the latest minor version.
 } elseif ( 2 === $version_count ) {
 	$constraint = "~$wp_version_env.0"; // Get the latest patch version.
 } elseif ( 3 === $version_count ) {
