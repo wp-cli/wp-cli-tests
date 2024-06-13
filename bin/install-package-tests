@@ -12,9 +12,13 @@
 is_numeric() {
     case $1 in
         ''|*[!0-9]*) return 1;;  # returns 1 if not numeric
-        *) return 0;;           # returns 0 if numeric
+        *) return 0;;            # returns 0 if numeric
     esac
 }
+# Promt color vars.
+C_RED="\033[31m"
+C_BLUE="\033[34m"
+NO_FORMAT="\033[0m"
 
 HOST=localhost
 PORT=""
@@ -28,65 +32,93 @@ if [ -n "${WP_CLI_TEST_DBHOST}" ]; then
 	if [ -n "${PORT}" ]; then
 		# If the port is not numeric, then we assume it is a socket path.
 		if is_numeric "${PORT}"; then
+			echo "Connecting to custom host: ${C_BLUE}${HOST}${NO_FORMAT} on port ${C_BLUE}${PORT}${NO_FORMAT}"
 			HOST_STRING="${HOST_STRING} --port=${PORT} --protocol=tcp"
 		else
+			echo "Connecting to custom host: ${C_BLUE}${HOST}${NO_FORMAT} on socket ${C_BLUE}${PORT}${NO_FORMAT}"
 			HOST_STRING="${HOST_STRING} --socket=${PORT} --protocol=socket"
 		fi
+	else
+		echo "Connecting to custom host: ${C_BLUE}${HOST}${NO_FORMAT}"
 	fi
+else
+	echo "Connecting to default host: ${C_BLUE}${HOST}${NO_FORMAT}"
 fi
 
 USER=root
 if [ -n "${WP_CLI_TEST_DBROOTUSER}" ]; then
-  USER="${WP_CLI_TEST_DBROOTUSER}"
+	echo "Connecting with custom root user: ${C_BLUE}${WP_CLI_TEST_DBROOTUSER}${NO_FORMAT}"
+	USER="${WP_CLI_TEST_DBROOTUSER}"
+else
+	echo "Connecting with default root user: ${C_BLUE}${USER}${NO_FORMAT}"
 fi
 
 PASSWORD_STRING=""
 if [ -n "${WP_CLI_TEST_DBROOTPASS}" ]; then
-  PASSWORD_STRING="-p${WP_CLI_TEST_DBROOTPASS}"
+	echo "Connecting with custom root password: ${C_BLUE}${WP_CLI_TEST_DBROOTPASS}${NO_FORMAT}"
+	PASSWORD_STRING="-p${WP_CLI_TEST_DBROOTPASS}"
+else
+	echo "Connecting with default root password: ${C_BLUE}empty${NO_FORMAT}"
 fi
 
 TEST_DB=wp_cli_test
 if [ -n "${WP_CLI_TEST_DBNAME}" ]; then
-  TEST_DB="${WP_CLI_TEST_DBNAME}"
+	echo "Using custom test database: ${C_BLUE}${WP_CLI_TEST_DBNAME}${NO_FORMAT}"
+	TEST_DB="${WP_CLI_TEST_DBNAME}"
+else
+	echo "Using default test database: ${C_BLUE}${TEST_DB}${NO_FORMAT}"
 fi
 
 TEST_USER=wp_cli_test
 if [ -n "${WP_CLI_TEST_DBUSER}" ]; then
-  TEST_USER="${WP_CLI_TEST_DBUSER}"
+	echo "Using custom test user: ${C_BLUE}${WP_CLI_TEST_DBUSER}${NO_FORMAT}"
+	TEST_USER="${WP_CLI_TEST_DBUSER}"
+else
+	echo "Using default test user: ${C_BLUE}${TEST_USER}${NO_FORMAT}"
 fi
 
 TEST_PASSWORD=password1
 if [ -n "${WP_CLI_TEST_DBPASS}" ]; then
-  TEST_PASSWORD="${WP_CLI_TEST_DBPASS}"
+	echo "Using custom test password: ${C_BLUE}${WP_CLI_TEST_DBPASS}${NO_FORMAT}"
+	TEST_PASSWORD="${WP_CLI_TEST_DBPASS}"
+else
+	echo "Using default test password: ${C_BLUE}${TEST_PASSWORD}${NO_FORMAT}"
 fi
 
 echo 'Checking if MySQL is ready...'
+
+MYSQL_TRIES=36
+MYSQL_WAIT=5
 while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
 do
-  echo 'Waiting for MySQL...'
-  sleep 5
+  echo "Waiting for MySQL(${i}/${MYSQL_TRIES})..."
+  sleep ${MYSQL_WAIT}
   i=$((i+1))
-  if [ $i -gt 36 ]; then
-	echo 'MySQL failed to start. Aborting.'
+  if [ $i -gt $MYSQL_TRIES ]; then
+	echo "${C_RED}MySQL failed to start. Aborting.${NO_FORMAT}"
+	echo "Cannot connect to mysql server. For all available variables, check the documentation at:"
+	echo " ${C_BLUE}https://github.com/wp-cli/wp-cli-tests?tab=readme-ov-file#the-database-credentials${NO_FORMAT}"
 	exit 1
   fi
 done
 
 # Prepare the database for running the tests with a MySQL version 8.0 or higher.
 install_mysql_db_8_0_plus() {
-	set -ex
+	set -ex # print all the commands.
 	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH mysql_native_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	{ set +ex; } 2> /dev/null # stop printing the commands
 }
 
 # Prepare the database for running the tests with a MySQL version lower than 8.0.
 install_mysql_db_lower_than_8_0() {
-	set -ex
+	set -ex # print all the commands.
 	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "GRANT ALL ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	{ set +ex; } 2> /dev/null # stop printing the commands
 }
 
 VERSION_STRING=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
@@ -108,3 +140,6 @@ if [ "${TYPE}" != "MariaDB" ] && [ "${MAJOR}" -ge 8 ]; then
 else
 	install_mysql_db_lower_than_8_0
 fi
+
+echo "Succesfully prepared the database for running tests."
+echo "This command does not have to be run again."
