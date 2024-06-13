@@ -8,6 +8,7 @@ use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Testwork\Hook\Scope\AfterSuiteScope;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
 use RuntimeException;
+use WP_CLI;
 use WP_CLI\Process;
 use WP_CLI\Utils;
 
@@ -639,6 +640,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
 
+		$this->test_connection();
 		$this->drop_db();
 		$this->set_cache_dir();
 	}
@@ -842,6 +844,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $sql_cmd Command to run.
 	 * @param array $assoc_args Optional. Associative array of options. Default empty.
 	 * @param bool $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
+	 *
+	 * return array.
 	 */
 	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
 		$default_assoc_args = [
@@ -852,11 +856,22 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( $add_database ) {
 			$sql_cmd .= ' ' . escapeshellarg( self::$db_settings['dbname'] );
 		}
+		$send_to_shell = true;
+		if ( isset( $assoc_args['send_to_shell'] ) ) {
+			$send_to_shell = (bool) $assoc_args['send_to_shell'];
+			unset( $assoc_args['send_to_shell'] );
+		}
+
 		$start_time = microtime( true );
-		Utils\run_mysql_command( $sql_cmd, array_merge( $assoc_args, $default_assoc_args ) );
+		$result     = Utils\run_mysql_command( $sql_cmd, array_merge( $assoc_args, $default_assoc_args ), null, $send_to_shell );
 		if ( self::$log_run_times ) {
 			self::log_proc_method_run_time( 'run_sql ' . $sql_cmd, $start_time );
 		}
+		return [
+			'stdout'    => $result[0],
+			'stderr'    => $result[1],
+			'exit_code' => $result[2],
+		];
 	}
 
 	public function create_db() {
@@ -866,6 +881,26 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$dbname = self::$db_settings['dbname'];
 		self::run_sql( 'mysql --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
+	}
+
+	/**
+	 * Test if the database connection is working.
+	 */
+	public function test_connection() {
+		$sql_result = self::run_sql(
+			'mysql --no-defaults',
+			[
+				'execute'       => 'SELECT 1',
+				'send_to_shell' => false,
+			]
+		);
+		if ( ! empty( $sql_result['stderr'] ) ) {
+			# WP_CLI output functions are suppressed in behat context.
+			echo 'There was an error connecting to the database:' . \PHP_EOL;
+			echo '    ' . trim( $sql_result['stderr'] ) . \PHP_EOL;
+			echo 'run `composer prepare-tests` to connect to the database.' . \PHP_EOL;
+			die( 1 );
+		}
 	}
 
 	public function drop_db() {
