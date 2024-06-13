@@ -87,19 +87,29 @@ fi
 
 echo 'Checking if MySQL is ready...'
 
-MYSQL_TRIES=36
-MYSQL_WAIT=5
+if [ -z "$PS1" ]; then
+	# These vars are because github actions gave problems in the past.
+	MYSQL_TRIES=36
+	MYSQL_WAIT=5
+else
+	MYSQL_TRIES=1
+	MYSQL_WAIT=0
+fi
+
 while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
 do
-  echo "Waiting for MySQL(${i}/${MYSQL_TRIES})..."
-  sleep ${MYSQL_WAIT}
-  i=$((i+1))
-  if [ $i -gt $MYSQL_TRIES ]; then
-	echo "${C_RED}MySQL failed to start. Aborting.${NO_FORMAT}"
-	echo "Cannot connect to mysql server. For all available variables, check the documentation at:"
-	echo " ${C_BLUE}https://github.com/wp-cli/wp-cli-tests?tab=readme-ov-file#the-database-credentials${NO_FORMAT}"
-	exit 1
-  fi
+	i=$((i+1))
+	if [ "${MYSQL_TRIES}" -gt 1 ]; then
+		echo "Waiting for MySQL(${i}/${MYSQL_TRIES})..."
+		sleep ${MYSQL_WAIT}
+	fi
+
+	if [ $i -ge $MYSQL_TRIES ]; then
+		echo "${C_RED}MySQL failed to start. Aborting.${NO_FORMAT}"
+		echo "Cannot connect to mysql server. For all available variables, check the documentation at:"
+		echo " ${C_BLUE}https://github.com/wp-cli/wp-cli-tests?tab=readme-ov-file#the-database-credentials${NO_FORMAT}"
+		exit 1
+	fi
 done
 
 # Prepare the database for running the tests with a MySQL version 8.0 or higher.
@@ -133,7 +143,6 @@ case "${VERSION_STRING}" in
 esac
 
 echo "Detected ${TYPE} at version ${MAJOR}.${MINOR}"
-
 
 if [ "${TYPE}" != "MariaDB" ] && [ "${MAJOR}" -ge 8 ]; then
 	install_mysql_db_8_0_plus
