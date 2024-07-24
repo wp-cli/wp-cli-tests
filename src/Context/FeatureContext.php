@@ -334,7 +334,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	* for use in subsequent WordPress copies
 	*/
 	private static function download_sqlite_plugin( $dir ) {
-		$download_url      = 'https://github.com/WordPress/sqlite-database-integration/archive/refs/tags/v2.1.3.zip';
+		$download_url      = 'https://github.com/WordPress/sqlite-database-integration/archive/refs/tags/v2.1.11.zip';
 		$download_location = $dir . '/sqlite-database-integration.zip';
 
 		if ( ! is_dir( $dir ) ) {
@@ -368,7 +368,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		// For the release downloaded from GitHub, the unzipped folder will contain the version number.
 		// We're renaming the folder here for consistency's sake.
 		rename(
-			$dir . '/sqlite-database-integration-2.1.3/',
+			$dir . '/sqlite-database-integration-2.1.11/',
 			$dir . '/sqlite-database-integration/'
 		);
 	}
