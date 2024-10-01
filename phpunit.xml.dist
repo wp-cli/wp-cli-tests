@@ -1,6 +1,10 @@
 <phpunit
 	bootstrap="tests/bootstrap.php"
 	colors="true"
+	convertErrorsToExceptions="true"
+	convertWarningsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertDeprecationsToExceptions="true"
 	>
 	<testsuites>
 		<testsuite name="default">
