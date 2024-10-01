@@ -43,7 +43,7 @@ function wpcli_tests_include_config( array $config_filenames = [] ) {
 	if ( $config_filename ) {
 		$config  = file_get_contents( $config_filename );
 		$matches = null;
-		$pattern = '/bootstrap="(?P<bootstrap>.*)"/';
+		$pattern = '/bootstrap="(?P<bootstrap>[^"]*)"/';
 		$result  = preg_match( $pattern, $config, $matches );
 		if ( isset( $matches['bootstrap'] ) && file_exists( $matches['bootstrap'] ) ) {
 			include_once PACKAGE_ROOT . '/' . $matches['bootstrap'];
