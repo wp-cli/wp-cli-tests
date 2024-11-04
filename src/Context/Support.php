@@ -174,8 +174,10 @@ trait Support {
 	protected function check_that_csv_string_contains_values( $actual_csv, $expected_csv ) {
 		$actual_csv = array_map(
 			static function ( $str ) {
-				return str_getcsv( $str, ',', '"', "\\" );
-			}, explode( PHP_EOL, $actual_csv ) );
+				return str_getcsv( $str, ',', '"', '\\' );
+			},
+			explode( PHP_EOL, $actual_csv )
+		);
 
 		if ( empty( $actual_csv ) ) {
 			return false;
