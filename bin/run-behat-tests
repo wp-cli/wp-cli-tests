@@ -19,6 +19,12 @@ if [[ "$@" == *"--help"* ]]; then
     exit $ret
 fi
 
+PARALLEL=""
+if [[ -n "${BEHAT_PARALLEL}" ]]; then
+    PARALLEL="--parallel"
+fi
+
+
 # Turn WP_VERSION into an actual number to make sure our tags work correctly.
 if [ "${WP_VERSION-latest}" = "latest" ]; then
 	export WP_VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r ".offers[0].current")
@@ -45,4 +51,4 @@ export WP_CLI_TESTS_ROOT
 BEHAT_TAGS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-tags.php)
 
 # Run the functional tests.
-vendor/bin/behat --format progress "$BEHAT_TAGS" --strict "$@"
+vendor/bin/behat "${PARALLEL}" --format progress "$BEHAT_TAGS" --strict "$@"
