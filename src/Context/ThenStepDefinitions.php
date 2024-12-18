@@ -243,7 +243,9 @@ trait ThenStepDefinitions {
 	 * @Then /^the contents of the (.+) file should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/
 	 */
 	public function then_the_contents_of_a_specific_file_should_match( $path, $not, $expected ) {
-		$path = $this->replace_variables( $path );
+		$path     = $this->replace_variables( $path );
+		$expected = $this->replace_variables( $expected );
+
 		// If it's a relative path, make it relative to the current test dir.
 		if ( '/' !== $path[0] ) {
 			$path = $this->variables['RUN_DIR'] . "/$path";
@@ -260,6 +262,8 @@ trait ThenStepDefinitions {
 	 * @Then /^(STDOUT|STDERR) should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/
 	 */
 	public function then_stdout_stderr_should_match_a_string( $stream, $not, $expected ) {
+		$expected = $this->replace_variables( $expected );
+
 		$stream = strtolower( $stream );
 		if ( $not ) {
 			$this->assert_not_regex( $expected, $this->result->$stream );
