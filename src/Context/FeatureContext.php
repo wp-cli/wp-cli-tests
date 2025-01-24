@@ -850,8 +850,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		);
 
 		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/'
-		                                . uniqid( 'wp-cli-download-', true )
-		                                . '.phar';
+										. uniqid( 'wp-cli-download-', true )
+										. '.phar';
 
 		Process::create(
 			Utils\esc_cmd(
@@ -1381,14 +1381,14 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$log .= PHP_EOL . 'Top ' . self::$num_top_processes . " process run times for '$suite'";
 		$log .= PHP_EOL . implode(
-				PHP_EOL,
-				array_map(
-					$runtime_callback,
-					array_keys( $tops ),
-					$tops,
-					array_keys( array_keys( $tops ) )
-				)
-			) . PHP_EOL;
+			PHP_EOL,
+			array_map(
+				$runtime_callback,
+				array_keys( $tops ),
+				$tops,
+				array_keys( array_keys( $tops ) )
+			)
+		) . PHP_EOL;
 
 		// Scenario run times.
 		arsort( self::$scenario_run_times );
@@ -1402,14 +1402,14 @@ class FeatureContext implements SnippetAcceptingContext {
 		$log .= PHP_EOL . 'Top ' . self::$num_top_scenarios . ' (of ' . self::$scenario_count . ") scenario run times for '$suite'";
 
 		$log .= PHP_EOL . implode(
-				PHP_EOL,
-				array_map(
-					$scenario_runtime_callback,
-					array_keys( $tops ),
-					$tops,
-					array_keys( array_keys( $tops ) )
-				)
-			) . PHP_EOL;
+			PHP_EOL,
+			array_map(
+				$scenario_runtime_callback,
+				array_keys( $tops ),
+				$tops,
+				array_keys( array_keys( $tops ) )
+			)
+		) . PHP_EOL;
 
 		$log .= PHP_EOL . str_repeat( ')', 80 );
 
