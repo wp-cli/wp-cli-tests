@@ -7,6 +7,8 @@ use Behat\Behat\Hook\Scope\AfterScenarioScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Testwork\Hook\Scope\AfterSuiteScope;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
+use Behat\Behat\Hook\Scope\AfterFeatureScope;
+use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use RuntimeException;
 use WP_CLI\Process;
 use WP_CLI\Utils;
@@ -106,6 +108,48 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $scenario_run_times    = []; // Scenario run times (top `self::$num_top_scenarios` only).
 	private static $scenario_count        = 0; // Scenario count, incremented on `@AfterScenario`.
 	private static $proc_method_run_times = []; // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
+
+	/**
+	 * The current feature.
+	 *
+	 * @var \Behat\Gherkin\Node\FeatureNode|null
+	 */
+	private static $feature;
+
+	/**
+	 * The current scenario.
+	 *
+	 * @var \Behat\Gherkin\Node\ScenarioInterface|null
+	 */
+	private $scenario;
+
+	/**
+	 * @BeforeFeature
+	 */
+	public static function store_feature( BeforeFeatureScope $scope ) {
+		self::$feature = $scope->getFeature();
+	}
+
+	/**
+	 * @BeforeScenario
+	 */
+	public function store_scenario( BeforeScenarioScope $scope ) {
+		$this->scenario = $scope->getScenario();
+	}
+
+	/**
+	 * @AfterScenario
+	 */
+	public function forget_scenario( AfterScenarioScope $scope ) {
+		$this->scenario = null;
+	}
+
+	/**
+	 * @AfterFeature
+	 */
+	public static function forget_feature( AfterFeatureScope $scope ) {
+		self::$feature = null;
+	}
 
 	/**
 	 * Get the path to the Composer vendor folder.
@@ -330,9 +374,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
-	* Download and extract a single copy of the sqlite-database-integration plugin
-	* for use in subsequent WordPress copies
-	*/
+	 * Download and extract a single copy of the sqlite-database-integration plugin
+	 * for use in subsequent WordPress copies
+	 */
 	private static function download_sqlite_plugin( $dir ) {
 		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip';
 		$download_location = $dir . '/sqlite-database-integration.zip';
@@ -367,9 +411,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
-	* Given a WordPress installation with the sqlite-database-integration plugin,
-	* configure it to use SQLite as the database by placing the db.php dropin file
-	*/
+	 * Given a WordPress installation with the sqlite-database-integration plugin,
+	 * configure it to use SQLite as the database by placing the db.php dropin file
+	 */
 	private static function configure_sqlite( $dir ) {
 		$db_copy   = $dir . '/wp-content/mu-plugins/sqlite-database-integration/db.copy';
 		$db_dropin = $dir . '/wp-content/db.php';
@@ -806,8 +850,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		);
 
 		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/'
-										. uniqid( 'wp-cli-download-', true )
-										. '.phar';
+		                                . uniqid( 'wp-cli-download-', true )
+		                                . '.phar';
 
 		Process::create(
 			Utils\esc_cmd(
@@ -877,6 +921,19 @@ class FeatureContext implements SnippetAcceptingContext {
 		$env = self::get_process_env_variables();
 		if ( isset( $this->variables['SUITE_CACHE_DIR'] ) ) {
 			$env['WP_CLI_CACHE_DIR'] = $this->variables['SUITE_CACHE_DIR'];
+		}
+
+		if ( isset( $this->variables['PROJECT_DIR'] ) ) {
+			$env['BEHAT_PROJECT_DIR'] = $this->variables['PROJECT_DIR'];
+		}
+
+		if ( self::$feature ) {
+			$env['BEHAT_FEATURE_TITLE'] = self::$feature->getTitle();
+
+		}
+		if ( $this->scenario ) {
+			$env['BEHAT_SCENARIO_TITLE'] = $this->scenario->getTitle();
+
 		}
 
 		if ( isset( $this->variables['RUN_DIR'] ) ) {
@@ -1240,8 +1297,8 @@ class FeatureContext implements SnippetAcceptingContext {
 					}
 					self::copy_dir( $upd_file, $cop_file );
 				} elseif ( ! copy( $upd_file, $cop_file ) ) {
-						$error = error_get_last();
-						throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
+					$error = error_get_last();
+					throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
 				}
 			} elseif ( is_dir( $upd_file ) ) {
 				self::dir_diff_copy( $upd_file, $src_file, $cop_file );
@@ -1324,14 +1381,14 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$log .= PHP_EOL . 'Top ' . self::$num_top_processes . " process run times for '$suite'";
 		$log .= PHP_EOL . implode(
-			PHP_EOL,
-			array_map(
-				$runtime_callback,
-				array_keys( $tops ),
-				$tops,
-				array_keys( array_keys( $tops ) )
-			)
-		) . PHP_EOL;
+				PHP_EOL,
+				array_map(
+					$runtime_callback,
+					array_keys( $tops ),
+					$tops,
+					array_keys( array_keys( $tops ) )
+				)
+			) . PHP_EOL;
 
 		// Scenario run times.
 		arsort( self::$scenario_run_times );
@@ -1345,14 +1402,14 @@ class FeatureContext implements SnippetAcceptingContext {
 		$log .= PHP_EOL . 'Top ' . self::$num_top_scenarios . ' (of ' . self::$scenario_count . ") scenario run times for '$suite'";
 
 		$log .= PHP_EOL . implode(
-			PHP_EOL,
-			array_map(
-				$scenario_runtime_callback,
-				array_keys( $tops ),
-				$tops,
-				array_keys( array_keys( $tops ) )
-			)
-		) . PHP_EOL;
+				PHP_EOL,
+				array_map(
+					$scenario_runtime_callback,
+					array_keys( $tops ),
+					$tops,
+					array_keys( array_keys( $tops ) )
+				)
+			) . PHP_EOL;
 
 		$log .= PHP_EOL . str_repeat( ')', 80 );
 

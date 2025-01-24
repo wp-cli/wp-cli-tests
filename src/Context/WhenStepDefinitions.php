@@ -35,6 +35,11 @@ trait WhenStepDefinitions {
 	 * @When /^I (run|try) `([^`]+)`$/
 	 */
 	public function when_i_run( $mode, $cmd ) {
+		$with_code_coverage = (string) getenv( 'BEHAT_CODE_COVERAGE' );
+		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			$cmd = preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3--require={PROJECT_DIR}/vendor/wp-cli/wp-cli-tests/utils/maybe-generate-wp-cli-coverage.php ', $cmd );
+		}
+
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd ), $mode );
 		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
