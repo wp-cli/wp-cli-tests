@@ -5,7 +5,7 @@ use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 
-$root_folder = realpath( dirname( __DIR__, 3 ) );
+$root_folder = realpath( dirname( dirname( dirname( __DIR__ ) ) ) );
 
 if ( ! class_exists( 'SebastianBergmann\CodeCoverage\Filter' ) ) {
 	require "{$root_folder}/vendor/autoload.php";
