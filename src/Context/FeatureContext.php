@@ -919,6 +919,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$env = self::get_process_env_variables();
+
 		if ( isset( $this->variables['SUITE_CACHE_DIR'] ) ) {
 			$env['WP_CLI_CACHE_DIR'] = $this->variables['SUITE_CACHE_DIR'];
 		}
@@ -929,12 +930,13 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		if ( self::$feature ) {
 			$env['BEHAT_FEATURE_TITLE'] = self::$feature->getTitle();
-
 		}
+
 		if ( $this->scenario ) {
 			$env['BEHAT_SCENARIO_TITLE'] = $this->scenario->getTitle();
-
 		}
+
+		$env['WP_CLI_TEST_DBTYPE'] = self::$db_type;
 
 		if ( isset( $this->variables['RUN_DIR'] ) ) {
 			$cwd = "{$this->variables['RUN_DIR']}/{$path}";
