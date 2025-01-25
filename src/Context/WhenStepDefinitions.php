@@ -35,7 +35,7 @@ trait WhenStepDefinitions {
 	 * @When /^I (run|try) `([^`]+)`$/
 	 */
 	public function when_i_run( $mode, $cmd ) {
-		$with_code_coverage = (string) getenv( 'BEHAT_CODE_COVERAGE' );
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
 		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
 			$cmd = preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3--require={PROJECT_DIR}/vendor/wp-cli/wp-cli-tests/utils/maybe-generate-wp-cli-coverage.php ', $cmd );
 		}
