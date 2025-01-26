@@ -175,7 +175,7 @@ WP_CLI::add_wp_hook(
 							Requests::OPTION_DEFAULTS,
 							array(
 								'hooks' => new Hooks(),
-							),
+							)
 						),
 					)
 				);
