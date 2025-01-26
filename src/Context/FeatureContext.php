@@ -107,6 +107,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $scenario_count        = 0; // Scenario count, incremented on `@AfterScenario`.
 	private static $proc_method_run_times = []; // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
 
+	private $mocked_requests = [];
+
 	/**
 	 * Get the path to the Composer vendor folder.
 	 *
