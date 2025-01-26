@@ -180,9 +180,16 @@ WP_CLI::add_wp_hook(
 					)
 				);
 
-				\$response = new WP_HTTP_Requests_Response( \$response );
-
-				return \$response->to_array();
+				return array(
+					'headers'  => \$response->headers->getAll(),
+					'body'     => \$response->body,
+					'response' => array(
+						'code'    => \$response->status_code,
+						'message' => get_status_header_desc( \$response->status_code ),
+					),
+					'cookies'  => array(),
+					'filename' => '',
+				);
 			}
 		}
 
