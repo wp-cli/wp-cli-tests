@@ -18,7 +18,7 @@
         "wp-cli/config-command": "^1 || ^2",
         "wp-cli/core-command": "^1 || ^2",
         "wp-cli/eval-command": "^1 || ^2",
-        "wp-cli/wp-cli": "dev-add-http-hook",
+        "wp-cli/wp-cli": "dev-add-http-hook as 2.12.x-dev",
         "wp-coding-standards/wpcs": "^3",
         "yoast/phpunit-polyfills": "^1.0.3 || ^2.0.1"
     },
