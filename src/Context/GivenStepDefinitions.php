@@ -107,9 +107,7 @@ FILE;
 			$config_file_contents
 		);
 
-		$pattern = '/' . preg_quote( $url_or_pattern, '/' ) . '/';
-
-		$this->mocked_requests[ $pattern ] = (string) $content;
+		$this->mocked_requests[ $url_or_pattern ] = (string) $content;
 
 		$mocked_requests = var_export( $this->mocked_requests, true /* return */ );
 
@@ -125,6 +123,7 @@ class WP_CLI_Tests_Mock_Requests_Transport implements Transport {
 		\$mocked_requests = $mocked_requests;
 
 		foreach ( \$mocked_requests as \$pattern => \$response ) {
+			\$pattern = '/' . preg_quote( \$pattern, '/' ) . '/';
 			if ( 1 === preg_match( \$pattern, \$url ) ) {
 				\$pos = strpos( \$response, "\\n\\n");
 				if ( false !== \$pos ) {
@@ -160,6 +159,7 @@ WP_CLI::add_wp_hook(
 		\$mocked_requests = $mocked_requests;
 
 		foreach ( \$mocked_requests as \$pattern => \$response ) {
+			\$pattern = '/' . preg_quote( \$pattern, '/' ) . '/';
 			if ( 1 === preg_match( \$pattern, \$url ) ) {
 				\$pos = strpos( \$response, "\n\n");
 				if ( false !== \$pos ) {
