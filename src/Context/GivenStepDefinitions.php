@@ -125,10 +125,10 @@ class WP_CLI_Tests_Mock_Requests_Transport implements Transport {
 		\$mocked_requests = $mocked_requests;
 
 		foreach ( \$mocked_requests as \$pattern => \$response ) {
-			if ( false !== preg_match( \$pattern, \$url ) ) {
-				\$pos = strpos( \$response, "\n\n");
+			if ( 1 === preg_match( \$pattern, \$url ) ) {
+				\$pos = strpos( \$response, "\\n\\n");
 				if ( false !== \$pos ) {
-					\$response = substr( \$response, 0, \$pos ) . "\r\n\r\n" . substr( \$response, \$pos + 2 );
+					\$response = substr( \$response, 0, \$pos ) . "\\r\\n\\r\\n" . substr( \$response, \$pos + 2 );
 				}
 				return \$response;
 			}
@@ -160,7 +160,7 @@ WP_CLI::add_wp_hook(
 		\$mocked_requests = $mocked_requests;
 
 		foreach ( \$mocked_requests as \$pattern => \$response ) {
-			if ( false !== preg_match( \$pattern, \$url ) ) {
+			if ( 1 === preg_match( \$pattern, \$url ) ) {
 				\$pos = strpos( \$response, "\n\n");
 				if ( false !== \$pos ) {
 					\$response = substr( \$response, 0, \$pos ) . "\r\n\r\n" . substr( \$response, \$pos + 2 );
