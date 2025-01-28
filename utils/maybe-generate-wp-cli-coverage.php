@@ -37,6 +37,11 @@ register_shutdown_function(
 		$db_type         = strtolower( getenv( 'WP_CLI_TEST_DBTYPE' ) );
 		$destination     = "$project_dir/build/logs/$feature_suffix-$scenario_suffix-$db_type.xml";
 
+		$dir = dirname( $destination );
+		if ( ! file_exists( $dir ) ) {
+			mkdir( $dir, 0777, true /*recursive*/ );
+		}
+
 		( new Clover() )->process( $coverage, $destination, $name );
 	}
 );
