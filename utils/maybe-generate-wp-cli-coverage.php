@@ -35,8 +35,7 @@ register_shutdown_function(
 		$feature_suffix  = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $feature ) );
 		$scenario_suffix = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $scenario ) );
 		$db_type         = strtolower( getenv( 'WP_CLI_TEST_DBTYPE' ) );
-		$filename        = "clover-behat/$feature_suffix-$scenario_suffix-$db_type.xml";
-		$destination     = "$project_dir/build/logs/{$filename}";
+		$destination     = "$project_dir/build/logs/$feature_suffix-$scenario_suffix-$db_type.xml";
 
 		( new Clover() )->process( $coverage, $destination, $name );
 	}
