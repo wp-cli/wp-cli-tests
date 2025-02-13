@@ -1,8 +1,7 @@
 Feature: HTTP request mocking
 
   Scenario: Mock HTTP request in WP-CLI
-    Given an empty directory
-    And an HTTP request to https://api.github.com/repos/wp-cli/wp-cli/releases?per_page=100 with this response:
+    Given that HTTP requests to https://api.github.com/repos/wp-cli/wp-cli/releases?per_page=100 will respond with:
     """
     HTTP/1.1 200
     Content-Type: application/json
@@ -85,7 +84,7 @@ Feature: HTTP request mocking
 
   Scenario: Mock HTTP request in WordPress
     Given a WP install
-    And an HTTP request to https://api.wordpress.org/core/version-check/1.7/ with this response:
+    And that HTTP requests to https://api.wordpress.org/core/version-check/1.7/ will respond with:
     """
     HTTP/1.1 200
     Content-Type: application/json

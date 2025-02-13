@@ -82,7 +82,7 @@ trait GivenStepDefinitions {
 	}
 
 	/**
-	 * @Given /^an? HTTP request to (.*?) with this response:$/
+	 * @Given /^that HTTP requests to (.*?) will respond with:$/
 	 */
 	public function given_a_request_to_a_url_respond_with_file( $url_or_pattern, PyStringNode $content ) {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
