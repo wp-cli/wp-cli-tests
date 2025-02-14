@@ -57,3 +57,13 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
 
     When I run `echo {v}`
     Then STDOUT should match /^\{v}$/
+
+  Scenario: Special variables
+
+    When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS-} cli info`
+    And STDOUT should match /wp cli info/
+    And STDERR should be empty
+
+    When I run `echo {WP_VERSION-latest}`
+    Then STDOUT should match /\d\.\d/
+    And STDERR should be empty
