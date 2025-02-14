@@ -10,6 +10,7 @@ use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
 use RuntimeException;
 use WP_CLI\Process;
 use WP_CLI\Utils;
+use WP_CLI\WpOrgApi;
 
 /**
  * Features context.
