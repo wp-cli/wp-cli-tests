@@ -73,4 +73,13 @@
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<exclude-pattern>*/utils/polyfills\.php$</exclude-pattern>
 	</rule>
+
+	<!-- This is a procedural stand-alone file that is never loaded in a WordPress context,
+		 so this file does not have to comply with WP naming conventions. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>*/maybe-generate-wp-cli-coverage\.php$</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>*/maybe-generate-wp-cli-coverage\.php$</exclude-pattern>
+	</rule>
 </ruleset>
