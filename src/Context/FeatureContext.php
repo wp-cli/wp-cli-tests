@@ -12,6 +12,7 @@ use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use RuntimeException;
 use WP_CLI\Process;
 use WP_CLI\Utils;
+use WP_CLI\WpOrgApi;
 
 /**
  * Features context.
@@ -108,6 +109,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $scenario_run_times    = []; // Scenario run times (top `self::$num_top_scenarios` only).
 	private static $scenario_count        = 0; // Scenario count, incremented on `@AfterScenario`.
 	private static $proc_method_run_times = []; // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
+
+	private $mocked_requests = [];
 
 	/**
 	 * The current feature.
@@ -758,25 +761,24 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( null === $wp_versions ) {
 			$wp_versions = [];
 
-			$response = Utils\http_request( 'GET', 'https://api.wordpress.org/core/version-check/1.7/', null, [], [ 'timeout' => 30 ] );
-			if ( 200 === $response->status_code ) {
-				$body = json_decode( $response->body );
-				if ( is_object( $body ) && isset( $body->offers ) && is_array( $body->offers ) ) {
-					// Latest version alias.
-					$wp_versions['{WP_VERSION-latest}'] = count( $body->offers ) ? $body->offers[0]->version : '';
-					foreach ( $body->offers as $offer ) {
-						$sub_ver     = preg_replace( '/(^[0-9]+\.[0-9]+)\.[0-9]+$/', '$1', $offer->version );
-						$sub_ver_key = "{WP_VERSION-{$sub_ver}-latest}";
+			$wp_org_api = new WpOrgApi();
+			$result     = $wp_org_api->get_core_version_check();
 
-						$main_ver     = preg_replace( '/(^[0-9]+)\.[0-9]+$/', '$1', $sub_ver );
-						$main_ver_key = "{WP_VERSION-{$main_ver}-latest}";
+			if ( is_array( $result ) && ! empty( $result['offers'] ) ) {
+				// Latest version alias.
+				$wp_versions['{WP_VERSION-latest}'] = count( $result['offers'] ) ? $result['offers'][0]['version'] : '';
+				foreach ( $result['offers'] as $offer ) {
+					$sub_ver     = preg_replace( '/(^[0-9]+\.[0-9]+)\.[0-9]+$/', '$1', $offer['version'] );
+					$sub_ver_key = "{WP_VERSION-{$sub_ver}-latest}";
 
-						if ( ! isset( $wp_versions[ $main_ver_key ] ) ) {
-							$wp_versions[ $main_ver_key ] = $offer->version;
-						}
-						if ( ! isset( $wp_versions[ $sub_ver_key ] ) ) {
-							$wp_versions[ $sub_ver_key ] = $offer->version;
-						}
+					$main_ver     = preg_replace( '/(^[0-9]+)\.[0-9]+$/', '$1', $sub_ver );
+					$main_ver_key = "{WP_VERSION-{$main_ver}-latest}";
+
+					if ( ! isset( $wp_versions[ $main_ver_key ] ) ) {
+						$wp_versions[ $main_ver_key ] = $offer['version'];
+					}
+					if ( ! isset( $wp_versions[ $sub_ver_key ] ) ) {
+						$wp_versions[ $sub_ver_key ] = $offer['version'];
 					}
 				}
 			}

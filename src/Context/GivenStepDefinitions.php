@@ -82,6 +82,131 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * @Given /^that HTTP requests to (.*?) will respond with:$/
+	 */
+	public function given_a_request_to_a_url_respond_with_file( $url_or_pattern, PyStringNode $content ) {
+		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
+			$this->create_run_dir();
+		}
+
+		$config_file = $this->variables['RUN_DIR'] . '/wp-cli.yml';
+		$mock_file   = $this->variables['RUN_DIR'] . '/mock-requests.php';
+		$dir         = dirname( $config_file );
+
+		if ( ! file_exists( $dir ) ) {
+			mkdir( $dir, 0777, true /*recursive*/ );
+		}
+
+		$config_file_contents = <<<FILE
+require:
+    - mock-requests.php
+FILE;
+
+		file_put_contents(
+			$config_file,
+			$config_file_contents
+		);
+
+		$this->mocked_requests[ $url_or_pattern ] = (string) $content;
+
+		$mocked_requests = var_export( $this->mocked_requests, true /* return */ );
+
+		$mock_file_contents = <<<FILE
+<?php
+use WpOrg\Requests\Hooks;
+use WpOrg\Requests\Transport;
+use WpOrg\Requests\Transport\Curl;
+use WpOrg\Requests\Requests;
+
+class WP_CLI_Tests_Mock_Requests_Transport implements Transport {
+	public function request( \$url, \$headers = array(), \$data = array(), \$options = array() ) {
+		\$mocked_requests = $mocked_requests;
+
+		foreach ( \$mocked_requests as \$pattern => \$response ) {
+			\$pattern = '/' . preg_quote( \$pattern, '/' ) . '/';
+			if ( 1 === preg_match( \$pattern, \$url ) ) {
+				\$pos = strpos( \$response, "\\n\\n");
+				if ( false !== \$pos ) {
+					\$response = substr( \$response, 0, \$pos ) . "\\r\\n\\r\\n" . substr( \$response, \$pos + 2 );
+				}
+				return \$response;
+			}
+		}
+
+		return (new Curl())->request( \$url, \$headers, \$data, \$options );
+	}
+
+	public function request_multiple( \$requests, \$options ) {
+		throw new Exception( 'Method not implemented: ' . __METHOD__ );
+	}
+
+	public static function test( \$capabilities = array() ) {
+		return true;
+	}
+}
+
+WP_CLI::add_hook(
+	'http_request_options',
+	static function( \$options ) {
+		\$options['transport'] = new WP_CLI_Tests_Mock_Requests_Transport();
+		return \$options;
+	}
+);
+
+WP_CLI::add_wp_hook(
+	'pre_http_request',
+	static function( \$pre, \$parsed_args, \$url ) {
+		\$mocked_requests = $mocked_requests;
+
+		foreach ( \$mocked_requests as \$pattern => \$response ) {
+			\$pattern = '/' . preg_quote( \$pattern, '/' ) . '/';
+			if ( 1 === preg_match( \$pattern, \$url ) ) {
+				\$pos = strpos( \$response, "\n\n");
+				if ( false !== \$pos ) {
+					\$response = substr( \$response, 0, \$pos ) . "\r\n\r\n" . substr( \$response, \$pos + 2 );
+				}
+				Requests::parse_multiple(
+					\$response,
+					array(
+						'url'     => \$url,
+						'headers' => array(),
+						'data'    => array(),
+						'options' => array_merge(
+							Requests::OPTION_DEFAULTS,
+							array(
+								'hooks' => new Hooks(),
+							)
+						),
+					)
+				);
+
+				return array(
+					'headers'  => \$response->headers->getAll(),
+					'body'     => \$response->body,
+					'response' => array(
+						'code'    => \$response->status_code,
+						'message' => get_status_header_desc( \$response->status_code ),
+					),
+					'cookies'  => array(),
+					'filename' => '',
+				);
+			}
+		}
+
+		return \$pre;
+	},
+	10,
+	3
+);
+FILE;
+
+		file_put_contents(
+			$mock_file,
+			$mock_file_contents
+		);
+	}
+
+	/**
 	 * @Given WP files
 	 */
 	public function given_wp_files() {
