@@ -77,10 +77,11 @@ Feature: HTTP request mocking
     ]
     """
 
-    When I run `wp cli check-update`
-    Then STDOUT should be a table containing rows:
-      | version | update_type | package_url |
-      | 999.9.9 | major       | https://github.com/wp-cli/wp-cli/releases/download/v999.9.9/wp-cli-999.9.9.phar |
+    When I try `wp cli check-update --format=csv`
+    Then STDOUT should contain:
+    """
+    999.9.9,major,https://github.com/wp-cli/wp-cli/releases/download/v999.9.9/wp-cli-999.9.9.phar,available
+    """
 
   Scenario: Mock HTTP request in WordPress
     Given a WP install
