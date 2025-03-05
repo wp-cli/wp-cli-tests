@@ -132,11 +132,11 @@ trait WP_CLI_Tests_Mock_Requests_Trait {
 			}
 		}
 
-		if ( class_exists( 'Requests_Transport_cURL' ) ) {
-			return ( new Requests_Transport_cURL() )->request( \$url, \$headers, \$data, \$options );
+		if ( class_exists( '\WpOrg\Requests\Transport\Curl' ) ) {
+			return ( new WpOrg\Requests\Transport\Curl() )->request( \$url, \$headers, \$data, \$options );
 		}
 
-		return ( new WpOrg\Requests\Transport\Curl() )->request( \$url, \$headers, \$data, \$options );
+		return ( new Requests_Transport_cURL() )->request( \$url, \$headers, \$data, \$options );
 	}
 
 	public function request_multiple( \$requests, \$options ) {
@@ -148,12 +148,12 @@ trait WP_CLI_Tests_Mock_Requests_Trait {
 	}
 }
 
-if ( interface_exists( 'Requests_Transport' ) ) {
-	class WP_CLI_Tests_Mock_Requests_Transport implements Requests_Transport {
+if ( interface_exists( '\WpOrg\Requests\Transport' ) ) {
+	class WP_CLI_Tests_Mock_Requests_Transport implements WpOrg\Requests\Transport {
 		use WP_CLI_Tests_Mock_Requests_Trait;
 	}
 } else {
-	class WP_CLI_Tests_Mock_Requests_Transport implements WpOrg\Requests\Transport {
+	class WP_CLI_Tests_Mock_Requests_Transport implements Requests_Transport {
 		use WP_CLI_Tests_Mock_Requests_Trait;
 	}
 }
@@ -179,22 +179,7 @@ WP_CLI::add_wp_hook(
 					\$response = substr( \$response, 0, \$pos ) . "\r\n\r\n" . substr( \$response, \$pos + 2 );
 				}
 
-				if ( class_exists( '\Requests' ) ) {
-					\Requests::parse_multiple(
-						\$response,
-						array(
-							'url'     => \$url,
-							'headers' => array(),
-							'data'    => array(),
-							'options' => array_merge(
-								Requests::OPTION_DEFAULTS,
-								array(
-									'hooks' => new Requests_Hooks(),
-								)
-							),
-						)
-					);
-				} else {
+				if ( class_exists( '\WpOrg\Requests\Requests' ) ) {
 					WpOrg\Requests\Requests::parse_multiple(
 						\$response,
 						array(
@@ -209,8 +194,22 @@ WP_CLI::add_wp_hook(
 							),
 						)
 					);
+				} else {
+					\Requests::parse_multiple(
+						\$response,
+						array(
+							'url'     => \$url,
+							'headers' => array(),
+							'data'    => array(),
+							'options' => array_merge(
+								Requests::OPTION_DEFAULTS,
+								array(
+									'hooks' => new Requests_Hooks(),
+								)
+							),
+						)
+					);
 				}
-
 
 				return array(
 					'headers'  => \$response->headers->getAll(),
