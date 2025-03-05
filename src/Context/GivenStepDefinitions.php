@@ -202,7 +202,12 @@ WP_CLI::add_wp_hook(
 							'headers' => array(),
 							'data'    => array(),
 							'options' => array(
-								'hooks' => new Requests_Hooks(),
+								'blocking'         => true,
+								'filename'         => false,
+								'follow_redirects' => true,
+								'redirected'       => 0,
+								'redirects'        => 10,
+								'hooks'            => new Requests_Hooks(),
 							),
 						)
 					);
