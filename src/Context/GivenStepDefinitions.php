@@ -133,10 +133,10 @@ trait WP_CLI_Tests_Mock_Requests_Trait {
 		}
 
 		if ( class_exists( '\WpOrg\Requests\Transport\Curl' ) ) {
-			return ( new WpOrg\Requests\Transport\Curl() )->request( \$url, \$headers, \$data, \$options );
+			return ( new \WpOrg\Requests\Transport\Curl() )->request( \$url, \$headers, \$data, \$options );
 		}
 
-		return ( new Requests_Transport_cURL() )->request( \$url, \$headers, \$data, \$options );
+		return ( new \Requests_Transport_cURL() )->request( \$url, \$headers, \$data, \$options );
 	}
 
 	public function request_multiple( \$requests, \$options ) {
@@ -149,11 +149,11 @@ trait WP_CLI_Tests_Mock_Requests_Trait {
 }
 
 if ( interface_exists( '\WpOrg\Requests\Transport' ) ) {
-	class WP_CLI_Tests_Mock_Requests_Transport implements WpOrg\Requests\Transport {
+	class WP_CLI_Tests_Mock_Requests_Transport implements \WpOrg\Requests\Transport {
 		use WP_CLI_Tests_Mock_Requests_Trait;
 	}
 } else {
-	class WP_CLI_Tests_Mock_Requests_Transport implements Requests_Transport {
+	class WP_CLI_Tests_Mock_Requests_Transport implements \Requests_Transport {
 		use WP_CLI_Tests_Mock_Requests_Trait;
 	}
 }
@@ -187,7 +187,7 @@ WP_CLI::add_wp_hook(
 							'headers' => array(),
 							'data'    => array(),
 							'options' => array_merge(
-								Requests::OPTION_DEFAULTS,
+								WpOrg\Requests\Requests::OPTION_DEFAULTS,
 								array(
 									'hooks' => new WpOrg\Requests\Hooks(),
 								)
