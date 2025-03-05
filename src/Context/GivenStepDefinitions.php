@@ -201,11 +201,8 @@ WP_CLI::add_wp_hook(
 							'url'     => \$url,
 							'headers' => array(),
 							'data'    => array(),
-							'options' => array_merge(
-								Requests::OPTION_DEFAULTS,
-								array(
-									'hooks' => new Requests_Hooks(),
-								)
+							'options' => array(
+								'hooks' => new Requests_Hooks(),
 							),
 						)
 					);
