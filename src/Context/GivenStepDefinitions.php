@@ -113,12 +113,11 @@ FILE;
 
 		$mock_file_contents = <<<FILE
 <?php
-use WpOrg\Requests\Hooks;
-use WpOrg\Requests\Transport;
-use WpOrg\Requests\Transport\Curl;
-use WpOrg\Requests\Requests;
+/**
+ * HTTP request mocking supporting both Requests v1 and v2.
+ */
 
-class WP_CLI_Tests_Mock_Requests_Transport implements Transport {
+trait WP_CLI_Tests_Mock_Requests_Trait {
 	public function request( \$url, \$headers = array(), \$data = array(), \$options = array() ) {
 		\$mocked_requests = $mocked_requests;
 
@@ -133,7 +132,11 @@ class WP_CLI_Tests_Mock_Requests_Transport implements Transport {
 			}
 		}
 
-		return (new Curl())->request( \$url, \$headers, \$data, \$options );
+		if ( class_exists( '\WpOrg\Requests\Transport\Curl' ) ) {
+			return ( new \WpOrg\Requests\Transport\Curl() )->request( \$url, \$headers, \$data, \$options );
+		}
+
+		return ( new \Requests_Transport_cURL() )->request( \$url, \$headers, \$data, \$options );
 	}
 
 	public function request_multiple( \$requests, \$options ) {
@@ -142,6 +145,16 @@ class WP_CLI_Tests_Mock_Requests_Transport implements Transport {
 
 	public static function test( \$capabilities = array() ) {
 		return true;
+	}
+}
+
+if ( interface_exists( '\WpOrg\Requests\Transport' ) ) {
+	class WP_CLI_Tests_Mock_Requests_Transport implements \WpOrg\Requests\Transport {
+		use WP_CLI_Tests_Mock_Requests_Trait;
+	}
+} else {
+	class WP_CLI_Tests_Mock_Requests_Transport implements \Requests_Transport {
+		use WP_CLI_Tests_Mock_Requests_Trait;
 	}
 }
 
@@ -165,20 +178,40 @@ WP_CLI::add_wp_hook(
 				if ( false !== \$pos ) {
 					\$response = substr( \$response, 0, \$pos ) . "\r\n\r\n" . substr( \$response, \$pos + 2 );
 				}
-				Requests::parse_multiple(
-					\$response,
-					array(
-						'url'     => \$url,
-						'headers' => array(),
-						'data'    => array(),
-						'options' => array_merge(
-							Requests::OPTION_DEFAULTS,
-							array(
-								'hooks' => new Hooks(),
-							)
-						),
-					)
-				);
+
+				if ( class_exists( '\WpOrg\Requests\Requests' ) ) {
+					WpOrg\Requests\Requests::parse_multiple(
+						\$response,
+						array(
+							'url'     => \$url,
+							'headers' => array(),
+							'data'    => array(),
+							'options' => array_merge(
+								WpOrg\Requests\Requests::OPTION_DEFAULTS,
+								array(
+									'hooks' => new WpOrg\Requests\Hooks(),
+								)
+							),
+						)
+					);
+				} else {
+					\Requests::parse_multiple(
+						\$response,
+						array(
+							'url'     => \$url,
+							'headers' => array(),
+							'data'    => array(),
+							'options' => array(
+								'blocking'         => true,
+								'filename'         => false,
+								'follow_redirects' => true,
+								'redirected'       => 0,
+								'redirects'        => 10,
+								'hooks'            => new Requests_Hooks(),
+							),
+						)
+					);
+				}
 
 				return array(
 					'headers'  => \$response->headers->getAll(),
