@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * This script is added via `--require` to the WP-CLI commands executed by the Behat test runner.
+ * It starts coverage collection right away and registers a shutdown hook to complete it
+ * after the respective WP-CLI command has finished.
+ */
+
 use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Filter;
@@ -20,6 +26,10 @@ $coverage = new CodeCoverage(
 	$filter
 );
 
+/*
+ * The names of the current feature and scenario are passed on from the Behat test runner
+ * to this script through environment variables `BEHAT_FEATURE_TITLE` & `BEHAT_SCENARIO_TITLE`.
+ */
 $feature  = getenv( 'BEHAT_FEATURE_TITLE' );
 $scenario = getenv( 'BEHAT_SCENARIO_TITLE' );
 $name     = "{$feature} - {$scenario}";
