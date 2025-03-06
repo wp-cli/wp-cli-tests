@@ -684,6 +684,23 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	 * Enhances a `wp <command>` string with an additional `--require` for code coverage collection.
+	 *
+	 * Only applies if `WP_CLI_TEST_COVERAGE` is set.
+	 *
+	 * @param string $cmd Command string.
+	 * @return string Possibly enhanced command string.
+	 */
+	public function get_command_with_coverage( $cmd ) {
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			return preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3--require={SRC_DIR}/utils/generate-coverage.php ', $cmd );
+		}
+
+		return $cmd;
+	}
+
+	/**
 	 * Replace standard {VARIABLE_NAME} variables and the special {INVOKE_WP_CLI_WITH_PHP_ARGS-args} and {WP_VERSION-version-latest} variables.
 	 * Note that standard variable names can only contain uppercase letters, digits and underscores and cannot begin with a digit.
 	 */

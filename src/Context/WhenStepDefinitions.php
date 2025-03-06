@@ -35,11 +35,7 @@ trait WhenStepDefinitions {
 	 * @When /^I (run|try) `([^`]+)`$/
 	 */
 	public function when_i_run( $mode, $cmd ) {
-		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
-		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
-			$cmd = preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3--require={SRC_DIR}/utils/generate-coverage.php ', $cmd );
-		}
-
+		$cmd          = $this->get_command_with_coverage( $cmd );
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd ), $mode );
 		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
@@ -49,6 +45,7 @@ trait WhenStepDefinitions {
 	 * @When /^I (run|try) `([^`]+)` from '([^\s]+)'$/
 	 */
 	public function when_i_run_from_a_subfolder( $mode, $cmd, $subdir ) {
+		$cmd          = $this->get_command_with_coverage( $cmd );
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd, array(), $subdir ), $mode );
 		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
