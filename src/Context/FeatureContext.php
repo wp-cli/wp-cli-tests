@@ -7,6 +7,8 @@ use Behat\Behat\Hook\Scope\AfterScenarioScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Testwork\Hook\Scope\AfterSuiteScope;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
+use Behat\Behat\Hook\Scope\AfterFeatureScope;
+use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use RuntimeException;
 use WP_CLI\Process;
 use WP_CLI\Utils;
@@ -109,6 +111,48 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $proc_method_run_times = []; // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
 
 	private $mocked_requests = [];
+
+	/**
+	 * The current feature.
+	 *
+	 * @var \Behat\Gherkin\Node\FeatureNode|null
+	 */
+	private static $feature;
+
+	/**
+	 * The current scenario.
+	 *
+	 * @var \Behat\Gherkin\Node\ScenarioInterface|null
+	 */
+	private $scenario;
+
+	/**
+	 * @BeforeFeature
+	 */
+	public static function store_feature( BeforeFeatureScope $scope ) {
+		self::$feature = $scope->getFeature();
+	}
+
+	/**
+	 * @BeforeScenario
+	 */
+	public function store_scenario( BeforeScenarioScope $scope ) {
+		$this->scenario = $scope->getScenario();
+	}
+
+	/**
+	 * @AfterScenario
+	 */
+	public function forget_scenario( AfterScenarioScope $scope ) {
+		$this->scenario = null;
+	}
+
+	/**
+	 * @AfterFeature
+	 */
+	public static function forget_feature( AfterFeatureScope $scope ) {
+		self::$feature = null;
+	}
 
 	/**
 	 * Get the path to the Composer vendor folder.
@@ -333,9 +377,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
-	* Download and extract a single copy of the sqlite-database-integration plugin
-	* for use in subsequent WordPress copies
-	*/
+	 * Download and extract a single copy of the sqlite-database-integration plugin
+	 * for use in subsequent WordPress copies
+	 */
 	private static function download_sqlite_plugin( $dir ) {
 		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip';
 		$download_location = $dir . '/sqlite-database-integration.zip';
@@ -370,9 +414,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
-	* Given a WordPress installation with the sqlite-database-integration plugin,
-	* configure it to use SQLite as the database by placing the db.php dropin file
-	*/
+	 * Given a WordPress installation with the sqlite-database-integration plugin,
+	 * configure it to use SQLite as the database by placing the db.php dropin file
+	 */
 	private static function configure_sqlite( $dir ) {
 		$db_copy   = $dir . '/wp-content/mu-plugins/sqlite-database-integration/db.copy';
 		$db_dropin = $dir . '/wp-content/db.php';
@@ -640,6 +684,23 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	 * Enhances a `wp <command>` string with an additional `--require` for code coverage collection.
+	 *
+	 * Only applies if `WP_CLI_TEST_COVERAGE` is set.
+	 *
+	 * @param string $cmd Command string.
+	 * @return string Possibly enhanced command string.
+	 */
+	public function get_command_with_coverage( $cmd ) {
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			return preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3--require={SRC_DIR}/utils/generate-coverage.php ', $cmd );
+		}
+
+		return $cmd;
+	}
+
+	/**
 	 * Replace standard {VARIABLE_NAME} variables and the special {INVOKE_WP_CLI_WITH_PHP_ARGS-args} and {WP_VERSION-version-latest} variables.
 	 * Note that standard variable names can only contain uppercase letters, digits and underscores and cannot begin with a digit.
 	 */
@@ -877,9 +938,24 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$env = self::get_process_env_variables();
+
 		if ( isset( $this->variables['SUITE_CACHE_DIR'] ) ) {
 			$env['WP_CLI_CACHE_DIR'] = $this->variables['SUITE_CACHE_DIR'];
 		}
+
+		if ( isset( $this->variables['PROJECT_DIR'] ) ) {
+			$env['BEHAT_PROJECT_DIR'] = $this->variables['PROJECT_DIR'];
+		}
+
+		if ( self::$feature ) {
+			$env['BEHAT_FEATURE_TITLE'] = self::$feature->getTitle();
+		}
+
+		if ( $this->scenario ) {
+			$env['BEHAT_SCENARIO_TITLE'] = $this->scenario->getTitle();
+		}
+
+		$env['WP_CLI_TEST_DBTYPE'] = self::$db_type;
 
 		if ( isset( $this->variables['RUN_DIR'] ) ) {
 			$cwd = "{$this->variables['RUN_DIR']}/{$path}";
@@ -1242,8 +1318,8 @@ class FeatureContext implements SnippetAcceptingContext {
 					}
 					self::copy_dir( $upd_file, $cop_file );
 				} elseif ( ! copy( $upd_file, $cop_file ) ) {
-						$error = error_get_last();
-						throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
+					$error = error_get_last();
+					throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
 				}
 			} elseif ( is_dir( $upd_file ) ) {
 				self::dir_diff_copy( $upd_file, $src_file, $cop_file );
