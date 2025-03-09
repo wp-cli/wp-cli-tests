@@ -26,8 +26,13 @@ if ( ! class_exists( 'SebastianBergmann\CodeCoverage\Filter' ) ) {
 }
 
 $filter = new Filter();
-$filter->includeDirectory( "{$root_folder}/includes" );
-$filter->includeFiles( array( "{$root_folder}/plugin.php" ) );
+// In wp-cli/wp-cli, all source code is in the "php" folder.
+$filter->includeDirectory( "{$root_folder}/php" );
+
+// In commands, all source code is in the "src" folder.
+$filter->includeDirectory( "{$root_folder}/src" );
+// There is also a "*-command.php" file.
+$filter->includeDirectory( $root_folder, '-command.php' );
 
 $coverage = new CodeCoverage(
 	( new Selector() )->forLineCoverage( $filter ),
