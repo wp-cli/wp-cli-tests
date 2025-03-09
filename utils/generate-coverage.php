@@ -11,7 +11,15 @@ use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 
-$root_folder = realpath( dirname( __DIR__ ) );
+// The wp-cli-tests directory.
+$package_folder = realpath( dirname( __DIR__ ) );
+
+// If installed as a dependency in `<somedir>/vendor/wp-cli/wp-cli-tests, this is <somedir>.
+$root_folder = realpath( dirname( __DIR__, 4 ) );
+
+if ( file_exists( $package_folder . '/vendor/autoload.php' ) ) {
+	$root_folder = $package_folder;
+}
 
 if ( ! class_exists( 'SebastianBergmann\CodeCoverage\Filter' ) ) {
 	require "{$root_folder}/vendor/autoload.php";
