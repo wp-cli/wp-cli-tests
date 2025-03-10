@@ -11,28 +11,69 @@ use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 
+
 // The wp-cli-tests directory.
 $package_folder = realpath( dirname( __DIR__ ) );
 
 // If installed as a dependency in `<somedir>/vendor/wp-cli/wp-cli-tests, this is <somedir>.
-$root_folder = realpath( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) );
+$project_dir = (string) getenv( 'BEHAT_PROJECT_DIR' );
 
-if ( file_exists( $package_folder . '/vendor/autoload.php' ) ) {
-	$root_folder = $package_folder;
+// If we're not in a Behat environment.
+if ( ! $project_dir ) {
+	$project_dir = realpath( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) );
+}
+
+if ( ! file_exists( $project_dir . '/vendor/autoload.php' ) ) {
+	$project_dir = $package_folder;
 }
 
 if ( ! class_exists( 'SebastianBergmann\CodeCoverage\Filter' ) ) {
-	require "{$root_folder}/vendor/autoload.php";
+	if ( ! file_exists( $project_dir . '/vendor/autoload.php' ) ) {
+		die( 'Could not load dependencies for generating code coverage' );
+	}
+
+	require "{$project_dir}/vendor/autoload.php";
+}
+
+$files = [];
+
+$dir_to_search = null;
+
+// In wp-cli/wp-cli, all source code is in the "php" folder.
+// In commands, all source code is in the "src" folder.
+if ( is_dir( "{$project_dir}/php" ) ) {
+	$dir_to_search = "{$project_dir}/php";
+} elseif ( is_dir( "{$project_dir}/src" ) ) {
+	$dir_to_search = "{$project_dir}/src";
+}
+
+if ( $dir_to_search ) {
+	foreach (
+		new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator( $dir_to_search, RecursiveDirectoryIterator::SKIP_DOTS | RecursiveDirectoryIterator::FOLLOW_SYMLINKS )
+		)
+		as $file
+	) {
+		if ( $file->isFile() && 'php' === $file->getExtension() ) {
+			$files[] = $file->getPathname();
+		}
+	}
+}
+
+// There is also a "*-command.php" file.
+foreach (
+	new IteratorIterator(
+		new DirectoryIterator( $project_dir )
+	) as $file ) {
+	if ( $file->isFile() && false !== strpos( $file->getFilename(), '-command.php' ) ) {
+		$files[] = $file->getPathname();
+		break;
+	}
 }
 
 $filter = new Filter();
-// In wp-cli/wp-cli, all source code is in the "php" folder.
-$filter->includeDirectory( "{$root_folder}/php" );
 
-// In commands, all source code is in the "src" folder.
-$filter->includeDirectory( "{$root_folder}/src" );
-// There is also a "*-command.php" file.
-$filter->includeDirectory( $root_folder, '-command.php' );
+$filter->includeFiles( $files );
 
 $coverage = new CodeCoverage(
 	( new Selector() )->forLineCoverage( $filter ),
@@ -50,10 +91,8 @@ $name     = "{$feature} - {$scenario}";
 $coverage->start( $name );
 
 register_shutdown_function(
-	static function () use ( $coverage, $feature, $scenario, $name ) {
+	static function () use ( $coverage, $feature, $scenario, $name, $project_dir ) {
 		$coverage->stop();
-
-		$project_dir = (string) getenv( 'BEHAT_PROJECT_DIR' );
 
 		$feature_suffix  = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $feature ) );
 		$scenario_suffix = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $scenario ) );
