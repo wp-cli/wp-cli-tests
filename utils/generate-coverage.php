@@ -12,62 +12,47 @@ use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 
 
-// The wp-cli-tests directory.
-$package_folder = realpath( dirname( __DIR__ ) );
-
-// If installed as a dependency in `<somedir>/vendor/wp-cli/wp-cli-tests, this is <somedir>.
-$project_dir = (string) getenv( 'BEHAT_PROJECT_DIR' );
-
-// If we're not in a Behat environment.
-if ( ! $project_dir ) {
-	$project_dir = realpath( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) );
-}
-
-if ( ! file_exists( $project_dir . '/vendor/autoload.php' ) ) {
-	$project_dir = $package_folder;
-}
+$project_dir = (string) getenv( 'TEST_RUN_DIR' );
 
 if ( ! class_exists( 'SebastianBergmann\CodeCoverage\Filter' ) ) {
 	if ( ! file_exists( $project_dir . '/vendor/autoload.php' ) ) {
 		die( 'Could not load dependencies for generating code coverage' );
 	}
-
 	require "{$project_dir}/vendor/autoload.php";
 }
 
+$filtered_items = new CallbackFilterIterator(
+	new DirectoryIterator( $project_dir ),
+	function ( $file ) {
+		// Allow directories named "php" or "src"
+		if ( $file->isDir() && in_array( $file->getFilename(), [ 'php', 'src' ], true ) ) {
+			return true;
+		}
+
+		// Allow top-level files ending in "-command.php"
+		if ( $file->isFile() && false !== strpos( $file->getFilename(), '-command.php' ) ) {
+			return true;
+		}
+
+		return false;
+	}
+);
+
 $files = [];
 
-$dir_to_search = null;
-
-// In wp-cli/wp-cli, all source code is in the "php" folder.
-// In commands, all source code is in the "src" folder.
-if ( is_dir( "{$project_dir}/php" ) ) {
-	$dir_to_search = "{$project_dir}/php";
-} elseif ( is_dir( "{$project_dir}/src" ) ) {
-	$dir_to_search = "{$project_dir}/src";
-}
-
-if ( $dir_to_search ) {
-	foreach (
-		new RecursiveIteratorIterator(
-			new RecursiveDirectoryIterator( $dir_to_search, RecursiveDirectoryIterator::SKIP_DOTS | RecursiveDirectoryIterator::FOLLOW_SYMLINKS )
-		)
-		as $file
-	) {
-		if ( $file->isFile() && 'php' === $file->getExtension() ) {
-			$files[] = $file->getPathname();
+foreach ( $filtered_items as $item ) {
+	if ( $item->isDir() ) {
+		foreach (
+			new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator( $item->getPathname(), RecursiveDirectoryIterator::SKIP_DOTS )
+			) as $file
+		) {
+			if ( $file->isFile() && $file->getExtension() === 'php' ) {
+				$files[] = $file->getPathname();
+			}
 		}
-	}
-}
-
-// There is also a "*-command.php" file.
-foreach (
-	new IteratorIterator(
-		new DirectoryIterator( $project_dir )
-	) as $file ) {
-	if ( $file->isFile() && false !== strpos( $file->getFilename(), '-command.php' ) ) {
-		$files[] = $file->getPathname();
-		break;
+	} else {
+		$files[] = $item->getPathname();
 	}
 }
 
