@@ -705,8 +705,15 @@ class FeatureContext implements SnippetAcceptingContext {
 
 			$modify_command = function ( $part ) {
 				if ( preg_match( '/(^wp )|( wp )|(\/wp )/', $part ) ) {
-					$part  = preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3', $part );
-					$part .= ' --require={TEST_RUN_DIR}/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php';
+					$part = preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3', $part );
+
+					$require_path = '{TEST_RUN_DIR}/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php';
+					if ( ! file_exists( $this->variables['TEST_RUN_DIR'] . '/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php' ) ) {
+						// This file is not vendored inside the wp-cli-tests project
+						$require_path = '{TEST_RUN_DIR}/utils/generate-coverage.php';
+					}
+					$part .= " --require={$require_path}";
+
 				}
 				return $part;
 			};
