@@ -39,6 +39,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $run_dir;
 
 	/**
+	 * The Directory that 'composer behat' is run from, assumed to always be the top level project folder
+	 */
+	private static $behat_run_dir;
+
+	/**
 	 * Where WordPress core is downloaded to for caching, and which is copied to RUN_DIR during a "Given a WP installation" step. Lives until manually deleted.
 	 */
 	private static $cache_dir;
@@ -286,9 +291,10 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$path_separator = Utils\is_windows() ? ';' : ':';
 		$env            = [
-			'PATH'      => $bin_path . $path_separator . getenv( 'PATH' ),
-			'BEHAT_RUN' => 1,
-			'HOME'      => sys_get_temp_dir() . '/wp-cli-home',
+			'PATH'         => $bin_path . $path_separator . getenv( 'PATH' ),
+			'BEHAT_RUN'    => 1,
+			'HOME'         => sys_get_temp_dir() . '/wp-cli-home',
+			'TEST_RUN_DIR' => self::$behat_run_dir,
 		];
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
@@ -371,6 +377,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			'FRAMEWORK_ROOT' => realpath( $framework_root ),
 			'SRC_DIR'        => realpath( dirname( dirname( __DIR__ ) ) ),
 			'PROJECT_DIR'    => realpath( dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) ),
+			'TEST_RUN_DIR'   => self::$behat_run_dir,
 		];
 
 		return $variables;
@@ -475,6 +482,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( false !== self::$log_run_times ) {
 			self::log_run_times_before_suite( $scope );
 		}
+		self::$behat_run_dir = getcwd();
 
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
@@ -521,7 +529,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( self::$log_run_times ) {
 			self::log_run_times_before_scenario( $scope );
 		}
-
 		$this->variables = array_merge(
 			$this->variables,
 			self::get_behat_internal_variables()
@@ -693,8 +700,31 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	public function get_command_with_coverage( $cmd ) {
 		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+
 		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
-			return preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3--require={SRC_DIR}/utils/generate-coverage.php ', $cmd );
+
+			$modify_command = function ( $part ) {
+				if ( preg_match( '/(^wp )|( wp )|(\/wp )/', $part ) ) {
+					$part = preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3', $part );
+
+					$require_path = '{TEST_RUN_DIR}/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php';
+					if ( ! file_exists( $this->variables['TEST_RUN_DIR'] . '/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php' ) ) {
+						// This file is not vendored inside the wp-cli-tests project
+						$require_path = '{TEST_RUN_DIR}/utils/generate-coverage.php';
+					}
+					$part .= " --require={$require_path}";
+
+				}
+				return $part;
+			};
+
+			if ( strpos( $cmd, '|' ) !== false ) {
+				$parts = explode( '|', $cmd );
+				$parts = array_map( $modify_command, $parts );
+				$cmd   = implode( '|', $parts );
+			} else {
+				$cmd = $modify_command( $cmd );
+			}
 		}
 
 		return $cmd;

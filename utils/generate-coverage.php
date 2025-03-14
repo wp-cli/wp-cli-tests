@@ -11,15 +11,54 @@ use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 
-$root_folder = realpath( dirname( __DIR__ ) );
+
+$project_dir = (string) getenv( 'TEST_RUN_DIR' );
 
 if ( ! class_exists( 'SebastianBergmann\CodeCoverage\Filter' ) ) {
-	require "{$root_folder}/vendor/autoload.php";
+	if ( ! file_exists( $project_dir . '/vendor/autoload.php' ) ) {
+		die( 'Could not load dependencies for generating code coverage' );
+	}
+	require "{$project_dir}/vendor/autoload.php";
+}
+
+$filtered_items = new CallbackFilterIterator(
+	new DirectoryIterator( $project_dir ),
+	function ( $file ) {
+		// Allow directories named "php" or "src"
+		if ( $file->isDir() && in_array( $file->getFilename(), [ 'php', 'src' ], true ) ) {
+			return true;
+		}
+
+		// Allow top-level files ending in "-command.php"
+		if ( $file->isFile() && false !== strpos( $file->getFilename(), '-command.php' ) ) {
+			return true;
+		}
+
+		return false;
+	}
+);
+
+$files = [];
+
+foreach ( $filtered_items as $item ) {
+	if ( $item->isDir() ) {
+		foreach (
+			new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator( $item->getPathname(), RecursiveDirectoryIterator::SKIP_DOTS )
+			) as $file
+		) {
+			if ( $file->isFile() && $file->getExtension() === 'php' ) {
+				$files[] = $file->getPathname();
+			}
+		}
+	} else {
+		$files[] = $item->getPathname();
+	}
 }
 
 $filter = new Filter();
-$filter->includeDirectory( "{$root_folder}/includes" );
-$filter->includeFiles( array( "{$root_folder}/plugin.php" ) );
+
+$filter->includeFiles( $files );
 
 $coverage = new CodeCoverage(
 	( new Selector() )->forLineCoverage( $filter ),
@@ -37,10 +76,8 @@ $name     = "{$feature} - {$scenario}";
 $coverage->start( $name );
 
 register_shutdown_function(
-	static function () use ( $coverage, $feature, $scenario, $name ) {
+	static function () use ( $coverage, $feature, $scenario, $name, $project_dir ) {
 		$coverage->stop();
-
-		$project_dir = (string) getenv( 'BEHAT_PROJECT_DIR' );
 
 		$feature_suffix  = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $feature ) );
 		$scenario_suffix = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $scenario ) );
