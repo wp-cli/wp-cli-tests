@@ -299,7 +299,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
 		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
-			$coverage_require_file = self::$behat_run_dir . '/vendor/wp-cli/wp-cli/tests/utils/generate-coverage.php';
+			$coverage_require_file = self::$behat_run_dir . '/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php';
 			if ( ! file_exists( $coverage_require_file ) ) {
 				// This file is not vendored inside the wp-cli-tests project
 				$coverage_require_file = self::$behat_run_dir . '/utils/generate-coverage.php';
