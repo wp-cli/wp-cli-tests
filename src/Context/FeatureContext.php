@@ -297,6 +297,19 @@ class FeatureContext implements SnippetAcceptingContext {
 			'TEST_RUN_DIR' => self::$behat_run_dir,
 		];
 
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			$coverage_require_file = self::$behat_run_dir . '/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php';
+			if ( ! file_exists( $coverage_require_file ) ) {
+				// This file is not vendored inside the wp-cli-tests project
+				$coverage_require_file = self::$behat_run_dir . '/utils/generate-coverage.php';
+			}
+
+			$current               = getenv( 'WP_CLI_REQUIRE' );
+			$updated               = $current ? "{$current},{$coverage_require_file}" : $coverage_require_file;
+			$env['WP_CLI_REQUIRE'] = $updated;
+		}
+
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
 		if ( false !== $config_path ) {
 			$env['WP_CLI_CONFIG_PATH'] = $config_path;
@@ -377,7 +390,6 @@ class FeatureContext implements SnippetAcceptingContext {
 			'FRAMEWORK_ROOT' => realpath( $framework_root ),
 			'SRC_DIR'        => realpath( dirname( dirname( __DIR__ ) ) ),
 			'PROJECT_DIR'    => realpath( dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) ),
-			'TEST_RUN_DIR'   => self::$behat_run_dir,
 		];
 
 		return $variables;
@@ -688,46 +700,6 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$this->drop_db();
 		$this->set_cache_dir();
-	}
-
-	/**
-	 * Enhances a `wp <command>` string with an additional `--require` for code coverage collection.
-	 *
-	 * Only applies if `WP_CLI_TEST_COVERAGE` is set.
-	 *
-	 * @param string $cmd Command string.
-	 * @return string Possibly enhanced command string.
-	 */
-	public function get_command_with_coverage( $cmd ) {
-		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
-
-		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
-
-			$modify_command = function ( $part ) {
-				if ( preg_match( '/(^wp )|( wp )|(\/wp )/', $part ) ) {
-					$part = preg_replace( '/(^wp )|( wp )|(\/wp )/', '$1$2$3', $part );
-
-					$require_path = '{TEST_RUN_DIR}/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php';
-					if ( ! file_exists( $this->variables['TEST_RUN_DIR'] . '/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php' ) ) {
-						// This file is not vendored inside the wp-cli-tests project
-						$require_path = '{TEST_RUN_DIR}/utils/generate-coverage.php';
-					}
-					$part .= " --require={$require_path}";
-
-				}
-				return $part;
-			};
-
-			if ( strpos( $cmd, '|' ) !== false ) {
-				$parts = explode( '|', $cmd );
-				$parts = array_map( $modify_command, $parts );
-				$cmd   = implode( '|', $parts );
-			} else {
-				$cmd = $modify_command( $cmd );
-			}
-		}
-
-		return $cmd;
 	}
 
 	/**
