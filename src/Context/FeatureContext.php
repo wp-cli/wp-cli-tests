@@ -9,7 +9,14 @@ use Behat\Testwork\Hook\Scope\AfterSuiteScope;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
 use Behat\Behat\Hook\Scope\AfterFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeFeatureScope;
+use Behat\Behat\Hook\Scope\BeforeStepScope;
+use SebastianBergmann\CodeCoverage\Report\Clover;
+use SebastianBergmann\CodeCoverage\Driver\Selector;
+use SebastianBergmann\CodeCoverage\Filter;
+use SebastianBergmann\CodeCoverage\CodeCoverage;
+use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
+use DirectoryIterator;
 use WP_CLI\Process;
 use WP_CLI\Utils;
 use WP_CLI\WpOrgApi;
@@ -132,6 +139,13 @@ class FeatureContext implements SnippetAcceptingContext {
 	private $scenario;
 
 	/**
+	 * Line of the current step.
+	 *
+	 * @var int
+	 */
+	private $step_line = 0;
+
+	/**
 	 * @BeforeFeature
 	 */
 	public static function store_feature( BeforeFeatureScope $scope ) {
@@ -146,10 +160,18 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	 * @BeforeStep
+	 */
+	public function store_step( BeforeStepScope $scope ) {
+		$this->step_line = $scope->getStep()->getLine();
+	}
+
+	/**
 	 * @AfterScenario
 	 */
 	public function forget_scenario( AfterScenarioScope $scope ) {
-		$this->scenario = null;
+		$this->step_line = 0;
+		$this->scenario  = null;
 	}
 
 	/**
@@ -157,6 +179,34 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	public static function forget_feature( AfterFeatureScope $scope ) {
 		self::$feature = null;
+	}
+
+	/**
+	 * @AfterSuite
+	 */
+	public static function merge_coverage_reports() {
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+
+		if ( ! \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			return;
+		}
+
+		$filter   = new Filter();
+		$coverage = new CodeCoverage(
+			( new Selector() )->forLineCoverage( $filter ),
+			$filter
+		);
+
+		foreach ( new DirectoryIterator( self::$behat_run_dir . '/build/logs' ) as $file ) {
+			if ( ! $file->isFile() || 'cov' !== $file->getExtension() ) {
+				continue;
+			}
+
+			$coverage->merge( include $file->getPathname() );
+			unlink( $file->getPathname() );
+		}
+
+		( new Clover() )->process( $coverage, self::$behat_run_dir . '/build/logs/behat-coverage.xml' );
 	}
 
 	/**
@@ -298,7 +348,14 @@ class FeatureContext implements SnippetAcceptingContext {
 		];
 
 		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+
 		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
+
+			if ( ! $has_coverage_driver ) {
+				throw new RuntimeException( 'No coverage driver available. Re-run script with `--xdebug` flag, i.e. `composer behat -- --xdebug`.' );
+			}
+
 			$coverage_require_file = self::$behat_run_dir . '/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php';
 			if ( ! file_exists( $coverage_require_file ) ) {
 				// This file is not vendored inside the wp-cli-tests project
@@ -871,8 +928,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		);
 
 		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/'
-										. uniqid( 'wp-cli-download-', true )
-										. '.phar';
+			. uniqid( 'wp-cli-download-', true )
+			. '.phar';
 
 		Process::create(
 			Utils\esc_cmd(
@@ -956,6 +1013,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( $this->scenario ) {
 			$env['BEHAT_SCENARIO_TITLE'] = $this->scenario->getTitle();
 		}
+
+		$env['BEHAT_STEP_LINE'] = $this->step_line;
 
 		$env['WP_CLI_TEST_DBTYPE'] = self::$db_type;
 

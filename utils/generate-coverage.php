@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This script is added via `--require` to the WP-CLI commands executed by the Behat test runner.
+ * This script is added via the `WP_CLI_REQUIRE` environment variable to the WP-CLI commands executed by the Behat test runner.
  * It starts coverage collection right away and registers a shutdown hook to complete it
  * after the respective WP-CLI command has finished.
  */
@@ -9,8 +9,24 @@
 use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Filter;
-use SebastianBergmann\CodeCoverage\Report\Clover;
+use SebastianBergmann\CodeCoverage\Report\PHP as PHPReport;
 
+/*
+ * The names of the current feature and scenario are passed on from the Behat test runner
+ * to this script through environment variables.
+ */
+$feature   = getenv( 'BEHAT_FEATURE_TITLE' );
+$scenario  = getenv( 'BEHAT_SCENARIO_TITLE' );
+$step_line = (int) getenv( 'BEHAT_STEP_LINE' );
+$name      = "{$feature} - {$scenario} - {$step_line}";
+
+/*
+ * Do not run coverage if they are empty, which means we are running some command
+ * during test preparation, e.g. the `wp core download` in `FeatureContext::prepare()`.
+ */
+if ( empty( $feature ) | empty( $scenario ) ) {
+	return;
+}
 
 $project_dir = (string) getenv( 'TEST_RUN_DIR' );
 
@@ -65,30 +81,22 @@ $coverage = new CodeCoverage(
 	$filter
 );
 
-/*
- * The names of the current feature and scenario are passed on from the Behat test runner
- * to this script through environment variables `BEHAT_FEATURE_TITLE` & `BEHAT_SCENARIO_TITLE`.
- */
-$feature  = getenv( 'BEHAT_FEATURE_TITLE' );
-$scenario = getenv( 'BEHAT_SCENARIO_TITLE' );
-$name     = "{$feature} - {$scenario}";
-
 $coverage->start( $name );
 
 register_shutdown_function(
-	static function () use ( $coverage, $feature, $scenario, $name, $project_dir ) {
+	static function () use ( $coverage, $feature, $scenario, $step_line, $name, $project_dir ) {
 		$coverage->stop();
 
 		$feature_suffix  = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $feature ) );
 		$scenario_suffix = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $scenario ) );
 		$db_type         = strtolower( getenv( 'WP_CLI_TEST_DBTYPE' ) );
-		$destination     = "$project_dir/build/logs/$feature_suffix-$scenario_suffix-$db_type.xml";
+		$destination     = "$project_dir/build/logs/$feature_suffix-$scenario_suffix-$step_line-$db_type.cov";
 
 		$dir = dirname( $destination );
 		if ( ! file_exists( $dir ) ) {
 			mkdir( $dir, 0777, true /*recursive*/ );
 		}
 
-		( new Clover() )->process( $coverage, $destination, $name );
+		( new PHPReport() )->process( $coverage, $destination );
 	}
 );
