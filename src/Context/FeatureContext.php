@@ -185,6 +185,12 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @AfterSuite
 	 */
 	public static function merge_coverage_reports() {
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+
+		if ( ! \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			return;
+		}
+
 		$filter   = new Filter();
 		$coverage = new CodeCoverage(
 			( new Selector() )->forLineCoverage( $filter ),
