@@ -185,8 +185,6 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @AfterSuite
 	 */
 	public static function merge_coverage_reports() {
-		//
-
 		$filter   = new Filter();
 		$coverage = new CodeCoverage(
 			( new Selector() )->forLineCoverage( $filter ),
