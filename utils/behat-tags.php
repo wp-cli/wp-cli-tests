@@ -80,10 +80,6 @@ if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) )
 }
 
 switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
-	case 'mysql':
-		$skip_tags[] = '@require-mariadb';
-		$skip_tags[] = '@require-sqlite';
-		break;
 	case 'mariadb':
 		$skip_tags[] = '@require-mysql';
 		$skip_tags[] = '@require-sqlite';
@@ -92,6 +88,11 @@ switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 		$skip_tags[] = '@require-mariadb';
 		$skip_tags[] = '@require-mysql';
 		$skip_tags[] = '@require-mysql-or-mariadb';
+		break;
+	case 'mysql':
+	default:
+		$skip_tags[] = '@require-mariadb';
+		$skip_tags[] = '@require-sqlite';
 		break;
 }
 
