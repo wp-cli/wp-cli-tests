@@ -75,9 +75,9 @@ echo "DEBUG: CLIENT_VERSION is: '${CLIENT_VERSION}'"
 echo "DEBUG: TYPE is: '${TYPE}'"
 
 if [ "${TYPE}" = "MySQL" ]; then
-	SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}")
+	SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
 else
-	SERVER_VERSION=$(mariadb -e "SELECT VERSION()" --skip-column-names "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}")
+	SERVER_VERSION=$(mariadb -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
 fi
 
 VERSION=$(echo "${SERVER_VERSION}" | grep -o '^[^-]*')
@@ -89,7 +89,7 @@ echo "Detected ${TYPE} at version ${MAJOR}.${MINOR}"
 echo 'Checking if database is ready...'
 
 if [ "${TYPE}" = "MySQL" ]; then
-	while ! mysql "${HOST_STRING}" --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
+	while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
 	do
 		echo 'Waiting for database...'
 		sleep 5
@@ -100,7 +100,7 @@ if [ "${TYPE}" = "MySQL" ]; then
 		fi
 	done
 else
-	while ! mariadb "${HOST_STRING}" --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
+	while ! mariadb ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
 	do
 		echo 'Waiting for database...'
 		sleep 5
@@ -115,27 +115,27 @@ fi
 # Prepare the database for running the tests with a MySQL version 8.0 or higher.
 install_mysql_db_8_0_plus() {
 	set -ex
-	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 }
 
 # Prepare the database for running the tests with a MySQL version lower than 8.0.
 install_mysql_db_lower_than_8_0() {
 	set -ex
-	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "GRANT ALL ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "GRANT ALL ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 }
 
 # Prepare the database for running the tests with MariaDB
 install_mariadb() {
 	set -ex
-	mariadb -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
-	mariadb -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
-	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
-	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" "${HOST_STRING}" -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 }
 
 if [ "${TYPE}" = "MariaDB" ]; then
