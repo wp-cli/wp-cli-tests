@@ -70,7 +70,7 @@ case "${CLIENT_VERSION}" in
 		;;
 esac
 
-if [[ "${TYPE}" == "MySQL" ]]; then
+if [ "${TYPE}" == "MySQL" ]; then
 	SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
 else
 	SERVER_VERSION=$(mariadb -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
@@ -84,7 +84,7 @@ echo "Detected ${TYPE} at version ${MAJOR}.${MINOR}"
 
 echo 'Checking if database is ready...'
 
-if [[ "${TYPE}" == "MySQL" ]]; then
+if [ "${TYPE}" == "MySQL" ]; then
 	while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
 	do
 		echo 'Waiting for database...'
