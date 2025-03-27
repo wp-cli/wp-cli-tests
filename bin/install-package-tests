@@ -75,6 +75,7 @@ if [[ "${TYPE}" == "MySQL" ]]; then
 else
 	SERVER_VERSION=$(mariadb -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
 fi
+
 VERSION=$(echo "${SERVER_VERSION}" | grep -o '^[^-]*')
 MAJOR=$(echo "${VERSION}" | cut -d. -f1)
 MINOR=$(echo "${VERSION}" | cut -d. -f2)
@@ -85,19 +86,27 @@ echo 'Checking if database is ready...'
 
 if [[ "${TYPE}" == "MySQL" ]]; then
 	while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
+	do
+		echo 'Waiting for database...'
+		sleep 5
+		i=$((i+1))
+		if [ $i -gt 36 ]; then
+		echo 'Database failed to start. Aborting.'
+		exit 1
+		fi
+	done
 else
 	while ! mariadb ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
+	do
+		echo 'Waiting for database...'
+		sleep 5
+		i=$((i+1))
+		if [ $i -gt 36 ]; then
+		echo 'Database failed to start. Aborting.'
+		exit 1
+		fi
+	done
 fi
-
-do
-  echo 'Waiting for database...'
-  sleep 5
-  i=$((i+1))
-  if [ $i -gt 36 ]; then
-	echo 'Database failed to start. Aborting.'
-	exit 1
-  fi
-done
 
 # Prepare the database for running the tests with a MySQL version 8.0 or higher.
 install_mysql_db_8_0_plus() {
