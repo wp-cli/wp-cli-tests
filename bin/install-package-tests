@@ -63,22 +63,18 @@ fi
 echo "Detecting database version..."
 
 TYPE="MySQL"
-CLIENT_VERSION=$(/usr/bin/env mysql --version 2>/dev/null)
+CLIENT_VERSION=$(mysql --version 2>/dev/null)
 case "${CLIENT_VERSION}" in
 	*"MariaDB"*)
 		TYPE="MariaDB"
 		;;
 esac
 
-mysql() {
-	if [ "${TYPE}" == "MySQL" ]; then
-		/usr/bin/env mysql "$@"
-	else
-		/usr/bin/env mariadb "$@"
-	fi
-}
-
-SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
+if [[ "${TYPE}" == "MySQL" ]]; then
+	SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
+else
+	SERVER_VERSION=$(mariadb -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
+fi
 VERSION=$(echo "${SERVER_VERSION}" | grep -o '^[^-]*')
 MAJOR=$(echo "${VERSION}" | cut -d. -f1)
 MINOR=$(echo "${VERSION}" | cut -d. -f2)
@@ -86,7 +82,13 @@ MINOR=$(echo "${VERSION}" | cut -d. -f2)
 echo "Detected ${TYPE} at version ${MAJOR}.${MINOR}"
 
 echo 'Checking if database is ready...'
-while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
+
+if [[ "${TYPE}" == "MySQL" ]]; then
+	while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
+else
+	while ! mariadb ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
+fi
+
 do
   echo 'Waiting for database...'
   sleep 5
@@ -97,10 +99,7 @@ do
   fi
 done
 
-# Debugging
-mysql -e "SELECT user, host, plugin FROM mysql.user WHERE user = 'wp_cli_test';" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-
-# Prepare the database for running the tests with MariaDB, or MySQL 8.0+
+# Prepare the database for running the tests with a MySQL version 8.0 or higher.
 install_mysql_db_8_0_plus() {
 	set -ex
 	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
@@ -117,7 +116,18 @@ install_mysql_db_lower_than_8_0() {
 	mysql -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 }
 
-if [ "${TYPE}" == "MariaDB" ] || [ "${MAJOR}" -ge 8 ]; then
+# Prepare the database for running the tests with MariaDB
+install_mariadb() {
+	set -ex
+	mariadb -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+}
+
+if [ "${TYPE}" == "MariaDB" ]; then
+	install_mariadb
+elif [ "${MAJOR}" -ge 8 ]; then
 	install_mysql_db_8_0_plus
 else
 	install_mysql_db_lower_than_8_0
