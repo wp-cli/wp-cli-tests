@@ -141,7 +141,7 @@ class TestBehatTags extends TestCase {
 		file_put_contents( $this->temp_dir . '/features/php_version.feature', $contents );
 
 		$output = exec( "cd {$this->temp_dir}; php $behat_tags" );
-		$this->assertSame( '--tags=' . $expected . '&&~@github-api&&~@broken&&~@require-sqlite', $output );
+		$this->assertSame( '--tags=' . $expected . '&&~@github-api&&~@broken&&~@require-mariadb&&~@require-sqlite', $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
