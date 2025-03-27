@@ -60,6 +60,8 @@ if [ -n "${WP_CLI_TEST_DBPASS}" ]; then
   TEST_PASSWORD="${WP_CLI_TEST_DBPASS}"
 fi
 
+echo "Detecting database version..."
+
 TYPE="MySQL"
 CLIENT_VERSION=$(/usr/bin/env mysql --version 2>/dev/null)
 case "${CLIENT_VERSION}" in
@@ -68,13 +70,6 @@ case "${CLIENT_VERSION}" in
 		;;
 esac
 
-SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
-VERSION=$(echo "${SERVER_VERSION}" | grep -o '^[^-]*')
-MAJOR=$(echo "${VERSION}" | cut -d. -f1)
-MINOR=$(echo "${VERSION}" | cut -d. -f2)
-
-echo "Detected ${TYPE} at version ${MAJOR}.${MINOR}"
-
 mysql() {
 	if [ "${TYPE}" == "MySQL" ]; then
 		/usr/bin/env mysql "$@"
@@ -82,6 +77,13 @@ mysql() {
 		/usr/bin/env mariadb "$@"
 	fi
 }
+
+SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
+VERSION=$(echo "${SERVER_VERSION}" | grep -o '^[^-]*')
+MAJOR=$(echo "${VERSION}" | cut -d. -f1)
+MINOR=$(echo "${VERSION}" | cut -d. -f2)
+
+echo "Detected ${TYPE} at version ${MAJOR}.${MINOR}"
 
 echo 'Checking if database is ready...'
 while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
@@ -94,6 +96,9 @@ do
 	exit 1
   fi
 done
+
+# Debugging
+mysql -e "SELECT user, host, plugin FROM mysql.user WHERE user = 'wp_cli_test';" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 
 # Prepare the database for running the tests with MariaDB, or MySQL 8.0+
 install_mysql_db_8_0_plus() {
