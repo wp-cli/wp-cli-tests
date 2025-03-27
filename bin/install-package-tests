@@ -64,11 +64,15 @@ echo "Detecting database version..."
 
 TYPE="MySQL"
 CLIENT_VERSION=$(mysql --version 2>/dev/null)
+
 case "${CLIENT_VERSION}" in
 	*"MariaDB"*)
 		TYPE="MariaDB"
 		;;
 esac
+
+echo "DEBUG: CLIENT_VERSION is: '${CLIENT_VERSION}'"
+echo "DEBUG: TYPE is: '${TYPE}'"
 
 if [ "${TYPE}" == "MySQL" ]; then
 	SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
