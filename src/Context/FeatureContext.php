@@ -93,6 +93,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $db_type = 'mysql';
 
 	/**
+	 *  Name of mysql binary to use (mysql or mariadb). Default to mysql
+	 */
+	private static $mysql_binary = 'mysql';
+
+	/**
 	 * Array of background process ids started by the current scenario. Used to terminate them at the end of the scenario.
 	 */
 	private $running_procs = [];
@@ -552,6 +557,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::log_run_times_before_suite( $scope );
 		}
 		self::$behat_run_dir = getcwd();
+		self::$mysql_binary  = Utils\get_mysql_binary_path();
 
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
@@ -602,6 +608,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->variables,
 			self::get_behat_internal_variables()
 		);
+
+		$mysql_binary     = Utils\get_mysql_binary_path();
+		$sql_dump_command = Utils\get_sql_dump_command();
+
+		$this->variables['MYSQL_BINARY']     = $mysql_binary;
+		$this->variables['SQL_DUMP_COMMAND'] = $sql_dump_command;
 
 		// Used in the names of the RUN_DIR and SUITE_CACHE_DIR directories.
 		self::$temp_dir_infix = null;
@@ -959,9 +971,6 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param bool $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
 	 */
 	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
-		$binary  = 'mariadb' === Utils\get_db_type() ? 'mariadb' : 'mysql';
-		$sql_cmd = "$binary $sql_cmd";
-
 		$default_assoc_args = [
 			'host' => self::$db_settings['dbhost'],
 			'user' => self::$db_settings['dbuser'],
@@ -983,7 +992,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$dbname = self::$db_settings['dbname'];
-		self::run_sql( '--no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
+		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
 	public function drop_db() {
@@ -991,7 +1000,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			return;
 		}
 		$dbname = self::$db_settings['dbname'];
-		self::run_sql( '--no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
+		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
 	public function proc( $command, $assoc_args = [], $path = '' ) {
@@ -1182,7 +1191,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			if ( 'sqlite' === self::$db_type ) {
 				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
 			} else {
-				self::run_sql( '--no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
+				self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
@@ -1193,7 +1202,7 @@ class FeatureContext implements SnippetAcceptingContext {
 				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
 				if ( 'sqlite' !== self::$db_type ) {
-					$mysqldump_binary          = 'mariadb' === Utils\get_db_type() ? 'mariadb-dump' : 'mysqldump';
+					$mysqldump_binary          = Utils\get_sql_dump_command();
 					$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
 					$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
 					$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
