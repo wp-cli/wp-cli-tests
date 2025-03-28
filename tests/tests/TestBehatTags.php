@@ -51,11 +51,21 @@ class TestBehatTags extends TestCase {
 			$expected .= '&&~@broken-trunk';
 		}
 
-		if ( 'sqlite' !== $db_type ) {
-			$expected .= '&&~@require-sqlite';
-		}
-		if ( 'sqlite' === $db_type ) {
-			$expected .= '&&~@require-mysql';
+		switch ( $db_type ) {
+			case 'mariadb':
+				$expected .= '&&~@require-mysql';
+				$expected .= '&&~@require-sqlite';
+				break;
+			case 'sqlite':
+				$expected .= '&&~@require-mariadb';
+				$expected .= '&&~@require-mysql';
+				$expected .= '&&~@require-mysql-or-mariadb';
+				break;
+			case 'mysql':
+			default:
+				$expected .= '&&~@require-mariadb';
+				$expected .= '&&~@require-sqlite';
+				break;
 		}
 
 		$this->assertSame( '--tags=' . $expected, $output );
@@ -131,7 +141,7 @@ class TestBehatTags extends TestCase {
 		file_put_contents( $this->temp_dir . '/features/php_version.feature', $contents );
 
 		$output = exec( "cd {$this->temp_dir}; php $behat_tags" );
-		$this->assertSame( '--tags=' . $expected . '&&~@github-api&&~@broken&&~@require-sqlite', $output );
+		$this->assertSame( '--tags=' . $expected . '&&~@github-api&&~@broken&&~@require-mariadb&&~@require-sqlite', $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
@@ -148,12 +158,23 @@ class TestBehatTags extends TestCase {
 
 		$expecteds = array();
 
-		if ( 'sqlite' !== $db_type ) {
-			$expecteds[] = '~@require-sqlite';
+		switch ( $db_type ) {
+			case 'mariadb':
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-sqlite';
+				break;
+			case 'sqlite':
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-mysql-or-mariadb';
+				break;
+			case 'mysql':
+			default:
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-sqlite';
+				break;
 		}
-		if ( 'sqlite' === $db_type ) {
-			$expecteds[] = '~@require-mysql';
-		}
+
 		if ( ! extension_loaded( 'imagick' ) ) {
 			$expecteds[] = '~@require-extension-imagick';
 		}

@@ -67,3 +67,11 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
     When I run `echo {WP_VERSION-latest}`
     Then STDOUT should match /\d\.\d/
     And STDERR should be empty
+
+  @require-mysql-or-mariadb
+  Scenario: SQL related variables
+    When I run `echo {MYSQL_BINARY}`
+    Then STDOUT should match /(mysql|mariadb)/
+
+    When I run `echo {SQL_DUMP_COMMAND}`
+    Then STDOUT should match /(mysqldump|mariadb-dump)/
