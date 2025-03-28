@@ -71,9 +71,6 @@ case "${CLIENT_VERSION}" in
 		;;
 esac
 
-echo "DEBUG: CLIENT_VERSION is: '${CLIENT_VERSION}'"
-echo "DEBUG: TYPE is: '${TYPE}'"
-
 if [ "${TYPE}" = "MySQL" ]; then
 	SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
 else
