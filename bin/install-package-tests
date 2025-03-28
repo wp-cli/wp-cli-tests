@@ -133,7 +133,7 @@ install_mysql_db_lower_than_8_0() {
 install_mariadb() {
 	set -ex
 	mariadb -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mariadb -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 }
