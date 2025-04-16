@@ -746,5 +746,6 @@
 	"6.5.5" : "outdated",
 	"6.6.2" : "outdated",
 	"6.7.1" : "outdated",
-	"6.7.2" : "latest"
+	"6.7.2" : "outdated",
+	"6.8" : "latest"
 }
