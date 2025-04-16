@@ -12,11 +12,11 @@ Feature: Test that WP-CLI loads.
   Scenario: WP Cron is disabled by default
     Given a WP install
     And a test_cron.php file:
-    """
-    <?php
-    $cron_disabled = defined( "DISABLE_WP_CRON" ) ? DISABLE_WP_CRON : false;
-    echo 'DISABLE_WP_CRON is: ' . ( $cron_disabled ? 'true' : 'false' );
-    """
+      """
+      <?php
+      $cron_disabled = defined( "DISABLE_WP_CRON" ) ? DISABLE_WP_CRON : false;
+      echo 'DISABLE_WP_CRON is: ' . ( $cron_disabled ? 'true' : 'false' );
+      """
 
     When I run `wp eval-file test_cron.php`
     Then STDOUT should be:
