@@ -3,7 +3,7 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
   Scenario: Variable names can only contain uppercase letters, digits and underscores and cannot begin with a digit.
 
     When I run `echo value`
-    And save STDOUT as {VARIABLE_NAME}
+    Then save STDOUT as {VARIABLE_NAME}
     And save STDOUT as {V}
     And save STDOUT as {_VARIABLE_NAME_STARTING_WITH_UNDERSCORE}
     And save STDOUT as {_}
@@ -20,9 +20,9 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
     When I run `echo {VARIABLE_NAME}`
     Then STDOUT should match /^value$/
     And STDOUT should be:
-    """
-    value
-    """
+      """
+      value
+      """
 
     When I run `echo {V}`
     Then STDOUT should match /^value$/
@@ -45,9 +45,9 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
     When I run `echo {2_VARIABLE_NAME_STARTING_WITH_DIGIT}`
     Then STDOUT should match /^\{2_VARIABLE_NAME_STARTING_WITH_DIGIT}$/
     And STDOUT should contain:
-    """
-    {
-    """
+      """
+      {
+      """
 
     When I run `echo {2}`
     Then STDOUT should match /^\{2}$/
@@ -61,7 +61,7 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
   Scenario: Special variables
 
     When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS-} cli info`
-    And STDOUT should match /wp cli info/
+    Then STDOUT should match /wp cli info/
     And STDERR should be empty
 
     When I run `echo {WP_VERSION-latest}`
