@@ -719,6 +719,7 @@
 	"6.6" : "insecure",
 	"6.6.1" : "insecure",
 	"6.7" : "insecure",
+	"6.8" : "insecure",
 	"4.1.41" : "outdated",
 	"4.2.38" : "outdated",
 	"4.3.34" : "outdated",
@@ -747,5 +748,5 @@
 	"6.6.2" : "outdated",
 	"6.7.1" : "outdated",
 	"6.7.2" : "outdated",
-	"6.8" : "latest"
+	"6.8.1" : "latest"
 }
