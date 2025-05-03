@@ -7,7 +7,6 @@ use Exception;
 
 trait WhenStepDefinitions {
 
-
 	public function wpcli_tests_invoke_proc( $proc, $mode ) {
 		$map    = array(
 			'run' => 'run_check_stderr',
@@ -25,6 +24,10 @@ trait WhenStepDefinitions {
 	}
 
 	/**
+	 * Launch a given command in the background.
+	 *
+	 * @access public
+	 *
 	 * @When /^I launch in the background `([^`]+)`$/
 	 */
 	public function when_i_launch_in_the_background( $cmd ) {
@@ -32,6 +35,12 @@ trait WhenStepDefinitions {
 	}
 
 	/**
+	 * Run or try a given command.
+	 *
+	 * `run` expects an exit code 0, whereas `try` allows for non-zero exit codes.
+	 *
+	 * @access public
+	 *
 	 * @When /^I (run|try) `([^`]+)`$/
 	 */
 	public function when_i_run( $mode, $cmd ) {
@@ -41,6 +50,12 @@ trait WhenStepDefinitions {
 	}
 
 	/**
+	 * Run or try a given command in a subdirectory.
+	 *
+	 * `run` expects an exit code 0, whereas `try` allows for non-zero exit codes.
+	 *
+	 * @access public
+	 *
 	 * @When /^I (run|try) `([^`]+)` from '([^\s]+)'$/
 	 */
 	public function when_i_run_from_a_subfolder( $mode, $cmd, $subdir ) {
@@ -50,6 +65,12 @@ trait WhenStepDefinitions {
 	}
 
 	/**
+	 * Run or try the previous command again.
+	 *
+	 * `run` expects an exit code 0, whereas `try` allows for non-zero exit codes.
+	 *
+	 * @access public
+	 *
 	 * @When /^I (run|try) the previous command again$/
 	 */
 	public function when_i_run_the_previous_command_again( $mode ) {
