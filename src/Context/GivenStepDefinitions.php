@@ -124,7 +124,7 @@ trait GivenStepDefinitions {
 	 *
 	 * ```
 	 * Scenario: My example scenario
-	 *   Given "WordPress" replaced with "Wordpress" in the readme.html file
+	 *   Given "Foo" replaced with "Bar" in the readme.html file
 	 *   ...
 	 * ```
 	 *
