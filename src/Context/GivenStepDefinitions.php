@@ -330,7 +330,7 @@ FILE;
 	}
 
 	/**
-	 * Create a wp-config.php file using `wp config create`
+	 * Create a wp-config.php file using `wp config create`.
 	 *
 	 * ```
 	 * Scenario: My example scenario
