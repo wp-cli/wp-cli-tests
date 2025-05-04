@@ -51,7 +51,7 @@ trait ThenStepDefinitions {
 	 *     """
 	 *     Plugin installed successfully.
 	 *     """
-	 *   AND STDERR should be empty
+	 *   And STDERR should be empty
 	 * ```
 	 *
 	 * @access public
