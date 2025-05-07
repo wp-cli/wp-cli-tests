@@ -74,7 +74,7 @@ foreach ( $filtered_items as $item ) {
 
 $filter = new Filter();
 
-if ( method_exists( $filter, 'include' ) ) {
+if ( method_exists( $filter, 'includeFiles' ) ) {
 	$filter->includeFiles( $files );
 } else {
 	$filter->addFilesToWhitelist( $files );
