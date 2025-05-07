@@ -74,7 +74,11 @@ foreach ( $filtered_items as $item ) {
 
 $filter = new Filter();
 
-$filter->includeFiles( $files );
+if ( method_exists( $filter, 'includeFiles' ) ) {
+	$filter->includeFiles( $files );
+} else {
+	$filter->addFilesToWhitelist( $files );
+}
 
 $coverage = new CodeCoverage(
 	( new Selector() )->forLineCoverage( $filter ),
