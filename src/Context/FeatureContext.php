@@ -12,6 +12,7 @@ use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeStepScope;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
+use SebastianBergmann\CodeCoverage\Driver\Xdebug;
 use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\Environment\Runtime;
@@ -198,7 +199,8 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$filter   = new Filter();
 		$coverage = new CodeCoverage(
-			( new Selector() )->forLineCoverage( $filter ),
+			// Selector class was only added in v9.1 of the php-code-coverage library.
+			class_exists( Selector::class ) ? ( new Selector() )->forLineCoverage( $filter ) : ( new Xdebug() ),
 			$filter
 		);
 
