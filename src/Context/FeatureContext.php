@@ -921,6 +921,13 @@ class FeatureContext implements SnippetAcceptingContext {
 			$make_phar_path = self::get_vendor_dir() . '/../utils/make-phar.php';
 		}
 
+		// Temporarily modify the Composer autoloader used within the Phar
+		// so that it doesn't clash if autoloading is already happening outside of it,
+		// for example when generating code coverage.
+		// This modifies composer.json.
+		$this->composer_command( 'config autoloader-suffix "WpCliTestsPhar" --working-dir=' . dirname( self::get_vendor_dir() ) );
+		$this->composer_command( 'dump-autoload --working-dir=' . dirname( self::get_vendor_dir() ) );
+
 		$this->proc(
 			Utils\esc_cmd(
 				'php -dphar.readonly=0 %1$s %2$s --version=%3$s && chmod +x %2$s',
@@ -929,6 +936,10 @@ class FeatureContext implements SnippetAcceptingContext {
 				$version
 			)
 		)->run_check();
+
+		// Revert the suffix change again
+		$this->composer_command( 'config autoloader-suffix "WpCliBundle" --working-dir=' . dirname( self::get_vendor_dir() ) );
+		$this->composer_command( 'dump-autoload --working-dir=' . dirname( self::get_vendor_dir() ) );
 	}
 
 	public function download_phar( $version = 'same' ) {
