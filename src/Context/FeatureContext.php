@@ -202,7 +202,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @AfterSuite
 	 */
 	public static function merge_coverage_reports() {
-		if ( self::running_with_code_coverage() ) {
+		if ( ! self::running_with_code_coverage() ) {
 			return;
 		}
 
