@@ -29,7 +29,7 @@ define(
 
 require_once VENDOR_DIR . '/autoload.php';
 require_once WP_CLI_ROOT . '/php/utils.php';
-require_once __DIR__ . '/wp-cli-testcase.php';
+require_once __DIR__ . '/includes/TestCase.php';
 
 function wpcli_tests_include_config( array $config_filenames = [] ) {
 	$config_filename = false;
@@ -43,7 +43,7 @@ function wpcli_tests_include_config( array $config_filenames = [] ) {
 	if ( $config_filename ) {
 		$config  = file_get_contents( $config_filename );
 		$matches = null;
-		$pattern = '/bootstrap="(?P<bootstrap>.*)"/';
+		$pattern = '/bootstrap="(?P<bootstrap>[^"]*)"/';
 		$result  = preg_match( $pattern, $config, $matches );
 		if ( isset( $matches['bootstrap'] ) && file_exists( $matches['bootstrap'] ) ) {
 			include_once PACKAGE_ROOT . '/' . $matches['bootstrap'];

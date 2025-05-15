@@ -7,9 +7,20 @@ use Behat\Behat\Hook\Scope\AfterScenarioScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
 use Behat\Testwork\Hook\Scope\AfterSuiteScope;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
+use Behat\Behat\Hook\Scope\AfterFeatureScope;
+use Behat\Behat\Hook\Scope\BeforeFeatureScope;
+use Behat\Behat\Hook\Scope\BeforeStepScope;
+use SebastianBergmann\CodeCoverage\Report\Clover;
+use SebastianBergmann\CodeCoverage\Driver\Selector;
+use SebastianBergmann\CodeCoverage\Driver\Xdebug;
+use SebastianBergmann\CodeCoverage\Filter;
+use SebastianBergmann\CodeCoverage\CodeCoverage;
+use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
+use DirectoryIterator;
 use WP_CLI\Process;
 use WP_CLI\Utils;
+use WP_CLI\WpOrgApi;
 
 /**
  * Features context.
@@ -34,6 +45,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * The current working directory for scenarios that have a "Given a WP installation" or "Given an empty directory" step. Variable RUN_DIR. Lives until the end of the scenario.
 	 */
 	private static $run_dir;
+
+	/**
+	 * The Directory that 'composer behat' is run from, assumed to always be the top level project folder
+	 */
+	private static $behat_run_dir;
 
 	/**
 	 * Where WordPress core is downloaded to for caching, and which is copied to RUN_DIR during a "Given a WP installation" step. Lives until manually deleted.
@@ -78,6 +94,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $db_type = 'mysql';
 
 	/**
+	 *  Name of mysql binary to use (mysql or mariadb). Default to mysql
+	 */
+	private static $mysql_binary = 'mysql';
+
+	/**
 	 * Array of background process ids started by the current scenario. Used to terminate them at the end of the scenario.
 	 */
 	private $running_procs = [];
@@ -106,6 +127,94 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static $scenario_run_times    = []; // Scenario run times (top `self::$num_top_scenarios` only).
 	private static $scenario_count        = 0; // Scenario count, incremented on `@AfterScenario`.
 	private static $proc_method_run_times = []; // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
+
+	private $mocked_requests = [];
+
+	/**
+	 * The current feature.
+	 *
+	 * @var \Behat\Gherkin\Node\FeatureNode|null
+	 */
+	private static $feature;
+
+	/**
+	 * The current scenario.
+	 *
+	 * @var \Behat\Gherkin\Node\ScenarioInterface|null
+	 */
+	private $scenario;
+
+	/**
+	 * Line of the current step.
+	 *
+	 * @var int
+	 */
+	private $step_line = 0;
+
+	/**
+	 * @BeforeFeature
+	 */
+	public static function store_feature( BeforeFeatureScope $scope ) {
+		self::$feature = $scope->getFeature();
+	}
+
+	/**
+	 * @BeforeScenario
+	 */
+	public function store_scenario( BeforeScenarioScope $scope ) {
+		$this->scenario = $scope->getScenario();
+	}
+
+	/**
+	 * @BeforeStep
+	 */
+	public function store_step( BeforeStepScope $scope ) {
+		$this->step_line = $scope->getStep()->getLine();
+	}
+
+	/**
+	 * @AfterScenario
+	 */
+	public function forget_scenario( AfterScenarioScope $scope ) {
+		$this->step_line = 0;
+		$this->scenario  = null;
+	}
+
+	/**
+	 * @AfterFeature
+	 */
+	public static function forget_feature( AfterFeatureScope $scope ) {
+		self::$feature = null;
+	}
+
+	/**
+	 * @AfterSuite
+	 */
+	public static function merge_coverage_reports() {
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+
+		if ( ! \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			return;
+		}
+
+		$filter   = new Filter();
+		$coverage = new CodeCoverage(
+			// Selector class was only added in v9.1 of the php-code-coverage library.
+			class_exists( Selector::class ) ? ( new Selector() )->forLineCoverage( $filter ) : ( new Xdebug() ),
+			$filter
+		);
+
+		foreach ( new DirectoryIterator( self::$behat_run_dir . '/build/logs' ) as $file ) {
+			if ( ! $file->isFile() || 'cov' !== $file->getExtension() ) {
+				continue;
+			}
+
+			$coverage->merge( include $file->getPathname() );
+			unlink( $file->getPathname() );
+		}
+
+		( new Clover() )->process( $coverage, self::$behat_run_dir . '/build/logs/behat-coverage.xml' );
+	}
 
 	/**
 	 * Get the path to the Composer vendor folder.
@@ -239,10 +348,31 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$path_separator = Utils\is_windows() ? ';' : ':';
 		$env            = [
-			'PATH'      => $bin_path . $path_separator . getenv( 'PATH' ),
-			'BEHAT_RUN' => 1,
-			'HOME'      => sys_get_temp_dir() . '/wp-cli-home',
+			'PATH'         => $bin_path . $path_separator . getenv( 'PATH' ),
+			'BEHAT_RUN'    => 1,
+			'HOME'         => sys_get_temp_dir() . '/wp-cli-home',
+			'TEST_RUN_DIR' => self::$behat_run_dir,
 		];
+
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+
+		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
+
+			if ( ! $has_coverage_driver ) {
+				throw new RuntimeException( 'No coverage driver available. Re-run script with `--xdebug` flag, i.e. `composer behat -- --xdebug`.' );
+			}
+
+			$coverage_require_file = self::$behat_run_dir . '/vendor/wp-cli/wp-cli-tests/utils/generate-coverage.php';
+			if ( ! file_exists( $coverage_require_file ) ) {
+				// This file is not vendored inside the wp-cli-tests project
+				$coverage_require_file = self::$behat_run_dir . '/utils/generate-coverage.php';
+			}
+
+			$current               = getenv( 'WP_CLI_REQUIRE' );
+			$updated               = $current ? "{$current},{$coverage_require_file}" : $coverage_require_file;
+			$env['WP_CLI_REQUIRE'] = $updated;
+		}
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
 		if ( false !== $config_path ) {
@@ -330,11 +460,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
-	* Download and extract a single copy of the sqlite-database-integration plugin
-	* for use in subsequent WordPress copies
-	*/
+	 * Download and extract a single copy of the sqlite-database-integration plugin
+	 * for use in subsequent WordPress copies
+	 */
 	private static function download_sqlite_plugin( $dir ) {
-		$download_url      = 'https://github.com/WordPress/sqlite-database-integration/archive/refs/tags/v2.1.3.zip';
+		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip';
 		$download_location = $dir . '/sqlite-database-integration.zip';
 
 		if ( ! is_dir( $dir ) ) {
@@ -364,19 +494,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			$error_message = $zip->getStatusString();
 			throw new RuntimeException( sprintf( 'Failed to open the zip file: %s', $error_message ) );
 		}
-
-		// For the release downloaded from GitHub, the unzipped folder will contain the version number.
-		// We're renaming the folder here for consistency's sake.
-		rename(
-			$dir . '/sqlite-database-integration-2.1.3/',
-			$dir . '/sqlite-database-integration/'
-		);
 	}
 
 	/**
-	* Given a WordPress installation with the sqlite-database-integration plugin,
-	* configure it to use SQLite as the database by placing the db.php dropin file
-	*/
+	 * Given a WordPress installation with the sqlite-database-integration plugin,
+	 * configure it to use SQLite as the database by placing the db.php dropin file
+	 */
 	private static function configure_sqlite( $dir ) {
 		$db_copy   = $dir . '/wp-content/mu-plugins/sqlite-database-integration/db.copy';
 		$db_dropin = $dir . '/wp-content/db.php';
@@ -435,6 +558,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( false !== self::$log_run_times ) {
 			self::log_run_times_before_suite( $scope );
 		}
+		self::$behat_run_dir = getcwd();
+		self::$mysql_binary  = Utils\get_mysql_binary_path();
 
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
@@ -481,11 +606,16 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( self::$log_run_times ) {
 			self::log_run_times_before_scenario( $scope );
 		}
-
 		$this->variables = array_merge(
 			$this->variables,
 			self::get_behat_internal_variables()
 		);
+
+		$mysql_binary     = Utils\get_mysql_binary_path();
+		$sql_dump_command = Utils\get_sql_dump_command();
+
+		$this->variables['MYSQL_BINARY']     = $mysql_binary;
+		$this->variables['SQL_DUMP_COMMAND'] = $sql_dump_command;
 
 		// Used in the names of the RUN_DIR and SUITE_CACHE_DIR directories.
 		self::$temp_dir_infix = null;
@@ -721,25 +851,24 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( null === $wp_versions ) {
 			$wp_versions = [];
 
-			$response = Utils\http_request( 'GET', 'https://api.wordpress.org/core/version-check/1.7/', null, [], [ 'timeout' => 30 ] );
-			if ( 200 === $response->status_code ) {
-				$body = json_decode( $response->body );
-				if ( is_object( $body ) && isset( $body->offers ) && is_array( $body->offers ) ) {
-					// Latest version alias.
-					$wp_versions['{WP_VERSION-latest}'] = count( $body->offers ) ? $body->offers[0]->version : '';
-					foreach ( $body->offers as $offer ) {
-						$sub_ver     = preg_replace( '/(^[0-9]+\.[0-9]+)\.[0-9]+$/', '$1', $offer->version );
-						$sub_ver_key = "{WP_VERSION-{$sub_ver}-latest}";
+			$wp_org_api = new WpOrgApi();
+			$result     = $wp_org_api->get_core_version_check();
 
-						$main_ver     = preg_replace( '/(^[0-9]+)\.[0-9]+$/', '$1', $sub_ver );
-						$main_ver_key = "{WP_VERSION-{$main_ver}-latest}";
+			if ( is_array( $result ) && ! empty( $result['offers'] ) ) {
+				// Latest version alias.
+				$wp_versions['{WP_VERSION-latest}'] = count( $result['offers'] ) ? $result['offers'][0]['version'] : '';
+				foreach ( $result['offers'] as $offer ) {
+					$sub_ver     = preg_replace( '/(^[0-9]+\.[0-9]+)\.[0-9]+$/', '$1', $offer['version'] );
+					$sub_ver_key = "{WP_VERSION-{$sub_ver}-latest}";
 
-						if ( ! isset( $wp_versions[ $main_ver_key ] ) ) {
-							$wp_versions[ $main_ver_key ] = $offer->version;
-						}
-						if ( ! isset( $wp_versions[ $sub_ver_key ] ) ) {
-							$wp_versions[ $sub_ver_key ] = $offer->version;
-						}
+					$main_ver     = preg_replace( '/(^[0-9]+)\.[0-9]+$/', '$1', $sub_ver );
+					$main_ver_key = "{WP_VERSION-{$main_ver}-latest}";
+
+					if ( ! isset( $wp_versions[ $main_ver_key ] ) ) {
+						$wp_versions[ $main_ver_key ] = $offer['version'];
+					}
+					if ( ! isset( $wp_versions[ $sub_ver_key ] ) ) {
+						$wp_versions[ $sub_ver_key ] = $offer['version'];
 					}
 				}
 			}
@@ -813,8 +942,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		);
 
 		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/'
-										. uniqid( 'wp-cli-download-', true )
-										. '.phar';
+			. uniqid( 'wp-cli-download-', true )
+			. '.phar';
 
 		Process::create(
 			Utils\esc_cmd(
@@ -865,7 +994,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$dbname = self::$db_settings['dbname'];
-		self::run_sql( 'mysql --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
+		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
 	public function drop_db() {
@@ -873,7 +1002,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			return;
 		}
 		$dbname = self::$db_settings['dbname'];
-		self::run_sql( 'mysql --no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
+		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
 	public function proc( $command, $assoc_args = [], $path = '' ) {
@@ -882,9 +1011,26 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$env = self::get_process_env_variables();
+
 		if ( isset( $this->variables['SUITE_CACHE_DIR'] ) ) {
 			$env['WP_CLI_CACHE_DIR'] = $this->variables['SUITE_CACHE_DIR'];
 		}
+
+		if ( isset( $this->variables['PROJECT_DIR'] ) ) {
+			$env['BEHAT_PROJECT_DIR'] = $this->variables['PROJECT_DIR'];
+		}
+
+		if ( self::$feature ) {
+			$env['BEHAT_FEATURE_TITLE'] = self::$feature->getTitle();
+		}
+
+		if ( $this->scenario ) {
+			$env['BEHAT_SCENARIO_TITLE'] = $this->scenario->getTitle();
+		}
+
+		$env['BEHAT_STEP_LINE'] = $this->step_line;
+
+		$env['WP_CLI_TEST_DBTYPE'] = self::$db_type;
 
 		if ( isset( $this->variables['RUN_DIR'] ) ) {
 			$cwd = "{$this->variables['RUN_DIR']}/{$path}";
@@ -1017,7 +1163,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
-		if ( 'mysql' === self::$db_type ) {
+		if ( 'sqlite' !== self::$db_type ) {
 			$this->create_db();
 		}
 		$this->create_run_dir();
@@ -1047,7 +1193,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			if ( 'sqlite' === self::$db_type ) {
 				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
 			} else {
-				self::run_sql( 'mysql --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
+				self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
@@ -1057,8 +1203,9 @@ class FeatureContext implements SnippetAcceptingContext {
 
 				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
-				if ( 'mysql' === self::$db_type ) {
-					$mysqldump_binary          = Utils\force_env_on_nix_systems( 'mysqldump' );
+				if ( 'sqlite' !== self::$db_type ) {
+					$mysqldump_binary          = Utils\get_sql_dump_command();
+					$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
 					$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
 					$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
 					if ( $support_column_statistics ) {
@@ -1247,8 +1394,8 @@ class FeatureContext implements SnippetAcceptingContext {
 					}
 					self::copy_dir( $upd_file, $cop_file );
 				} elseif ( ! copy( $upd_file, $cop_file ) ) {
-						$error = error_get_last();
-						throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
+					$error = error_get_last();
+					throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
 				}
 			} elseif ( is_dir( $upd_file ) ) {
 				self::dir_diff_copy( $upd_file, $src_file, $cop_file );

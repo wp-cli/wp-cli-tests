@@ -79,14 +79,22 @@ if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) )
 	$skip_tags[] = '@broken-trunk';
 }
 
-if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
-	$skip_tags[] = '@require-mysql';
+switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
+	case 'mariadb':
+		$skip_tags[] = '@require-mysql';
+		$skip_tags[] = '@require-sqlite';
+		break;
+	case 'sqlite':
+		$skip_tags[] = '@require-mariadb';
+		$skip_tags[] = '@require-mysql';
+		$skip_tags[] = '@require-mysql-or-mariadb';
+		break;
+	case 'mysql':
+	default:
+		$skip_tags[] = '@require-mariadb';
+		$skip_tags[] = '@require-sqlite';
+		break;
 }
-
-if ( 'sqlite' !== getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
-	$skip_tags[] = '@require-sqlite';
-}
-
 
 # Require PHP extension, eg 'imagick'.
 function extension_tags( $features_folder = 'features' ) {

@@ -172,7 +172,12 @@ trait Support {
 	 * @return bool   Whether $actual_csv contains $expected_csv
 	 */
 	protected function check_that_csv_string_contains_values( $actual_csv, $expected_csv ) {
-		$actual_csv = array_map( 'str_getcsv', explode( PHP_EOL, $actual_csv ) );
+		$actual_csv = array_map(
+			static function ( $str ) {
+				return str_getcsv( $str, ',', '"', '\\' );
+			},
+			explode( PHP_EOL, $actual_csv )
+		);
 
 		if ( empty( $actual_csv ) ) {
 			return false;

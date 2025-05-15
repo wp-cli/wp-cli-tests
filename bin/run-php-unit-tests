@@ -3,9 +3,16 @@
 # Run the unit tests, if they exist
 if [ -f "phpunit.xml" ] || [ -f "phpunit.xml.dist" ] || [ -f ".phpunit.xml" ] || [ -f ".phpunit.xml.dist" ]
 then
+	PHPUNIT_VERSION=$(vendor/bin/phpunit --version | grep --only-matching --max-count=1 --extended-regexp '\b[0-9]+\.[0-9]+')
+	EXTRA_ARGS=""
+
+	if [ "${PHPUNIT_VERSION#11}" != "$PHPUNIT_VERSION" ] || [ "${PHPUNIT_VERSION#10}" != "$PHPUNIT_VERSION" ]; then
+		EXTRA_ARGS="--display-warnings --fail-on-warning --display-notices --fail-on-notice --display-deprecations --fail-on-deprecation"
+	fi
+
 	if [ -f "./vendor/wp-cli/wp-cli-tests/tests/bootstrap.php" ]; then
-		vendor/bin/phpunit --color=always "$@" --bootstrap ./vendor/wp-cli/wp-cli-tests/tests/bootstrap.php
+		vendor/bin/phpunit --color=always "$@" $EXTRA_ARGS --bootstrap ./vendor/wp-cli/wp-cli-tests/tests/bootstrap.php
 	else
-		vendor/bin/phpunit --color=always "$@"
+		vendor/bin/phpunit --color=always "$@" $EXTRA_ARGS
 	fi
 fi

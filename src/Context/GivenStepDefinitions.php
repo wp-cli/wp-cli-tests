@@ -11,6 +11,16 @@ use WP_CLI\Utils;
 trait GivenStepDefinitions {
 
 	/**
+	 * Creates an empty directory.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given an empty directory
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given an empty directory
 	 */
 	public function given_an_empty_directory() {
@@ -18,6 +28,17 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Creates or deletes a specific directory.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given an empty foo-plugin directory
+	 *   And a non-existent bar-plugin directory
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given /^an? (empty|non-existent) ([^\s]+) directory$/
 	 */
 	public function given_a_specific_directory( $empty_or_nonexistent, $dir ) {
@@ -49,6 +70,16 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Clears the WP-CLI cache directory.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given an empty cache
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given an empty cache
 	 */
 	public function given_an_empty_cache() {
@@ -56,6 +87,23 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Creates a file with the given contents.
+	 *
+	 * The file can be created either in the current working directory
+	 * or in the cache directory.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a wp-cli.yml file:
+	 *     """
+	 *     @foo:
+	 *       path: foo
+	 *       user: admin
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given /^an? ([^\s]+) (file|cache file):$/
 	 */
 	public function given_a_specific_file( $path, $type, PyStringNode $content ) {
@@ -72,6 +120,16 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Search and replace a string in a file using regex.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given "Foo" replaced with "Bar" in the readme.html file
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given /^"([^"]+)" replaced with "([^"]+)" in the ([^\s]+) file$/
 	 */
 	public function given_string_replaced_with_string_in_a_specific_file( $search, $replace, $path ) {
@@ -82,6 +140,189 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Mock HTTP requests to a given URL.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given that HTTP requests to https://api.github.com/repos/wp-cli/wp-cli/releases?per_page=100 will respond with:
+	 *     """
+	 *     HTTP/1.1 200
+	 *     Content-Type: application/json
+	 *
+	 *     { "foo": "bar" }
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given /^that HTTP requests to (.*?) will respond with:$/
+	 */
+	public function given_a_request_to_a_url_respond_with_file( $url_or_pattern, PyStringNode $content ) {
+		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
+			$this->create_run_dir();
+		}
+
+		$config_file = $this->variables['RUN_DIR'] . '/wp-cli.yml';
+		$mock_file   = $this->variables['RUN_DIR'] . '/mock-requests.php';
+		$dir         = dirname( $config_file );
+
+		if ( ! file_exists( $dir ) ) {
+			mkdir( $dir, 0777, true /*recursive*/ );
+		}
+
+		$config_file_contents = <<<FILE
+require:
+    - mock-requests.php
+FILE;
+
+		file_put_contents(
+			$config_file,
+			$config_file_contents
+		);
+
+		$this->mocked_requests[ $url_or_pattern ] = (string) $content;
+
+		$mocked_requests = var_export( $this->mocked_requests, true /* return */ );
+
+		$mock_file_contents = <<<FILE
+<?php
+/**
+ * HTTP request mocking supporting both Requests v1 and v2.
+ */
+
+trait WP_CLI_Tests_Mock_Requests_Trait {
+	public function request( \$url, \$headers = array(), \$data = array(), \$options = array() ) {
+		\$mocked_requests = $mocked_requests;
+
+		foreach ( \$mocked_requests as \$pattern => \$response ) {
+			\$pattern = '/' . preg_quote( \$pattern, '/' ) . '/';
+			if ( 1 === preg_match( \$pattern, \$url ) ) {
+				\$pos = strpos( \$response, "\\n\\n");
+				if ( false !== \$pos ) {
+					\$response = substr( \$response, 0, \$pos ) . "\\r\\n\\r\\n" . substr( \$response, \$pos + 2 );
+				}
+				return \$response;
+			}
+		}
+
+		if ( class_exists( '\WpOrg\Requests\Transport\Curl' ) ) {
+			return ( new \WpOrg\Requests\Transport\Curl() )->request( \$url, \$headers, \$data, \$options );
+		}
+
+		return ( new \Requests_Transport_cURL() )->request( \$url, \$headers, \$data, \$options );
+	}
+
+	public function request_multiple( \$requests, \$options ) {
+		throw new Exception( 'Method not implemented: ' . __METHOD__ );
+	}
+
+	public static function test( \$capabilities = array() ) {
+		return true;
+	}
+}
+
+if ( interface_exists( '\WpOrg\Requests\Transport' ) ) {
+	class WP_CLI_Tests_Mock_Requests_Transport implements \WpOrg\Requests\Transport {
+		use WP_CLI_Tests_Mock_Requests_Trait;
+	}
+} else {
+	class WP_CLI_Tests_Mock_Requests_Transport implements \Requests_Transport {
+		use WP_CLI_Tests_Mock_Requests_Trait;
+	}
+}
+
+WP_CLI::add_hook(
+	'http_request_options',
+	static function( \$options ) {
+		\$options['transport'] = new WP_CLI_Tests_Mock_Requests_Transport();
+		return \$options;
+	}
+);
+
+WP_CLI::add_wp_hook(
+	'pre_http_request',
+	static function( \$pre, \$parsed_args, \$url ) {
+		\$mocked_requests = $mocked_requests;
+
+		foreach ( \$mocked_requests as \$pattern => \$response ) {
+			\$pattern = '/' . preg_quote( \$pattern, '/' ) . '/';
+			if ( 1 === preg_match( \$pattern, \$url ) ) {
+				\$pos = strpos( \$response, "\n\n");
+				if ( false !== \$pos ) {
+					\$response = substr( \$response, 0, \$pos ) . "\r\n\r\n" . substr( \$response, \$pos + 2 );
+				}
+
+				if ( class_exists( '\WpOrg\Requests\Requests' ) ) {
+					WpOrg\Requests\Requests::parse_multiple(
+						\$response,
+						array(
+							'url'     => \$url,
+							'headers' => array(),
+							'data'    => array(),
+							'options' => array_merge(
+								WpOrg\Requests\Requests::OPTION_DEFAULTS,
+								array(
+									'hooks' => new WpOrg\Requests\Hooks(),
+								)
+							),
+						)
+					);
+				} else {
+					\Requests::parse_multiple(
+						\$response,
+						array(
+							'url'     => \$url,
+							'headers' => array(),
+							'data'    => array(),
+							'options' => array(
+								'blocking'         => true,
+								'filename'         => false,
+								'follow_redirects' => true,
+								'redirected'       => 0,
+								'redirects'        => 10,
+								'hooks'            => new Requests_Hooks(),
+							),
+						)
+					);
+				}
+
+				return array(
+					'headers'  => \$response->headers->getAll(),
+					'body'     => \$response->body,
+					'response' => array(
+						'code'    => \$response->status_code,
+						'message' => get_status_header_desc( \$response->status_code ),
+					),
+					'cookies'  => array(),
+					'filename' => '',
+				);
+			}
+		}
+
+		return \$pre;
+	},
+	10,
+	3
+);
+FILE;
+
+		file_put_contents(
+			$mock_file,
+			$mock_file_contents
+		);
+	}
+
+	/**
+	 * Download WordPress files without installing.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given an empty directory
+	 *   And WP files
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given WP files
 	 */
 	public function given_wp_files() {
@@ -89,6 +330,17 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Create a wp-config.php file using `wp config create`.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given an empty directory
+	 *   And WP files
+	 *   And wp-config.php
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given wp-config.php
 	 */
 	public function given_wp_config_php() {
@@ -96,6 +348,18 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Creates an empty database.
+	 *
+	 * Has no effect when tests run with SQLite.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a database
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a database
 	 */
 	public function given_a_database() {
@@ -103,6 +367,20 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Installs WordPress.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   ...
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP install
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a WP install(ation)
 	 */
 	public function given_a_wp_installation() {
@@ -110,6 +388,20 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Installs WordPress in a given directory.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation in 'foo'
+	 *   ...
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP install in 'bar'
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a WP install(ation) in :subdir
 	 */
 	public function given_a_wp_installation_in_a_specific_folder( $subdir ) {
@@ -117,6 +409,20 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Installs WordPress with Composer.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation with Composer
+	 *   ...
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP install with Composer
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a WP install(ation) with Composer
 	 */
 	public function given_a_wp_installation_with_composer() {
@@ -124,6 +430,20 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Installs WordPress with Composer and a custom vendor directory.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation with Composer and a custom vendor directory 'vendor-custom'
+	 *   ...
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP install with Composer with Composer and a custom vendor directory 'vendor-custom'
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a WP install(ation) with Composer and a custom vendor directory :vendor_directory
 	 */
 	public function given_a_wp_installation_with_composer_and_a_custom_vendor_folder( $vendor_directory ) {
@@ -131,6 +451,22 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Installs WordPress Multisite.
+	 *
+	 * Supports either subdirectory or subdomain installation.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP multisite subdomain installation
+	 *   ...
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP subdirectory install
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given /^a WP multisite (subdirectory|subdomain)?\s?(install|installation)$/
 	 */
 	public function given_a_wp_multisite_installation( $type = 'subdirectory' ) {
@@ -146,6 +482,20 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Installs and activates one or more plugins.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And these installed and active plugins:
+	 *     """
+	 *     akismet
+	 *     wordpress-importer
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given these installed and active plugins:
 	 */
 	public function given_these_installed_and_active_plugins( $stream ) {
@@ -156,6 +506,18 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Configure a custom `wp-content` directory.
+	 *
+	 * Defines the `WP_CONTENT_DIR`, `WP_PLUGIN_DIR`, and `WPMU_PLUGIN_DIR` constants.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP install
+	 *   And a custom wp-content directory
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a custom wp-content directory
 	 */
 	public function given_a_custom_wp_directory() {
@@ -198,6 +560,18 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Download multiple files into the given destinations.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given download:
+	 *     | path                | url                                   |
+	 *     | {CACHE_DIR}/foo.jpg | https://example.com/foo.jpg           |
+	 *     | {CACHE_DIR}/bar.png | https://example.com/another-image.png |
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given download:
 	 */
 	public function given_a_download( TableNode $table ) {
@@ -213,6 +587,20 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Store STDOUT or STDERR contents in a variable.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp package path`
+	 *   Then save STDOUT as {PACKAGE_PATH}
+	 *
+	 * Scenario: My other scenario
+	 *   When I run `wp core download`
+	 *   Then save STDOUT 'Downloading WordPress ([\d\.]+)' as {VERSION}
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given /^save (STDOUT|STDERR) ([\'].+[^\'])?\s?as \{(\w+)\}$/
 	 */
 	public function given_saved_stdout_stderr( $stream, $output_filter, $key ) {
@@ -232,6 +620,16 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Build a new WP-CLI Phar file with a given version.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given an empty directory
+	 *   And a new Phar with version "2.11.0"
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given /^a new Phar with (?:the same version|version "([^"]+)")$/
 	 */
 	public function given_a_new_phar_with_a_specific_version( $version = 'same' ) {
@@ -239,6 +637,20 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Download a specific WP-CLI Phar version from GitHub.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given an empty directory
+	 *   And a downloaded Phar with version "2.11.0"
+	 *
+	 * Scenario: My other scenario
+	 *   Given an empty directory
+	 *   And a downloaded Phar with the same version
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given /^a downloaded Phar with (?:the same version|version "([^"]+)")$/
 	 */
 	public function given_a_downloaded_phar_with_a_specific_version( $version = 'same' ) {
@@ -246,6 +658,16 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Stores the contents of the given file in a variable.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation with Composer
+	 *   And save the {RUN_DIR}/composer.json file as {COMPOSER_JSON}
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given /^save the (.+) file ([\'].+[^\'])?as \{(\w+)\}$/
 	 */
 	public function given_saved_a_specific_file( $filepath, $output_filter, $key ) {
@@ -265,6 +687,16 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Modify wp-config.php to set `WP_CONTENT_DIR` to an empty string.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP install
+	 *   And a misconfigured WP_CONTENT_DIR constant directory
+	 *  ```
+	 *
+	 * @access public
+	 *
 	 * @Given a misconfigured WP_CONTENT_DIR constant directory
 	 */
 	public function given_a_misconfigured_wp_content_dir_constant_directory() {
@@ -281,6 +713,16 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Add `wp-cli/wp-cli` as a Composer dependency.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation with Composer
+	 *   And a dependency on current wp-cli
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a dependency on current wp-cli
 	 */
 	public function given_a_dependency_on_wp_cli() {
@@ -288,6 +730,16 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Start a PHP built-in web server in the current directory.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And a PHP built-in web server
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a PHP built-in web server
 	 */
 	public function given_a_php_built_in_web_server() {
@@ -295,6 +747,16 @@ trait GivenStepDefinitions {
 	}
 
 	/**
+	 * Start a PHP built-in web server in the given subdirectory.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And a PHP built-in web server to serve 'WordPress'
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Given a PHP built-in web server to serve :subdir
 	 */
 	public function given_a_php_built_in_web_server_to_serve_a_specific_folder( $subdir ) {

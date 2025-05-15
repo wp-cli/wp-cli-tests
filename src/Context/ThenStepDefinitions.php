@@ -13,6 +13,17 @@ trait ThenStepDefinitions {
 	use Support;
 
 	/**
+	 * Expect a specific exit code of the previous command.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   When I try `wp plugin install`
+	 *   Then the return code should be 1
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^the return code should( not)? be (\d+)$/
 	 */
 	public function then_the_return_code_should_be( $not, $return_code ) {
@@ -25,6 +36,26 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Check the contents of STDOUT or STDERR.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given an empty directory
+	 *   When I run `wp core is-installed`
+	 *   Then STDOUT should be empty
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP install
+	 *   When I run `wp plugin install akismet`
+	 *   Then STDOUT should contain:
+	 *     """
+	 *     Plugin installed successfully.
+	 *     """
+	 *   And STDERR should be empty
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^(STDOUT|STDERR) should( strictly)? (be|contain|not contain):$/
 	 */
 	public function then_stdout_stderr_should_contain( $stream, $strictly, $action, PyStringNode $expected ) {
@@ -37,6 +68,17 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT or STDERR to be a numeric value.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   When I run `wp db size --size_format=b`
+	 *   Then STDOUT should be a number
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^(STDOUT|STDERR) should be a number$/
 	 */
 	public function then_stdout_stderr_should_be_a_number( $stream ) {
@@ -47,6 +89,17 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT or STDERR to not be a numeric value.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   When I run `wp post list --format=json`
+	 *   Then STDOUT should not be a number
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^(STDOUT|STDERR) should not be a number$/
 	 */
 	public function then_stdout_stderr_should_not_be_a_number( $stream ) {
@@ -57,6 +110,20 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT to be a table containing the given rows.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   When I run `wp config list --fields=name,type`
+	 *   Then STDOUT should be a table containing rows:
+	 *     | name    | type     |
+	 *     | DB_NAME | constant |
+	 *     | DB_USER | constant |
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^STDOUT should be a table containing rows:$/
 	 */
 	public function then_stdout_should_be_a_table_containing_rows( TableNode $expected ) {
@@ -72,6 +139,27 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT to end with a table containing the given rows.
+	 *
+	 * Useful when the table is preceded by some other output.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   When I run `wp search-replace foo bar --report-changed-only`
+	 *   Then STDOUT should contain:
+	 *     """
+	 *     Success: Made 3 replacements.
+	 *     """
+	 *   And STDOUT should end with a table containing rows:
+	 *     | Table       | Column       | Replacements | Type |
+	 *     | wp_options  | option_value | 1            | PHP  |
+	 *     | wp_postmeta | meta_value   | 1            | SQL  |
+	 *     | wp_posts    | post_title   | 1            | SQL  |
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^STDOUT should end with a table containing rows:$/
 	 */
 	public function then_stdout_should_end_with_a_table_containing_rows( TableNode $expected ) {
@@ -93,6 +181,21 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect valid JSON output in STDOUT.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp post meta get 1 meta-key --format=json`
+	 *   Then STDOUT should be JSON containing:
+	 *     """
+	 *     {
+	 *     "foo": "baz"
+	 *     }
+	 *   """
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^STDOUT should be JSON containing:$/
 	 */
 	public function then_stdout_should_be_json_containing( PyStringNode $expected ) {
@@ -105,6 +208,21 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect valid JSON array output in STDOUT.
+	 *
+	 * Errors when some items are missing from the expected array.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp plugin list --field=name --format=json`
+	 *   Then STDOUT should be a JSON array containing:
+	 *     """
+	 *     ["akismet", "hello-dolly"]
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^STDOUT should be a JSON array containing:$/
 	 */
 	public function then_stdout_should_be_a_json_array_containing( PyStringNode $expected ) {
@@ -121,6 +239,18 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT to be CSV containing certain values.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp term list post_tag --fields=name,slug --format=csv`
+	 *   Then STDOUT should be CSV containing:
+	 *     | name      | slug |
+	 *     | Test term | test |
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^STDOUT should be CSV containing:$/
 	 */
 	public function then_stdout_should_be_csv_containing( TableNode $expected ) {
@@ -139,6 +269,21 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT to be YAML containig certain content.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp cli alias list`
+	 *   Then STDOUT should be YAML containing:
+	 *     """
+	 *     @all: Run command against every registered alias.
+	 *     @foo:
+	 *       path: {TEST_DIR}/foo
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^STDOUT should be YAML containing:$/
 	 */
 	public function then_stdout_should_be_yaml_containing( PyStringNode $expected ) {
@@ -151,6 +296,17 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT or STDERR to be empty.
+	 *
+	 * ```
+	 * Scenario: My other scenario
+	 *   Given a WP install
+	 *   When I run `wp plugin install akismet`
+	 *   Then STDERR should be empty
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^(STDOUT|STDERR) should be empty$/
 	 */
 	public function then_stdout_stderr_should_be_empty( $stream ) {
@@ -163,6 +319,16 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT or STDERR not to be empty.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp user create examplejane jane@example.com`
+	 *   Then STDOUT should not be empty
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^(STDOUT|STDERR) should not be empty$/
 	 */
 	public function then_stdout_stderr_should_not_be_empty( $stream ) {
@@ -175,6 +341,17 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect STDOUT or STDERR to be a version string comparing to the given version.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP install
+	 *   When I run `wp core version
+	 *   Then STDOUT should be a version string >= 6.8
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^(STDOUT|STDERR) should be a version string (<|<=|>|>=|==|=|!=|<>) ([+\w.{}-]+)$/
 	 */
 	public function then_stdout_stderr_should_be_a_specific_version_string( $stream, $operator, $goal_ver ) {
@@ -186,6 +363,26 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect a certain file or directory to (not) exist or (not) contain certain contents.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp core download`
+	 *   Then the wp-settings.php file should exist
+	 *   And the wp-content directory should exist
+	 *   And the {RUN_DIR} directory should contain:
+	 *     """
+	 *     index.php
+	 *     license.txt
+	 *     """
+	 *   And the wp-config.php file should contain:
+	 *     """
+	 *     That's all, stop editing! Happy publishing.
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^the (.+) (file|directory) should( strictly)? (exist|not exist|be:|contain:|not contain:)$/
 	 */
 	public function then_a_specific_file_folder_should_exist( $path, $type, $strictly, $action, $expected = null ) {
@@ -196,7 +393,7 @@ trait ThenStepDefinitions {
 			$path = $this->variables['RUN_DIR'] . "/$path";
 		}
 
-		$exists = function ( $path ) use ( $type ) {
+		$exists = static function ( $path ) use ( $type ) {
 			// Clear the stat cache for the path first to avoid
 			// potentially inaccurate results when files change outside of PHP.
 			// See https://www.php.net/manual/en/function.clearstatcache.php
@@ -240,10 +437,22 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Match file contents against a regex.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp scaffold plugin hello-world`
+	 *   Then the contents of the wp-content/plugins/hello-world/languages/hello-world.pot file should match /X-Generator:\s/
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^the contents of the (.+) file should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/
 	 */
 	public function then_the_contents_of_a_specific_file_should_match( $path, $not, $expected ) {
-		$path = $this->replace_variables( $path );
+		$path     = $this->replace_variables( $path );
+		$expected = $this->replace_variables( $expected );
+
 		// If it's a relative path, make it relative to the current test dir.
 		if ( '/' !== $path[0] ) {
 			$path = $this->variables['RUN_DIR'] . "/$path";
@@ -257,9 +466,21 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Match STDOUT or STDERR against a regex.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp dist-archive wp-content/plugins/hello-world`
+	 *   Then STDOUT should match /^Success: Created hello-world.0.1.0.zip \(Size: \d+(?:\.\d*)? [a-zA-Z]{1,3}\)$/
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^(STDOUT|STDERR) should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/
 	 */
 	public function then_stdout_stderr_should_match_a_string( $stream, $not, $expected ) {
+		$expected = $this->replace_variables( $expected );
+
 		$stream = strtolower( $stream );
 		if ( $not ) {
 			$this->assert_not_regex( $expected, $this->result->$stream );
@@ -269,6 +490,16 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect an email to be sent (or not).
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   When I run `wp user reset-password 1`
+	 *   Then an email should be sent
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then /^an email should (be sent|not be sent)$/
 	 */
 	public function then_an_email_should_be_sent( $expected ) {
@@ -282,6 +513,17 @@ trait ThenStepDefinitions {
 	}
 
 	/**
+	 * Expect the HTTP status code for visiting `http://localhost:8080`.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation with Composer
+	 *   And a PHP built-in web server to serve 'WordPress'
+	 *   Then the HTTP status code should be 200
+	 * ```
+	 *
+	 * @access public
+	 *
 	 * @Then the HTTP status code should be :code
 	 */
 	public function then_the_http_status_code_should_be( $return_code ) {
