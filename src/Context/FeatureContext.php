@@ -1180,13 +1180,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		];
 
 		$run_dir            = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
-		$install_cache_path = '';
 
-		if ( self::$install_cache_dir ) {
-			$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
-		}
+		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
 
-		if ( $install_cache_path && file_exists( $install_cache_path ) ) {
+		if ( file_exists( $install_cache_path ) ) {
 			self::copy_dir( $install_cache_path, $run_dir );
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
@@ -1198,26 +1195,24 @@ class FeatureContext implements SnippetAcceptingContext {
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
 
-			if ( $install_cache_path ) {
-				mkdir( $install_cache_path );
+			mkdir( $install_cache_path );
 
-				self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
+			self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
-				if ( 'sqlite' !== self::$db_type ) {
-					$mysqldump_binary          = Utils\get_sql_dump_command();
-					$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
-					$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
-					$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
-					if ( $support_column_statistics ) {
-						$command .= ' --skip-column-statistics';
-					}
-					self::run_sql( $command, [ 'result-file' => "{$install_cache_path}.sql" ], true /*add_database*/ );
+			if ( 'sqlite' !== self::$db_type ) {
+				$mysqldump_binary          = Utils\get_sql_dump_command();
+				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
+				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
+				$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
+				if ( $support_column_statistics ) {
+					$command .= ' --skip-column-statistics';
 				}
+				self::run_sql( $command, [ 'result-file' => "{$install_cache_path}.sql" ], true /*add_database*/ );
+			}
 
-				if ( 'sqlite' === self::$db_type ) {
-					// This is the sqlite equivalent of creating a database dump in MySQL
-					copy( "$run_dir/wp-content/database/.ht.sqlite", "{$install_cache_path}.sqlite" );
-				}
+			if ( 'sqlite' === self::$db_type ) {
+				// This is the sqlite equivalent of creating a database dump in MySQL
+				copy( "$run_dir/wp-content/database/.ht.sqlite", "{$install_cache_path}.sqlite" );
 			}
 		}
 	}
@@ -1556,11 +1551,6 @@ function wpcli_bootstrap_behat_feature_context() {
 
 	$framework_folder = FeatureContext::get_framework_dir();
 	wp_cli_behat_env_debug( "Framework folder location: {$framework_folder}" );
-
-	// Didn't manage to detect a valid framework folder.
-	if ( empty( $vendor_folder ) ) {
-		return;
-	}
 
 	// Load helper functionality that is needed for the tests.
 	require_once "{$framework_folder}/php/utils.php";

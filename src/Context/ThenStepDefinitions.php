@@ -423,6 +423,7 @@ trait ThenStepDefinitions {
 				}
 				$action   = substr( $action, 0, -1 );
 				$expected = $this->replace_variables( (string) $expected );
+				$contents = '';
 				if ( 'file' === $type ) {
 					$contents = file_get_contents( $path );
 				} elseif ( 'directory' === $type ) {

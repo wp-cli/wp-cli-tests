@@ -70,7 +70,7 @@ trait Support {
 				break;
 
 			default:
-				throw new PendingException();
+				throw new \Behat\Behat\Tester\Exception\PendingException();
 		}
 
 		if ( ! $r ) {
