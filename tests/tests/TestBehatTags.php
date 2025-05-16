@@ -5,9 +5,12 @@ use WP_CLI\Utils;
 
 class TestBehatTags extends TestCase {
 
+	/**
+	 * @var string
+	 */
 	public $temp_dir;
 
-	protected function set_up() {
+	protected function set_up(): void {
 		parent::set_up();
 
 		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true );
@@ -15,7 +18,7 @@ class TestBehatTags extends TestCase {
 		mkdir( $this->temp_dir . '/features' );
 	}
 
-	protected function tear_down() {
+	protected function tear_down(): void {
 
 		if ( $this->temp_dir && file_exists( $this->temp_dir ) ) {
 			foreach ( glob( $this->temp_dir . '/features/*' ) as $feature_file ) {
@@ -30,8 +33,11 @@ class TestBehatTags extends TestCase {
 
 	/**
 	 * @dataProvider data_behat_tags_wp_version_github_token
+	 *
+	 * @param string $env
+	 * @param string $expected
 	 */
-	public function test_behat_tags_wp_version_github_token( $env, $expected ) {
+	public function test_behat_tags_wp_version_github_token( $env, $expected ): void {
 		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
@@ -74,7 +80,10 @@ class TestBehatTags extends TestCase {
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
 
-	public static function data_behat_tags_wp_version_github_token() {
+	/**
+	 * @return array<array{string, string}>
+	 */
+	public static function data_behat_tags_wp_version_github_token(): array {
 		return array(
 			array( 'WP_VERSION=4.5', '~@require-wp-4.6&&~@require-wp-4.8&&~@require-wp-4.9&&~@github-api' ),
 			array( 'WP_VERSION=4.6', '~@require-wp-4.8&&~@require-wp-4.9&&~@less-than-wp-4.6&&~@github-api' ),
@@ -90,7 +99,7 @@ class TestBehatTags extends TestCase {
 		);
 	}
 
-	public function test_behat_tags_php_version() {
+	public function test_behat_tags_php_version(): void {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 
 		putenv( 'GITHUB_TOKEN' );
@@ -146,7 +155,7 @@ class TestBehatTags extends TestCase {
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
 
-	public function test_behat_tags_extension() {
+	public function test_behat_tags_extension(): void {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
 
