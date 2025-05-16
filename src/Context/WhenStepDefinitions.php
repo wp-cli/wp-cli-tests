@@ -7,6 +7,11 @@ use Exception;
 
 trait WhenStepDefinitions {
 
+	/**
+	 * @param Process $proc Process instance.
+	 * @param string  $mode Mode, either 'run' or 'try'.
+	 * @return mixed
+	 */
 	public function wpcli_tests_invoke_proc( $proc, $mode ) {
 		$map    = array(
 			'run' => 'run_check_stderr',
@@ -17,7 +22,13 @@ trait WhenStepDefinitions {
 		return $proc->$method();
 	}
 
-	public function wpcli_tests_capture_email_sends( $stdout ) {
+	/**
+	 * Capture the number of sent emails by parsing STDOUT.
+	 *
+	 * @param string $stdout
+	 * @return array{string, int}
+	 */
+	public function wpcli_tests_capture_email_sends( $stdout ): array {
 		$stdout = preg_replace( '#WP-CLI test suite: Sent email to.+\n?#', '', $stdout, -1, $email_sends );
 
 		return array( $stdout, $email_sends );
@@ -36,8 +47,10 @@ trait WhenStepDefinitions {
 	 * @access public
 	 *
 	 * @When /^I launch in the background `([^`]+)`$/
+	 *
+	 * @param string $cmd Command to run.
 	 */
-	public function when_i_launch_in_the_background( $cmd ) {
+	public function when_i_launch_in_the_background( $cmd ): void {
 		$this->background_proc( $cmd );
 	}
 
@@ -68,8 +81,11 @@ trait WhenStepDefinitions {
 	 * @access public
 	 *
 	 * @When /^I (run|try) `([^`]+)`$/
+	 *
+	 * @param string $mode Mode, either 'run' or 'try'.
+	 * @param string $cmd  Command to execute.
 	 */
-	public function when_i_run( $mode, $cmd ) {
+	public function when_i_run( $mode, $cmd ): void {
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd ), $mode );
 		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
@@ -92,8 +108,12 @@ trait WhenStepDefinitions {
 	 * @access public
 	 *
 	 * @When /^I (run|try) `([^`]+)` from '([^\s]+)'$/
+	 *
+	 * @param string $mode   Mode, either 'run' or 'try'.
+	 * @param string $cmd    Command to execute.
+	 * @param string $subdir Directory.
 	 */
-	public function when_i_run_from_a_subfolder( $mode, $cmd, $subdir ) {
+	public function when_i_run_from_a_subfolder( $mode, $cmd, $subdir ): void {
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd, array(), $subdir ), $mode );
 		list( $this->result->stdout, $this->email_sends ) = $this->wpcli_tests_capture_email_sends( $this->result->stdout );
@@ -122,8 +142,10 @@ trait WhenStepDefinitions {
 	 * @access public
 	 *
 	 * @When /^I (run|try) the previous command again$/
+	 *
+	 * @param string $mode Mode, either 'run' or 'try'
 	 */
-	public function when_i_run_the_previous_command_again( $mode ) {
+	public function when_i_run_the_previous_command_again( $mode ): void {
 		if ( ! isset( $this->result ) ) {
 			throw new Exception( 'No previous command.' );
 		}

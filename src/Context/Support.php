@@ -11,46 +11,89 @@ use Mustangostang\Spyc;
 
 trait Support {
 
-
-	protected function assert_regex( $regex, $actual ) {
+	/**
+	 * @param string $regex
+	 * @param string $actual
+	 * @throws Exception
+	 */
+	protected function assert_regex( $regex, $actual ): void {
 		if ( ! preg_match( $regex, $actual ) ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}
 	}
 
-	protected function assert_not_regex( $regex, $actual ) {
+	/**
+	 * @param string $regex
+	 * @param string $actual
+	 * @throws Exception
+	 */
+	protected function assert_not_regex( $regex, $actual ): void {
 		if ( preg_match( $regex, $actual ) ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}
 	}
 
-	protected function assert_equals( $expected, $actual ) {
+	/**
+	 * Loose comparison.
+	 *
+	 * @param mixed $expected
+	 * @param mixed $actual
+	 * @throws Exception
+	 */
+	protected function assert_equals( $expected, $actual ): void {
 		// phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- Deliberate loose comparison.
 		if ( $expected != $actual ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}
 	}
 
-	protected function assert_not_equals( $expected, $actual ) {
+	/**
+	 * Loose comparison.
+	 *
+	 * @param mixed $expected
+	 * @param mixed $actual
+	 * @throws Exception
+	 */
+	protected function assert_not_equals( $expected, $actual ): void {
 		// phpcs:ignore Universal.Operators.StrictComparisons.LooseEqual -- Deliberate loose comparison.
 		if ( $expected == $actual ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}
 	}
 
-	protected function assert_numeric( $actual ) {
+	/**
+	 * @param mixed $actual
+	 * @throws Exception
+	 *
+	 * @phpstan-assert numeric-string|number $actual
+	 */
+	protected function assert_numeric( $actual ): void {
 		if ( ! is_numeric( $actual ) ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}
 	}
 
-	protected function assert_not_numeric( $actual ) {
+	/**
+	 * @param mixed $actual
+	 * @throws Exception
+	 *
+	 * @phpstan-assert !(numeric-string|number) $actual
+	 */
+	protected function assert_not_numeric( $actual ): void {
 		if ( is_numeric( $actual ) ) {
 			throw new Exception( 'Actual value: ' . var_export( $actual, true ) );
 		}
 	}
 
-	protected function check_string( $output, $expected, $action, $message = false, $strictly = false ) {
+	/**
+	 * @param string       $output
+	 * @param string       $expected
+	 * @param string       $action
+	 * @param string|false $message
+	 * @param bool         $strictly
+	 * @throws Exception
+	 */
+	protected function check_string( $output, $expected, $action, $message = false, $strictly = false ): void {
 		// Strip ANSI color codes before comparing strings.
 		if ( ! $strictly ) {
 			$output = preg_replace( '/\e[[][A-Za-z0-9];?[0-9]*m?/', '', $output );
@@ -81,7 +124,13 @@ trait Support {
 		}
 	}
 
-	protected function compare_tables( $expected_rows, $actual_rows, $output ) {
+	/**
+	 * @param array<int, mixed> $expected_rows
+	 * @param array<int, mixed> $actual_rows
+	 * @param string $output
+	 * @throws Exception
+	 */
+	protected function compare_tables( $expected_rows, $actual_rows, $output ): void {
 		// The first row is the header and must be present.
 		if ( $expected_rows[0] !== $actual_rows[0] ) {
 			throw new Exception( $output );
@@ -96,6 +145,11 @@ trait Support {
 		}
 	}
 
+	/**
+	 * @param mixed $expected
+	 * @param mixed $actual
+	 * @return bool
+	 */
 	protected function compare_contents( $expected, $actual ) {
 		if ( gettype( $expected ) !== gettype( $actual ) ) {
 			return false;
@@ -167,8 +221,8 @@ trait Support {
 	 * Both strings are expected to have headers for their CSVs.
 	 * $actualCSV must match all data rows in $expectedCSV
 	 *
-	 * @param string $actual_csv   A CSV string
-	 * @param array  $expected_csv A nested array of values
+	 * @param string   $actual_csv   A CSV string
+	 * @param array<array<string>> $expected_csv A nested array of values
 	 * @return bool   Whether $actual_csv contains $expected_csv
 	 */
 	protected function check_that_csv_string_contains_values( $actual_csv, $expected_csv ) {
@@ -182,6 +236,10 @@ trait Support {
 		if ( empty( $actual_csv ) ) {
 			return false;
 		}
+
+		/**
+		 * @var array<array<string>> $actual_csv
+		 */
 
 		// Each sample must have headers.
 		$actual_headers   = array_values( array_shift( $actual_csv ) );

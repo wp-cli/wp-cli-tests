@@ -3,13 +3,17 @@
 namespace WP_CLI\Tests\Context;
 
 use Behat\Behat\Context\SnippetAcceptingContext;
+use Behat\Behat\EventDispatcher\Event\OutlineTested;
 use Behat\Behat\Hook\Scope\AfterScenarioScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
+use Behat\Behat\Hook\Scope\FeatureScope;
+use Behat\Behat\Hook\Scope\ScenarioScope;
 use Behat\Testwork\Hook\Scope\AfterSuiteScope;
 use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
 use Behat\Behat\Hook\Scope\AfterFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeStepScope;
+use Behat\Testwork\Hook\Scope\HookScope;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Driver\Xdebug;
@@ -19,6 +23,7 @@ use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
 use DirectoryIterator;
 use WP_CLI\Process;
+use WP_CLI\ProcessRun;
 use WP_CLI\Utils;
 use WP_CLI\WpOrgApi;
 
@@ -33,53 +38,73 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * The result of the last command run with `When I run` or `When I try`. Lives until the end of the scenario.
+	 *
+	 * @var ?ProcessRun
 	 */
 	protected $result;
 
 	/**
 	 * The number of emails sent by the last command run with `When I run` or `When I try`. Lives until the end of the scenario.
+	 *
+	 * @var int
 	 */
 	protected $email_sends;
 
 	/**
 	 * The current working directory for scenarios that have a "Given a WP installation" or "Given an empty directory" step. Variable RUN_DIR. Lives until the end of the scenario.
+	 *
+	 * @var ?string
 	 */
 	private static $run_dir;
 
 	/**
 	 * The Directory that 'composer behat' is run from, assumed to always be the top level project folder
+	 *
+	 * @var string
 	 */
 	private static $behat_run_dir;
 
 	/**
 	 * Where WordPress core is downloaded to for caching, and which is copied to RUN_DIR during a "Given a WP installation" step. Lives until manually deleted.
+	 *
+	 * @var string
 	 */
 	private static $cache_dir;
 
 	/**
 	 * The directory that holds the install cache, and which is copied to RUN_DIR during a "Given a WP installation" step. Recreated on each suite run.
+	 *
+	 * @var string
 	 */
 	private static $install_cache_dir;
 
 	/**
 	 * The directory that holds a copy of the sqlite-database-integration plugin, and which is copied to RUN_DIR during a "Given a WP installation" step. Lives until manually deleted.
+	 *
+	 * @var ?string
 	 */
 	private static $sqlite_cache_dir;
 
 	/**
 	 * The directory that the WP-CLI cache (WP_CLI_CACHE_DIR, normally "$HOME/.wp-cli/cache") is set to on a "Given an empty cache" step.
 	 * Variable SUITE_CACHE_DIR. Lives until the end of the scenario (or until another "Given an empty cache" step within the scenario).
+	 *
+	 * @var ?string
 	 */
 	private static $suite_cache_dir;
 
 	/**
 	 * Where the current WP-CLI source repository is copied to for Composer-based tests with a "Given a dependency on current wp-cli" step.
 	 * Variable COMPOSER_LOCAL_REPOSITORY. Lives until the end of the suite.
+	 *
+	 * @var ?string
 	 */
 	private static $composer_local_repository;
 
 	/**
 	 * The test database settings. All but `dbname` can be set via environment variables. The database is dropped at the start of each scenario and created on a "Given a WP installation" step.
+	 *
+	 * @var array<string, string>
 	 */
 	private static $db_settings = [
 		'dbname' => 'wp_cli_test',
@@ -90,16 +115,22 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 *  What type of database should WordPress use for the test installations. Default to MySQL
+	 *
+	 * @var string
 	 */
 	private static $db_type = 'mysql';
 
 	/**
 	 *  Name of mysql binary to use (mysql or mariadb). Default to mysql
+	 *
+	 * @var string
 	 */
 	private static $mysql_binary = 'mysql';
 
 	/**
 	 * Array of background process ids started by the current scenario. Used to terminate them at the end of the scenario.
+	 *
+	 * @var array<resource>
 	 */
 	private $running_procs = [];
 
@@ -107,27 +138,77 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * Array of variables available as {VARIABLE_NAME}. Some are always set: CORE_CONFIG_SETTINGS, DB_USER, DB_PASSWORD, DB_HOST, SRC_DIR, CACHE_DIR, WP_VERSION-version-latest.
 	 * Some are step-dependent: RUN_DIR, SUITE_CACHE_DIR, COMPOSER_LOCAL_REPOSITORY, PHAR_PATH. One is set on use: INVOKE_WP_CLI_WITH_PHP_ARGS-args.
 	 * Scenarios can define their own variables using "Given save" steps. Variables are reset for each scenario.
+	 *
+	 * @var array<string, string>
 	 */
 	public $variables = [];
 
 	/**
 	 * The current feature file and scenario line number as '<file>.<line>'. Used in RUN_DIR and SUITE_CACHE_DIR directory names. Set at the start of each scenario.
+	 *
+	 * @var ?string
 	 */
 	private static $temp_dir_infix;
 
 	/**
-	 * Settings and variables for WP_CLI_TEST_LOG_RUN_TIMES run time logging.
+	 * Whether to log run times - WP_CLI_TEST_LOG_RUN_TIMES env var. Set on `@BeforeScenario'.
+	 *
+	 * @var false|string
 	 */
-	private static $log_run_times; // Whether to log run times - WP_CLI_TEST_LOG_RUN_TIMES env var. Set on `@BeforeScenario'.
-	private static $suite_start_time; // When the suite started, set on `@BeforeScenario'.
-	private static $output_to; // Where to output log - stdout|error_log. Set on `@BeforeSuite`.
-	private static $num_top_processes; // Number of processes/methods to output by longest run times. Set on `@BeforeSuite`.
-	private static $num_top_scenarios; // Number of scenarios to output by longest run times. Set on `@BeforeSuite`.
+	private static $log_run_times;
 
-	private static $scenario_run_times    = []; // Scenario run times (top `self::$num_top_scenarios` only).
-	private static $scenario_count        = 0; // Scenario count, incremented on `@AfterScenario`.
-	private static $proc_method_run_times = []; // Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
+	/**
+	 * When the suite started, set on `@BeforeScenario'.
+	 *
+	 * @var float
+	 */
+	private static $suite_start_time;
 
+	/**
+	 * Where to output log - stdout|error_log. Set on `@BeforeSuite`.
+	 *
+	 * @var string
+	 */
+	private static $output_to;
+
+	/**
+	 * Number of processes/methods to output by longest run times. Set on `@BeforeSuite`.
+	 *
+	 * @var int
+	 */
+	private static $num_top_processes;
+
+	/**
+	 * Number of scenarios to output by longest run times. Set on `@BeforeSuite`.
+	 *
+	 * @var int
+	 */
+	private static $num_top_scenarios;
+
+	/**
+	 * Scenario run times (top `self::$num_top_scenarios` only).
+	 *
+	 * @var array<string, float>
+	 */
+	private static $scenario_run_times = [];
+
+	/**
+	 * Scenario count, incremented on `@AfterScenario`.
+	 *
+	 * @var int
+	 */
+	private static $scenario_count = 0;
+
+	/**
+	 * Array of run time info for proc methods, keyed by method name and arg, each a 2-element array containing run time and run count.
+	 *
+	 * @var array<string, array{int, int}>
+	 */
+	private static $proc_method_run_times = [];
+
+	/**
+	 * @var array<string, string>
+	 */
 	private $mocked_requests = [];
 
 	/**
@@ -154,28 +235,28 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * @BeforeFeature
 	 */
-	public static function store_feature( BeforeFeatureScope $scope ) {
+	public static function store_feature( BeforeFeatureScope $scope ): void {
 		self::$feature = $scope->getFeature();
 	}
 
 	/**
 	 * @BeforeScenario
 	 */
-	public function store_scenario( BeforeScenarioScope $scope ) {
+	public function store_scenario( BeforeScenarioScope $scope ): void {
 		$this->scenario = $scope->getScenario();
 	}
 
 	/**
 	 * @BeforeStep
 	 */
-	public function store_step( BeforeStepScope $scope ) {
+	public function store_step( BeforeStepScope $scope ): void {
 		$this->step_line = $scope->getStep()->getLine();
 	}
 
 	/**
 	 * @AfterScenario
 	 */
-	public function forget_scenario( AfterScenarioScope $scope ) {
+	public function forget_scenario( AfterScenarioScope $scope ): void {
 		$this->step_line = 0;
 		$this->scenario  = null;
 	}
@@ -183,14 +264,14 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * @AfterFeature
 	 */
-	public static function forget_feature( AfterFeatureScope $scope ) {
+	public static function forget_feature( AfterFeatureScope $scope ): void {
 		self::$feature = null;
 	}
 
 	/**
 	 * @AfterSuite
 	 */
-	public static function merge_coverage_reports() {
+	public static function merge_coverage_reports(): void {
 		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
 
 		if ( ! \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
@@ -221,7 +302,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 *
 	 * @return string Absolute path to the Composer vendor folder.
 	 */
-	public static function get_vendor_dir() {
+	public static function get_vendor_dir(): ?string {
 		static $vendor_folder = null;
 
 		if ( null !== $vendor_folder ) {
@@ -233,9 +314,9 @@ class FeatureContext implements SnippetAcceptingContext {
 			// wp-cli/wp-cli-tests is a dependency of the current working dir.
 			getcwd() . '/vendor',
 			// wp-cli/wp-cli-tests is the root project.
-			dirname( dirname( __DIR__ ) ) . '/vendor',
+			dirname( __DIR__, 2 ) . '/vendor',
 			// wp-cli/wp-cli-tests is a dependency.
-			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ),
+			dirname( __DIR__, 4 ),
 		];
 
 		$vendor_folder = '';
@@ -258,7 +339,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 *
 	 * @return string Absolute path to the WP-CLI framework folder.
 	 */
-	public static function get_framework_dir() {
+	public static function get_framework_dir(): ?string {
 		static $framework_folder = null;
 
 		if ( null !== $framework_folder ) {
@@ -290,13 +371,12 @@ class FeatureContext implements SnippetAcceptingContext {
 		return $framework_folder;
 	}
 
-
 	/**
 	 * Get the path to the WP-CLI binary.
 	 *
 	 * @return string Absolute path to the WP-CLI binary.
 	 */
-	public static function get_bin_path() {
+	public static function get_bin_path(): ?string {
 		static $bin_path = null;
 
 		if ( null !== $bin_path ) {
@@ -325,9 +405,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
-	 * Get the environment variables required for launched `wp` processes
+	 * Get the environment variables required for launched `wp` processes.
+	 *
+	 * @return array<string, string|int>
 	 */
-	private static function get_process_env_variables() {
+	private static function get_process_env_variables(): array {
 		static $env = null;
 
 		if ( null !== $env ) {
@@ -426,10 +508,10 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Get the internal variables to use within tests.
 	 *
-	 * @return array Associative array of internal variables that will be mapped
-	 *               into tests.
+	 * @return array<string, string> Associative array of internal variables that will be mapped
+	 *                               into tests.
 	 */
-	private static function get_behat_internal_variables() {
+	private static function get_behat_internal_variables(): array {
 		static $variables = null;
 
 		if ( null !== $variables ) {
@@ -437,12 +519,12 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$paths = [
-			dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) . '/wp-cli/wp-cli/VERSION',
-			dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) . '/VERSION',
-			dirname( dirname( __DIR__ ) ) . '/vendor/wp-cli/wp-cli/VERSION',
+			dirname( __DIR__, 4 ) . '/wp-cli/wp-cli/VERSION',
+			dirname( __DIR__, 5 ) . '/VERSION',
+			dirname( __DIR__, 2 ) . '/vendor/wp-cli/wp-cli/VERSION',
 		];
 
-		$framework_root = dirname( dirname( __DIR__ ) );
+		$framework_root = dirname( __DIR__, 2 );
 		foreach ( $paths as $path ) {
 			if ( file_exists( $path ) ) {
 				$framework_root = (string) realpath( dirname( $path ) );
@@ -452,8 +534,8 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$variables = [
 			'FRAMEWORK_ROOT' => realpath( $framework_root ),
-			'SRC_DIR'        => realpath( dirname( dirname( __DIR__ ) ) ),
-			'PROJECT_DIR'    => realpath( dirname( dirname( dirname( dirname( dirname( __DIR__ ) ) ) ) ) ),
+			'SRC_DIR'        => realpath( dirname( __DIR__, 2 ) ),
+			'PROJECT_DIR'    => realpath( dirname( __DIR__, 5 ) ),
 		];
 
 		return $variables;
@@ -462,8 +544,10 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Download and extract a single copy of the sqlite-database-integration plugin
 	 * for use in subsequent WordPress copies
+	 *
+	 * @param string $dir
 	 */
-	private static function download_sqlite_plugin( $dir ) {
+	private static function download_sqlite_plugin( $dir ): void {
 		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip';
 		$download_location = $dir . '/sqlite-database-integration.zip';
 
@@ -499,8 +583,10 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Given a WordPress installation with the sqlite-database-integration plugin,
 	 * configure it to use SQLite as the database by placing the db.php dropin file
+	 *
+	 * @param string $dir
 	 */
-	private static function configure_sqlite( $dir ) {
+	private static function configure_sqlite( $dir ): void {
 		$db_copy   = $dir . '/wp-content/mu-plugins/sqlite-database-integration/db.copy';
 		$db_dropin = $dir . '/wp-content/db.php';
 
@@ -526,7 +612,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * We cache the results of `wp core download` to improve test performance.
 	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
 	 */
-	private static function cache_wp_files() {
+	private static function cache_wp_files(): void {
 		$wp_version             = getenv( 'WP_VERSION' );
 		$wp_version_suffix      = ( false !== $wp_version ) ? "-$wp_version" : '';
 		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
@@ -552,7 +638,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * @BeforeSuite
 	 */
-	public static function prepare( BeforeSuiteScope $scope ) {
+	public static function prepare( BeforeSuiteScope $scope ): void {
 		// Test performance statistics - useful for detecting slow tests.
 		self::$log_run_times = getenv( 'WP_CLI_TEST_LOG_RUN_TIMES' );
 		if ( false !== self::$log_run_times ) {
@@ -588,7 +674,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * @AfterSuite
 	 */
-	public static function afterSuite( AfterSuiteScope $scope ) {
+	public static function afterSuite( AfterSuiteScope $scope ): void {
 		if ( self::$composer_local_repository ) {
 			self::remove_dir( self::$composer_local_repository );
 			self::$composer_local_repository = null;
@@ -602,7 +688,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * @BeforeScenario
 	 */
-	public function beforeScenario( BeforeScenarioScope $scope ) {
+	public function beforeScenario( BeforeScenarioScope $scope ): void {
 		if ( self::$log_run_times ) {
 			self::log_run_times_before_scenario( $scope );
 		}
@@ -628,7 +714,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * @AfterScenario
 	 */
-	public function afterScenario( AfterScenarioScope $scope ) {
+	public function afterScenario( AfterScenarioScope $scope ): void {
 
 		if ( self::$run_dir ) {
 			// Remove altered WP install, unless there's an error.
@@ -668,8 +754,10 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Terminate a process and any of its children.
+	 *
+	 * @param int $master_pid
 	 */
-	private static function terminate_proc( $master_pid ) {
+	private static function terminate_proc( $master_pid ): void {
 
 		$output = `ps -o ppid,pid,command | grep $master_pid`;
 
@@ -679,7 +767,7 @@ class FeatureContext implements SnippetAcceptingContext {
 				$child  = $matches[2];
 
 				if ( (int) $parent === (int) $master_pid ) {
-					self::terminate_proc( $child );
+					self::terminate_proc( (int) $child );
 				}
 			}
 		}
@@ -696,7 +784,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Create a temporary WP_CLI_CACHE_DIR. Exposed as SUITE_CACHE_DIR in "Given an empty cache" step.
 	 */
-	public static function create_cache_dir() {
+	public static function create_cache_dir(): string {
 		if ( self::$suite_cache_dir ) {
 			self::remove_dir( self::$suite_cache_dir );
 		}
@@ -776,6 +864,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Replace standard {VARIABLE_NAME} variables and the special {INVOKE_WP_CLI_WITH_PHP_ARGS-args} and {WP_VERSION-version-latest} variables.
 	 * Note that standard variable names can only contain uppercase letters, digits and underscores and cannot begin with a digit.
+	 *
+	 * @param string $str
+	 * @return string
 	 */
 	public function replace_variables( $str ) {
 		if ( false !== strpos( $str, '{INVOKE_WP_CLI_WITH_PHP_ARGS-' ) ) {
@@ -790,6 +881,9 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Substitute {INVOKE_WP_CLI_WITH_PHP_ARGS-args} variables.
+	 *
+	 * @param string $str
+	 * @return string
 	 */
 	private function replace_invoke_wp_cli_with_php_args( $str ) {
 		static $phar_path = null, $shell_path = null;
@@ -802,7 +896,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			if ( false !== $bin_dir && file_exists( $bin_dir . '/wp' ) && file_get_contents( $bin_dir . '/wp', false, null, 0, $phar_begin_len ) === $phar_begin ) {
 				$phar_path = $bin_dir . '/wp';
 			} else {
-				$src_dir         = dirname( dirname( __DIR__ ) );
+				$src_dir         = dirname( __DIR__, 2 );
 				$bin_path        = $src_dir . '/bin/wp';
 				$vendor_bin_path = $src_dir . '/vendor/bin/wp';
 				if ( file_exists( $bin_path ) && is_executable( $bin_path ) ) {
@@ -817,7 +911,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$str = preg_replace_callback(
 			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-([^}]*)}/',
-			function ( $matches ) use ( $phar_path, $shell_path ) {
+			static function ( $matches ) use ( $phar_path, $shell_path ) {
 				return $phar_path ? "php {$matches[1]} {$phar_path}" : ( 'WP_CLI_PHP_ARGS=' . escapeshellarg( $matches[1] ) . ' ' . $shell_path );
 			},
 			$str
@@ -828,6 +922,9 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Replace variables callback.
+	 *
+	 * @param array<string> $matches
+	 * @return string
 	 */
 	private function replace_var( $matches ) {
 		$str = $matches[0];
@@ -845,8 +942,11 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Substitute {WP_VERSION-version-latest} variables.
+	 *
+	 * @param string $str
+	 * @return string
 	 */
-	private function replace_wp_versions( $str ) {
+	private function replace_wp_versions( $str ): string {
 		static $wp_versions = null;
 		if ( null === $wp_versions ) {
 			$wp_versions = [];
@@ -878,8 +978,13 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Get the file and line number for the current behat scope.
+	 *
+	 * @param ScenarioScope|FeatureScope|OutlineTested $scope
+	 * @param int $line
+	 *
+	 * @param-out int $line
 	 */
-	private static function get_event_file( $scope, &$line ) {
+	private static function get_event_file( $scope, &$line ): ?string {
 		if ( method_exists( $scope, 'getScenario' ) ) {
 			$scenario_feature = $scope->getScenario();
 		} elseif ( method_exists( $scope, 'getFeature' ) ) {
@@ -902,7 +1007,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Create the RUN_DIR directory, unless already set for this scenario.
 	 */
-	public function create_run_dir() {
+	public function create_run_dir(): void {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
 			self::$run_dir              = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
 			$this->variables['RUN_DIR'] = self::$run_dir;
@@ -910,7 +1015,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 	}
 
-	public function build_phar( $version = 'same' ) {
+	/**
+	 * @param string $version
+	 */
+	public function build_phar( $version = 'same' ): void {
 		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-build-', true ) . '.phar';
 
 		// Test running against a package installed as a WP-CLI dependency
@@ -931,7 +1039,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		)->run_check();
 	}
 
-	public function download_phar( $version = 'same' ) {
+	/**
+	 * @param string $version
+	 */
+	public function download_phar( $version = 'same' ): void {
 		if ( 'same' === $version ) {
 			$version = WP_CLI_VERSION;
 		}
@@ -957,7 +1068,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * CACHE_DIR is a cache for downloaded test data such as images. Lives until manually deleted.
 	 */
-	private function set_cache_dir() {
+	private function set_cache_dir(): void {
 		$path = sys_get_temp_dir() . '/wp-cli-test-cache';
 		if ( ! file_exists( $path ) ) {
 			mkdir( $path );
@@ -968,11 +1079,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Run a MySQL command with `$db_settings`.
 	 *
-	 * @param string $sql_cmd Command to run.
-	 * @param array $assoc_args Optional. Associative array of options. Default empty.
-	 * @param bool $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
+	 * @param string                $sql_cmd      Command to run.
+	 * @param array<string, string> $assoc_args   Optional. Associative array of options. Default empty.
+	 * @param bool                  $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
 	 */
-	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
+	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ): void {
 		$default_assoc_args = [
 			'host' => self::$db_settings['dbhost'],
 			'user' => self::$db_settings['dbuser'],
@@ -988,7 +1099,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 	}
 
-	public function create_db() {
+	public function create_db(): void {
 		if ( 'sqlite' === self::$db_type ) {
 			return;
 		}
@@ -997,7 +1108,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
-	public function drop_db() {
+	public function drop_db(): void {
 		if ( 'sqlite' === self::$db_type ) {
 			return;
 		}
@@ -1005,7 +1116,13 @@ class FeatureContext implements SnippetAcceptingContext {
 		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
-	public function proc( $command, $assoc_args = [], $path = '' ) {
+	/**
+	 * @param string $command
+	 * @param array<string, string> $assoc_args
+	 * @param string $path
+	 * @return Process
+	 */
+	public function proc( $command, $assoc_args = [], $path = '' ): Process {
 		if ( ! empty( $assoc_args ) ) {
 			$command .= Utils\assoc_args_to_str( $assoc_args );
 		}
@@ -1043,8 +1160,10 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Start a background process. Will automatically be closed when the tests finish.
+	 *
+	 * @param string $cmd
 	 */
-	public function background_proc( $cmd ) {
+	public function background_proc( $cmd ): void {
 		$descriptors = [
 			0 => STDIN,
 			1 => [ 'pipe', 'w' ],
@@ -1060,39 +1179,55 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( ! $status['running'] ) {
 			$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
 			throw new RuntimeException( sprintf( "Failed to start background process '%s'%s.", $cmd, $stderr ) );
-		} else {
-			$this->running_procs[] = $proc;
 		}
+
+		$this->running_procs[] = $proc;
 	}
 
-	public function move_files( $src, $dest ) {
+	/**
+	 * @param string $src
+	 * @param string $dest
+	 */
+	public function move_files( $src, $dest ): void {
 		rename( $this->variables['RUN_DIR'] . "/$src", $this->variables['RUN_DIR'] . "/$dest" );
 	}
 
 	/**
 	 * Remove a directory (recursive).
+	 *
+	 * @param string $dir
 	 */
-	public static function remove_dir( $dir ) {
+	public static function remove_dir( $dir ): void {
 		Process::create( Utils\esc_cmd( 'rm -rf %s', $dir ) )->run_check();
 	}
 
 	/**
 	 * Copy a directory (recursive). Destination directory must exist.
+	 *
+	 * @param string $src_dir
+	 * @param string $dest_dir
 	 */
-	public static function copy_dir( $src_dir, $dest_dir ) {
+	public static function copy_dir( $src_dir, $dest_dir ): void {
 		$shell_command = ( 'Darwin' === PHP_OS )
 			? Utils\esc_cmd( 'cp -R %s/* %s', $src_dir, $dest_dir )
 			: Utils\esc_cmd( 'cp -r %s/* %s', $src_dir, $dest_dir );
 		Process::create( $shell_command )->run_check();
 	}
 
-	public function add_line_to_wp_config( &$wp_config_code, $line ) {
+	/**
+	 * @param string $wp_config_code
+	 * @param string $line
+	 */
+	public function add_line_to_wp_config( &$wp_config_code, $line ): void {
 		$token = "/* That's all, stop editing!";
 
 		$wp_config_code = str_replace( $token, "$line\n\n$token", $wp_config_code );
 	}
 
-	public function download_wp( $subdir = '' ) {
+	/**
+	 * @param string $subdir
+	 */
+	public function download_wp( $subdir = '' ): void {
 		$dest_dir = $this->variables['RUN_DIR'] . "/$subdir";
 
 		if ( $subdir ) {
@@ -1106,10 +1241,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		// Disable emailing.
-		copy( dirname( dirname( __DIR__ ) ) . '/utils/no-mail.php', $dest_dir . '/wp-content/mu-plugins/no-mail.php' );
+		copy( dirname( __DIR__, 2 ) . '/utils/no-mail.php', $dest_dir . '/wp-content/mu-plugins/no-mail.php' );
 
 		// Add polyfills.
-		copy( dirname( dirname( __DIR__ ) ) . '/utils/polyfills.php', $dest_dir . '/wp-content/mu-plugins/polyfills.php' );
+		copy( dirname( __DIR__, 2 ) . '/utils/polyfills.php', $dest_dir . '/wp-content/mu-plugins/polyfills.php' );
 
 		if ( 'sqlite' === self::$db_type ) {
 			self::copy_dir( self::$sqlite_cache_dir, $dest_dir . '/wp-content/mu-plugins' );
@@ -1117,7 +1252,13 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 	}
 
-	public function create_config( $subdir = '', $extra_php = false ) {
+	/**
+	 * Create a wp-config.php file.
+	 *
+	 * @param string $subdir
+	 * @param string|false $extra_php
+	 */
+	public function create_config( $subdir = '', $extra_php = false ): void {
 		$params = self::$db_settings;
 
 		// Replaces all characters that are not alphanumeric or an underscore into an underscore.
@@ -1150,7 +1291,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 	}
 
-	public function install_wp( $subdir = '' ) {
+	/**
+	 * @param string $subdir
+	 */
+	public function install_wp( $subdir = '' ): void {
 		$wp_version              = getenv( 'WP_VERSION' );
 		$wp_version_suffix       = ( false !== $wp_version ) ? "-$wp_version" : '';
 		self::$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
@@ -1217,7 +1361,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 	}
 
-	public function install_wp_with_composer( $vendor_directory = 'vendor' ) {
+	/**
+	 * @param string $vendor_directory
+	 */
+	public function install_wp_with_composer( $vendor_directory = 'vendor' ): void {
 		$this->create_run_dir();
 		$this->create_db();
 
@@ -1261,15 +1408,13 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->proc( 'wp core install', $install_args )->run_check();
 	}
 
-	public function composer_add_wp_cli_local_repository() {
+	public function composer_add_wp_cli_local_repository(): void {
 		if ( ! self::$composer_local_repository ) {
 			self::$composer_local_repository = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-composer-local-', true );
 			mkdir( self::$composer_local_repository );
 
 			$env = self::get_process_env_variables();
-			$src = isset( $env['TRAVIS_BUILD_DIR'] )
-				? $env['TRAVIS_BUILD_DIR']
-				: realpath( self::get_vendor_dir() . '/../' );
+			$src = $env['TRAVIS_BUILD_DIR'] ?? realpath( self::get_vendor_dir() . '/../' );
 
 			self::copy_dir( $src, self::$composer_local_repository . '/' );
 			self::remove_dir( self::$composer_local_repository . '/.git' );
@@ -1280,13 +1425,16 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->variables['COMPOSER_LOCAL_REPOSITORY'] = self::$composer_local_repository;
 	}
 
-	public function composer_require_current_wp_cli() {
+	public function composer_require_current_wp_cli(): void {
 		$this->composer_add_wp_cli_local_repository();
 		// TODO: Specific alias version should be deduced to keep up-to-date.
 		$this->composer_command( 'require "wp-cli/wp-cli:dev-main as 2.5.x-dev" --optimize-autoloader' );
 	}
 
-	public function start_php_server( $subdir = '' ) {
+	/**
+	 * @param string $subdir
+	 */
+	public function start_php_server( $subdir = '' ): void {
 		$dir = $this->variables['RUN_DIR'] . '/';
 		if ( $subdir ) {
 			$dir .= trim( $subdir, '/' ) . '/';
@@ -1302,7 +1450,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->background_proc( $cmd );
 	}
 
-	private function composer_command( $cmd ) {
+	/**
+	 * @param string $cmd
+	 */
+	private function composer_command( $cmd ): void {
 		if ( ! isset( $this->variables['COMPOSER_PATH'] ) ) {
 			$this->variables['COMPOSER_PATH'] = exec( 'which composer' );
 		}
@@ -1311,8 +1462,10 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Initialize run time logging.
+	 *
+	 * @param BeforeSuiteScope $scope
 	 */
-	private static function log_run_times_before_suite( BeforeSuiteScope $scope ) {
+	private static function log_run_times_before_suite( BeforeSuiteScope $scope ): void {
 		self::$suite_start_time = microtime( true );
 
 		Process::$log_run_times = true;
@@ -1340,8 +1493,10 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Record the start time of the scenario into the `$scenario_run_times` array.
+	 *
+	 * @param ScenarioScope|FeatureScope|OutlineTested $scope
 	 */
-	private static function log_run_times_before_scenario( $scope ) {
+	private static function log_run_times_before_scenario( $scope ): void {
 		$scenario_key = self::get_scenario_key( $scope );
 		if ( $scenario_key ) {
 			self::$scenario_run_times[ $scenario_key ] = -microtime( true );
@@ -1350,8 +1505,10 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Save the run time of the scenario into the `$scenario_run_times` array. Only the top `self::$num_top_scenarios` are kept.
+	 *
+	 * @param ScenarioScope|FeatureScope|OutlineTested $scope
 	 */
-	private static function log_run_times_after_scenario( $scope ) {
+	private static function log_run_times_after_scenario( $scope ): void {
 		$scenario_key = self::get_scenario_key( $scope );
 		if ( $scenario_key ) {
 			self::$scenario_run_times[ $scenario_key ] += microtime( true );
@@ -1371,7 +1528,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $src_dir The directory to be compared to `$upd_dir`.
 	 * @param string $cop_dir Where to copy any files/directories in `$upd_dir` but not in `$src_dir` to.
 	 */
-	private static function dir_diff_copy( $upd_dir, $src_dir, $cop_dir ) {
+	private static function dir_diff_copy( $upd_dir, $src_dir, $cop_dir ): void {
 		$files = scandir( $upd_dir );
 		if ( false === $files ) {
 			$error = error_get_last();
@@ -1401,12 +1558,14 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Get the scenario key used for `$scenario_run_times` array.
 	 * Format "<grandparent-dir> <feature-file>:<line-number>", eg "core-command core-update.feature:221".
+	 *
+	 * @param ScenarioScope|FeatureScope|OutlineTested $scope
 	 */
-	private static function get_scenario_key( $scope ) {
+	private static function get_scenario_key( $scope ): string {
 		$scenario_key = '';
 		$file         = self::get_event_file( $scope, $line );
 		if ( isset( $file ) ) {
-			$scenario_grandparent = Utils\basename( dirname( dirname( $file ) ) );
+			$scenario_grandparent = Utils\basename( dirname( $file, 2 ) );
 			$scenario_key         = $scenario_grandparent . ' ' . Utils\basename( $file ) . ':' . $line;
 		}
 		return $scenario_key;
@@ -1415,7 +1574,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Print out stats on the run times of processes and scenarios.
 	 */
-	private static function log_run_times_after_suite( AfterSuiteScope $scope ) {
+	private static function log_run_times_after_suite( AfterSuiteScope $scope ): void {
 
 		$suite = '';
 		if ( self::$scenario_run_times ) {
@@ -1424,10 +1583,10 @@ class FeatureContext implements SnippetAcceptingContext {
 			$suite = substr( $keys[0], 0, strpos( $keys[0], ' ' ) );
 		}
 
-		$run_from = Utils\basename( dirname( dirname( __DIR__ ) ) );
+		$run_from = Utils\basename( dirname( __DIR__, 2 ) );
 
 		// Format same as Behat, if have minutes.
-		$fmt = function ( $time ) {
+		$fmt = static function ( $time ) {
 			$mins = floor( $time / 60 );
 			return round( $time, 3 ) . ( $mins ? ( ' (' . $mins . 'm' . round( $time - ( $mins * 60 ), 3 ) . 's)' ) : '' );
 		};
@@ -1438,7 +1597,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		// Process and proc method run times.
 		$run_times       = array_merge( Process::$run_times, self::$proc_method_run_times );
-		$reduce_callback = function ( $carry, $item ) {
+		$reduce_callback = static function ( $carry, $item ) {
 			return [ $carry[0] + $item[0], $carry[1] + $item[1] ];
 		};
 
@@ -1460,14 +1619,14 @@ class FeatureContext implements SnippetAcceptingContext {
 			$run_from
 		);
 
-		$sort_callback = function ( $a, $b ) {
+		$sort_callback = static function ( $a, $b ) {
 			return $a[0] === $b[0] ? 0 : ( $a[0] < $b[0] ? 1 : -1 ); // Reverse sort.
 		};
 		uasort( $run_times, $sort_callback );
 
 		$tops = array_slice( $run_times, 0, self::$num_top_processes, true );
 
-		$runtime_callback = function ( $k, $v, $i ) {
+		$runtime_callback = static function ( $k, $v, $i ) {
 			return sprintf( ' %3d. %7.3f %3d %s', $i + 1, round( $v[0], 3 ), $v[1], $k );
 		};
 
@@ -1487,7 +1646,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$tops = array_slice( self::$scenario_run_times, 0, self::$num_top_scenarios, true );
 
-		$scenario_runtime_callback = function ( $k, $v, $i ) {
+		$scenario_runtime_callback = static function ( $k, $v, $i ) {
 			return sprintf( ' %3d. %7.3f %s', $i + 1, round( $v, 3 ), substr( $k, strpos( $k, ' ' ) + 1 ) );
 		};
 
@@ -1514,8 +1673,11 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * Log the run time of a proc method (one that doesn't use Process but does (use a function that does) a `proc_open()`).
+	 *
+	 * @param string    $key
+	 * @param int|float $start_time
 	 */
-	private static function log_proc_method_run_time( $key, $start_time ) {
+	private static function log_proc_method_run_time( $key, $start_time ): void {
 		$run_time = microtime( true ) - $start_time;
 		if ( ! isset( self::$proc_method_run_times[ $key ] ) ) {
 			self::$proc_method_run_times[ $key ] = [ 0, 0 ];
@@ -1525,8 +1687,11 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 }
 
-// phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
-function wp_cli_behat_env_debug( $message ) {
+
+/**
+ * @param string $message
+ */
+function wp_cli_behat_env_debug( $message ): void { // phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
 	if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
 		return;
 	}
@@ -1537,7 +1702,7 @@ function wp_cli_behat_env_debug( $message ) {
 /**
  * Load required support files as needed before heading into the Behat context.
  */
-function wpcli_bootstrap_behat_feature_context() {
+function wpcli_bootstrap_behat_feature_context(): void {
 	$vendor_folder = FeatureContext::get_vendor_dir();
 	wp_cli_behat_env_debug( "Vendor folder location: {$vendor_folder}" );
 

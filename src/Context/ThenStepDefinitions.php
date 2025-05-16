@@ -25,8 +25,11 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^the return code should( not)? be (\d+)$/
+	 *
+	 * @param bool $not
+	 * @param numeric-string $return_code
 	 */
-	public function then_the_return_code_should_be( $not, $return_code ) {
+	public function then_the_return_code_should_be( $not, $return_code ): void {
 		if (
 			( ! $not && (int) $return_code !== $this->result->return_code )
 			|| ( $not && (int) $return_code === $this->result->return_code )
@@ -57,8 +60,13 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^(STDOUT|STDERR) should( strictly)? (be|contain|not contain):$/
+	 *
+	 * @param string $stream
+	 * @param bool $strictly
+	 * @param string $action
+	 * @param PyStringNode $expected
 	 */
-	public function then_stdout_stderr_should_contain( $stream, $strictly, $action, PyStringNode $expected ) {
+	public function then_stdout_stderr_should_contain( $stream, $strictly, $action, PyStringNode $expected ): void {
 
 		$stream = strtolower( $stream );
 
@@ -80,8 +88,10 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^(STDOUT|STDERR) should be a number$/
+	 *
+	 * @param string $stream
 	 */
-	public function then_stdout_stderr_should_be_a_number( $stream ) {
+	public function then_stdout_stderr_should_be_a_number( $stream ): void {
 
 		$stream = strtolower( $stream );
 
@@ -101,8 +111,10 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^(STDOUT|STDERR) should not be a number$/
+	 *
+	 * @param string $stream
 	 */
-	public function then_stdout_stderr_should_not_be_a_number( $stream ) {
+	public function then_stdout_stderr_should_not_be_a_number( $stream ): void {
 
 		$stream = strtolower( $stream );
 
@@ -126,7 +138,7 @@ trait ThenStepDefinitions {
 	 *
 	 * @Then /^STDOUT should be a table containing rows:$/
 	 */
-	public function then_stdout_should_be_a_table_containing_rows( TableNode $expected ) {
+	public function then_stdout_should_be_a_table_containing_rows( TableNode $expected ): void {
 		$output      = $this->result->stdout;
 		$actual_rows = explode( "\n", rtrim( $output, "\n" ) );
 
@@ -162,7 +174,7 @@ trait ThenStepDefinitions {
 	 *
 	 * @Then /^STDOUT should end with a table containing rows:$/
 	 */
-	public function then_stdout_should_end_with_a_table_containing_rows( TableNode $expected ) {
+	public function then_stdout_should_end_with_a_table_containing_rows( TableNode $expected ): void {
 		$output      = $this->result->stdout;
 		$actual_rows = explode( "\n", rtrim( $output, "\n" ) );
 
@@ -198,7 +210,7 @@ trait ThenStepDefinitions {
 	 *
 	 * @Then /^STDOUT should be JSON containing:$/
 	 */
-	public function then_stdout_should_be_json_containing( PyStringNode $expected ) {
+	public function then_stdout_should_be_json_containing( PyStringNode $expected ): void {
 		$output   = $this->result->stdout;
 		$expected = $this->replace_variables( (string) $expected );
 
@@ -225,7 +237,7 @@ trait ThenStepDefinitions {
 	 *
 	 * @Then /^STDOUT should be a JSON array containing:$/
 	 */
-	public function then_stdout_should_be_a_json_array_containing( PyStringNode $expected ) {
+	public function then_stdout_should_be_a_json_array_containing( PyStringNode $expected ): void {
 		$output   = $this->result->stdout;
 		$expected = $this->replace_variables( (string) $expected );
 
@@ -253,7 +265,7 @@ trait ThenStepDefinitions {
 	 *
 	 * @Then /^STDOUT should be CSV containing:$/
 	 */
-	public function then_stdout_should_be_csv_containing( TableNode $expected ) {
+	public function then_stdout_should_be_csv_containing( TableNode $expected ): void {
 		$output = $this->result->stdout;
 
 		$expected_rows = $expected->getRows();
@@ -286,7 +298,7 @@ trait ThenStepDefinitions {
 	 *
 	 * @Then /^STDOUT should be YAML containing:$/
 	 */
-	public function then_stdout_should_be_yaml_containing( PyStringNode $expected ) {
+	public function then_stdout_should_be_yaml_containing( PyStringNode $expected ): void {
 		$output   = $this->result->stdout;
 		$expected = $this->replace_variables( (string) $expected );
 
@@ -308,8 +320,10 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^(STDOUT|STDERR) should be empty$/
+	 *
+	 * @param string $stream
 	 */
-	public function then_stdout_stderr_should_be_empty( $stream ) {
+	public function then_stdout_stderr_should_be_empty( $stream ): void {
 
 		$stream = strtolower( $stream );
 
@@ -330,8 +344,10 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^(STDOUT|STDERR) should not be empty$/
+	 *
+	 * @param string $stream
 	 */
-	public function then_stdout_stderr_should_not_be_empty( $stream ) {
+	public function then_stdout_stderr_should_not_be_empty( $stream ): void {
 
 		$stream = strtolower( $stream );
 
@@ -353,8 +369,12 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^(STDOUT|STDERR) should be a version string (<|<=|>|>=|==|=|!=|<>) ([+\w.{}-]+)$/
+	 *
+	 * @param string $stream
+	 * @param string $operator
+	 * @param string $goal_ver
 	 */
-	public function then_stdout_stderr_should_be_a_specific_version_string( $stream, $operator, $goal_ver ) {
+	public function then_stdout_stderr_should_be_a_specific_version_string( $stream, $operator, $goal_ver ): void {
 		$goal_ver = $this->replace_variables( $goal_ver );
 		$stream   = strtolower( $stream );
 		if ( false === version_compare( trim( $this->result->$stream, "\n" ), $goal_ver, $operator ) ) {
@@ -384,8 +404,14 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^the (.+) (file|directory) should( strictly)? (exist|not exist|be:|contain:|not contain:)$/
+	 *
+	 * @param string $path     File/directory path.
+	 * @param string $type     Type, either 'file' or 'directory'.
+	 * @param string $strictly Whether it's a strict check.
+	 * @param string $action   Expected status.
+	 * @param string $expected Expected content.
 	 */
-	public function then_a_specific_file_folder_should_exist( $path, $type, $strictly, $action, $expected = null ) {
+	public function then_a_specific_file_folder_should_exist( $path, $type, $strictly, $action, $expected = null ): void {
 		$path = $this->replace_variables( $path );
 
 		// If it's a relative path, make it relative to the current test dir.
@@ -449,8 +475,12 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^the contents of the (.+) file should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/
+	 *
+	 * @param string $path
+	 * @param bool $not
+	 * @param string $expected
 	 */
-	public function then_the_contents_of_a_specific_file_should_match( $path, $not, $expected ) {
+	public function then_the_contents_of_a_specific_file_should_match( $path, $not, $expected ): void {
 		$path     = $this->replace_variables( $path );
 		$expected = $this->replace_variables( $expected );
 
@@ -478,8 +508,12 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^(STDOUT|STDERR) should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/
+	 *
+	 * @param string $stream
+	 * @param bool $not
+	 * @param string $expected
 	 */
-	public function then_stdout_stderr_should_match_a_string( $stream, $not, $expected ) {
+	public function then_stdout_stderr_should_match_a_string( $stream, $not, $expected ): void {
 		$expected = $this->replace_variables( $expected );
 
 		$stream = strtolower( $stream );
@@ -502,8 +536,10 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then /^an email should (be sent|not be sent)$/
+	 *
+	 * @param string $expected Expected status, either 'be sent' or 'not be sent'.
 	 */
-	public function then_an_email_should_be_sent( $expected ) {
+	public function then_an_email_should_be_sent( $expected ): void {
 		if ( 'be sent' === $expected ) {
 			$this->assert_not_equals( 0, $this->email_sends );
 		} elseif ( 'not be sent' === $expected ) {
@@ -526,8 +562,10 @@ trait ThenStepDefinitions {
 	 * @access public
 	 *
 	 * @Then the HTTP status code should be :code
+	 *
+	 * @param int $return_code Expected HTTP status code.
 	 */
-	public function then_the_http_status_code_should_be( $return_code ) {
+	public function then_the_http_status_code_should_be( $return_code ): void {
 		$response = Requests::request( 'http://localhost:8080' );
 		$this->assert_equals( $return_code, $response->status_code );
 	}
