@@ -269,12 +269,21 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	 * Whether tests are currently running with code coverage collection.
+	 *
+	 * @return bool
+	 */
+	private static function running_with_code_coverage() {
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+
+		return \in_array( $with_code_coverage, [ 'true', '1' ], true );
+	}
+
+	/**
 	 * @AfterSuite
 	 */
 	public static function merge_coverage_reports(): void {
-		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
-
-		if ( ! \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+		if ( ! self::running_with_code_coverage() ) {
 			return;
 		}
 
@@ -436,9 +445,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			'TEST_RUN_DIR' => self::$behat_run_dir,
 		];
 
-		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
-
-		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+		if ( self::running_with_code_coverage() ) {
 			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
 
 			if ( ! $has_coverage_driver ) {
@@ -1021,12 +1028,25 @@ class FeatureContext implements SnippetAcceptingContext {
 	public function build_phar( $version = 'same' ): void {
 		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-build-', true ) . '.phar';
 
+		$is_bundle = false;
+
 		// Test running against a package installed as a WP-CLI dependency
 		// WP-CLI bundle installed as a project dependency
 		$make_phar_path = self::get_vendor_dir() . '/wp-cli/wp-cli-bundle/utils/make-phar.php';
 		if ( ! file_exists( $make_phar_path ) ) {
 			// Running against WP-CLI bundle proper
+			$is_bundle = true;
+
 			$make_phar_path = self::get_vendor_dir() . '/../utils/make-phar.php';
+		}
+
+		// Temporarily modify the Composer autoloader used within the Phar
+		// so that it doesn't clash if autoloading is already happening outside of it,
+		// for example when generating code coverage.
+		// This modifies composer.json.
+		if ( $is_bundle && self::running_with_code_coverage() ) {
+			$this->composer_command( 'config autoloader-suffix "WpCliTestsPhar" --working-dir=' . dirname( self::get_vendor_dir() ) );
+			$this->composer_command( 'dump-autoload --working-dir=' . dirname( self::get_vendor_dir() ) );
 		}
 
 		$this->proc(
@@ -1037,6 +1057,12 @@ class FeatureContext implements SnippetAcceptingContext {
 				$version
 			)
 		)->run_check();
+
+		// Revert the suffix change again
+		if ( $is_bundle && self::running_with_code_coverage() ) {
+			$this->composer_command( 'config autoloader-suffix "WpCliBundle" --working-dir=' . dirname( self::get_vendor_dir() ) );
+			$this->composer_command( 'dump-autoload --working-dir=' . dirname( self::get_vendor_dir() ) );
+		}
 	}
 
 	/**
