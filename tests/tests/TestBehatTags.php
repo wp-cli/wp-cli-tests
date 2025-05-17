@@ -2,6 +2,7 @@
 
 use WP_CLI\Tests\TestCase;
 use WP_CLI\Utils;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class TestBehatTags extends TestCase {
 
@@ -37,6 +38,7 @@ class TestBehatTags extends TestCase {
 	 * @param string $env
 	 * @param string $expected
 	 */
+	#[DataProvider('data_behat_tags_wp_version_github_token')]
 	public function test_behat_tags_wp_version_github_token( $env, $expected ): void {
 		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
