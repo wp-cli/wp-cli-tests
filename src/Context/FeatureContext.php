@@ -1084,8 +1084,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string                $sql_cmd      Command to run.
 	 * @param array<string, string> $assoc_args   Optional. Associative array of options. Default empty.
 	 * @param bool                  $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
+	 * @return array{stdout: string, stderr: string, exit_code: int}
 	 */
-	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ): void {
+	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
 		$default_assoc_args = [
 			'host' => self::$db_settings['dbhost'],
 			'user' => self::$db_settings['dbuser'],
@@ -1105,11 +1106,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( self::$log_run_times ) {
 			self::log_proc_method_run_time( 'run_sql ' . $sql_cmd, $start_time );
 		}
-		return [
-			'stdout'    => $result[0],
-			'stderr'    => $result[1],
-			'exit_code' => $result[2],
-		];
+
+		return array_combine( [ 'stdout', 'stderr', 'exit_code' ], $result );
 	}
 
 	public function create_db(): void {
@@ -1124,7 +1122,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * Test if the database connection is working.
 	 */
-	public function test_connection() {
+	public function test_connection(): void {
 		$sql_result = self::run_sql(
 			'mysql --no-defaults',
 			[
