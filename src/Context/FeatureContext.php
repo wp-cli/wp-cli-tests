@@ -1123,6 +1123,10 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * Test if the database connection is working.
 	 */
 	public function test_connection(): void {
+		if ( 'sqlite' === self::$db_type ) {
+			return;
+		}
+
 		$sql_result = self::run_sql(
 			'mysql --no-defaults',
 			[
