@@ -19,11 +19,6 @@ if [[ "$@" == *"--help"* ]]; then
     exit $ret
 fi
 
-# Turn WP_VERSION into an actual number to make sure our tags work correctly.
-if [ "${WP_VERSION-latest}" = "latest" ]; then
-	export WP_VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r ".offers[0].current")
-fi
-
 # To retrieve the WP-CLI tests package root folder, we start with this scripts
 # location.
 SOURCE="${BASH_SOURCE[0]}"
@@ -43,6 +38,12 @@ export WP_CLI_TESTS_ROOT
 
 # Generate the tags to apply environment-specific filters.
 BEHAT_TAGS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-tags.php)
+
+# Resolve WP_VERSION.
+WP_VERSION=$(php "$WP_CLI_TESTS_ROOT"/utils/wp-version-resolver.php)
+export WP_VERSION
+
+echo "Running Behat tests for WordPress $WP_VERSION"
 
 # Run the functional tests.
 vendor/bin/behat --format progress "$BEHAT_TAGS" --strict "$@"
