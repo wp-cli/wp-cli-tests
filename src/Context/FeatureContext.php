@@ -1128,7 +1128,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$sql_result = self::run_sql(
-			self::$mysql_binary . '--no-defaults',
+			self::$mysql_binary . ' --no-defaults',
 			[
 				'execute'       => 'SELECT 1',
 				'send_to_shell' => false,
