@@ -1,6 +1,10 @@
 <phpunit
 	bootstrap="tests/bootstrap.php"
 	colors="true"
+	convertErrorsToExceptions="true"
+	convertWarningsToExceptions="true"
+	convertNoticesToExceptions="true"
+	convertDeprecationsToExceptions="true"
 	>
 	<testsuites>
 		<testsuite name="default">
@@ -8,4 +12,10 @@
 			<directory prefix="Test" suffix=".php">tests/tests</directory>
 		</testsuite>
 	</testsuites>
+
+	<coverage processUncoveredFiles="false">
+		<include>
+			<directory suffix=".php">src</directory>
+		</include>
+	</coverage>
 </phpunit>

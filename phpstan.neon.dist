@@ -1,0 +1,19 @@
+parameters:
+  level: 6
+  paths:
+    - src
+    - tests
+  scanDirectories:
+    - vendor/wp-cli/wp-cli
+    - vendor/phpunit/php-code-coverage
+    - vendor/behat/behat
+  scanFiles:
+    - tests/phpstan/scan-files.php
+  treatPhpDocTypesAsCertain: false
+  dynamicConstantNames:
+  	- WP_DEBUG
+  	- WP_DEBUG_LOG
+  	- WP_DEBUG_DISPLAY
+  ignoreErrors:
+    # Needs fixing in WP-CLI.
+    - message: '#Parameter \#1 \$cmd of function WP_CLI\\Utils\\esc_cmd expects array<string>#'
