@@ -38,7 +38,7 @@ class TestBehatTags extends TestCase {
 	 * @param string $env
 	 * @param string $expected
 	 */
-	#[DataProvider( 'data_behat_tags_wp_version_github_token' )]
+	#[DataProvider( 'data_behat_tags_wp_version_github_token' )] // phpcs:ignore PHPCompatibility.Attributes.NewAttributes.PHPUnitAttributeFound
 	public function test_behat_tags_wp_version_github_token( $env, $expected ): void {
 		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
