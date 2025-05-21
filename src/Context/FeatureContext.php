@@ -29,6 +29,8 @@ use WP_CLI\WpOrgApi;
 
 /**
  * Features context.
+ *
+ * @phpstan-ignore class.implementsDeprecatedInterface
  */
 class FeatureContext implements SnippetAcceptingContext {
 

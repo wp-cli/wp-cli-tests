@@ -1,5 +1,7 @@
 <?php
 
+namespace WP_CLI\Tests\Tests;
+
 use WP_CLI\Tests\TestCase;
 use WP_CLI\Utils;
 

@@ -1,0 +1,5 @@
+services:
+  -
+    class: WP_CLI\Tests\PHPStan\ParseUrlFunctionDynamicReturnTypeExtension
+    tags:
+      - phpstan.broker.dynamicFunctionReturnTypeExtension
