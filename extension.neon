@@ -3,3 +3,7 @@ services:
     class: WP_CLI\Tests\PHPStan\ParseUrlFunctionDynamicReturnTypeExtension
     tags:
       - phpstan.broker.dynamicFunctionReturnTypeExtension
+  -
+    class: WP_CLI\Tests\PHPStan\GetFlagValueFunctionDynamicReturnTypeExtension
+    tags:
+      - phpstan.broker.dynamicFunctionReturnTypeExtension
