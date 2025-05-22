@@ -59,4 +59,4 @@ $value = get_flag_value( $assoc_args, $key, 123 );
 assertType( 'true', $value );
 
 $value = get_flag_value( $assoc_args, $key2, 123 );
-assertType( "'bar'|true", $value );
+assertType( "123|'bar'|true", $value );

@@ -12,8 +12,9 @@ use PhpParser\Node\Expr\FuncCall;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\FunctionReflection;
 use PHPStan\Type\Constant\ConstantStringType;
-use PHPStan\Type\Constant\ConstantArrayType;
 use PHPStan\Type\Type;
+use PHPStan\Type\MixedType;
+use PHPStan\Type\NullType;
 use PHPStan\Type\TypeCombinator;
 
 use function count;
@@ -31,82 +32,83 @@ final class GetFlagValueFunctionDynamicReturnTypeExtension implements \PHPStan\T
 	): Type {
 		$args = $functionCall->getArgs();
 
-		// Ensure we have at least two arguments: $assoc_args and $flag
 		if ( count( $args ) < 2 ) {
-			// Not enough arguments, fall back to the function's declared return type or mixed
+			// Not enough arguments, fall back to the function's declared return type.
 			return $functionReflection->getVariants()[0]->getReturnType();
 		}
 
 		$assocArgsType = $scope->getType( $args[0]->value );
 		$flagArgType   = $scope->getType( $args[1]->value );
 
-		// Determine the default type
-		$defaultType = isset( $args[2] ) ? $scope->getType( $args[2]->value ) : new \PHPStan\Type\NullType();
+		// 2. Determine the default type
+		$defaultType = isset( $args[2] ) ? $scope->getType( $args[2]->value ) : new NullType();
 
-		// We can only be precise if $flag is a constant string
-		if ( ! $flagArgType->isConstantValue()->yes() || ( ! $flagArgType->toInteger() instanceof ConstantIntegerType && ! $flagArgType->toString() instanceof ConstantStringType ) ) {
-			// If $flag is not a constant string, we cannot know which key to check.
-			// The return type will be a union of the array's possible value types and the default type.
-			if ( $assocArgsType instanceof ConstantArrayType ) {
-				$valueTypes = [];
-				foreach ( $assocArgsType->getValueTypes() as $valueType ) {
-					$valueTypes[] = $valueType;
-				}
-				if ( count( $valueTypes ) > 0 ) {
-					return TypeCombinator::union( ...$valueTypes );
-				}
-				return $defaultType; // Array is empty or has no predictable value types
-			} elseif ( $assocArgsType instanceof \PHPStan\Type\ArrayType ) {
-				return TypeCombinator::union( $assocArgsType->getItemType(), $defaultType );
-			}
-			// Fallback if $assocArgsType isn't a well-defined array type
-			return new MixedType();
+		$flagConstantStrings = $flagArgType->getConstantStrings();
+
+		if ( count( $flagConstantStrings ) !== 1 ) {
+			// Flag name is dynamic or not a string.
+			// Return type is a union of all possible values in $assoc_args + default type.
+			return $this->getDynamicFlagFallbackType( $assocArgsType, $defaultType );
 		}
 
-		$flagValue = $flagArgType->getValue();
+		// 4. Flag is a single constant string.
+		$flagValue = $flagConstantStrings[0]->getValue();
 
-		// If $assoc_args is a constant array, we can check if the key exists
-		if ( $assocArgsType->isConstantValue()->yes() && $assocArgsType->toArray() instanceof ConstantArrayType ) {
-			$keyTypes          = $assocArgsType->getKeyTypes();
-			$valueTypes        = $assocArgsType->getValueTypes();
-			$resolvedValueType = null;
+		// 4.a. If $assoc_args is a single ConstantArray:
+		$assocConstantArrays = $assocArgsType->getConstantArrays();
+		if ( count( $assocConstantArrays ) === 1 ) {
+			$assocArgsConstantArray = $assocConstantArrays[0];
+			$keyTypes               = $assocArgsConstantArray->getKeyTypes();
+			$valueTypes             = $assocArgsConstantArray->getValueTypes();
+			$resolvedValueType      = null;
 
 			foreach ( $keyTypes as $index => $keyType ) {
-				if ( $keyType->isConstantValue()->yes() && $keyType->toString() instanceof ConstantStringType && $keyType->getValue() === $flagValue ) {
+				$keyConstantStrings = $keyType->getConstantStrings();
+				if ( count( $keyConstantStrings ) === 1 && $keyConstantStrings[0]->getValue() === $flagValue ) {
 					$resolvedValueType = $valueTypes[ $index ];
 					break;
 				}
 			}
 
 			if ( null !== $resolvedValueType ) {
-				// Key definitely exists, return its type
+				// Key definitely exists and has a resolved type.
 				return $resolvedValueType;
 			} else {
-				// Key definitely does not exist, return default type
+				// Key definitely does not exist in this constant array.
 				return $defaultType;
 			}
 		}
 
-		// If $assocArgsType is a general ArrayType, we can't be sure if the specific flag exists.
-		// The function's logic is: isset( $assoc_args[ $flag ] ) ? $assoc_args[ $flag ] : $default;
-		// So, it's a union of the potential value type from the array and the default type.
-		if ( $assocArgsType->isArray()->yes() ) {
-			// We don't know IF the key $flagValue exists.
-			// PHPStan's ArrayType has an itemType which represents the type of values in the array.
-			// This is the best we can do for a generic array.
-			return TypeCombinator::union( $assocArgsType->getItemType(), $defaultType );
+		// 4.b. $assoc_args is not a single ConstantArray (but $flagValue is known):
+		// Use getOffsetValueType for other array-like types.
+		$valueForKeyType = $assocArgsType->getOffsetValueType( new ConstantStringType( $flagValue ) );
+
+		// The key might exist, or its presence is unknown.
+		// The function returns $assoc_args[$flag] if set, otherwise $default.
+		return TypeCombinator::union( $valueForKeyType, $defaultType );
+	}
+
+	/**
+	 * Handles the case where the flag name is not a single known constant string.
+	 * The return type is a union of all possible values in $assocArgsType and $defaultType.
+	 */
+	private function getDynamicFlagFallbackType( Type $assocArgsType, Type $defaultType ): Type {
+		$possibleValueTypes = [];
+
+		$assocConstantArrays = $assocArgsType->getConstantArrays();
+		if ( count( $assocConstantArrays ) === 1 ) { // It's one specific constant array
+			$constantArray = $assocConstantArrays[0];
+			if ( count( $constantArray->getValueTypes() ) > 0 ) {
+				$possibleValueTypes = $constantArray->getValueTypes();
+			}
+		} else {
+			$possibleValueTypes[] = new MixedType();
 		}
 
-		// Fallback for other types of $assocArgsType or if we can't determine.
-		// This should ideally be the union of what the array could contain for that key and the default.
-		// For simplicity, if not a ConstantArrayType or ArrayType, return mixed or a broad union.
-		// In a real-world scenario with more complex types, you might query $assocArgsType->getOffsetValueType(new ConstantStringType($flagValue))
-		// and then union with $defaultType.
-		$offsetValueType = $assocArgsType->getOffsetValueType( new ConstantStringType( $flagValue ) );
-		if ( ! $offsetValueType instanceof MixedType || $offsetValueType->isExplicitMixed() ) {
-			return TypeCombinator::union( $offsetValueType, $defaultType );
+		if ( empty( $possibleValueTypes ) ) {
+			return $defaultType;
 		}
 
-		return new MixedType(); // Default fallback
+		return TypeCombinator::union( $defaultType, ...$possibleValueTypes );
 	}
 }

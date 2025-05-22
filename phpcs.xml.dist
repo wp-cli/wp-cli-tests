@@ -71,6 +71,10 @@
 		<exclude-pattern>tests/data/*</exclude-pattern>
 	</rule>
 
+	<rule ref="Squiz.PHP.CommentedOutCode.Found">
+		<exclude-pattern>src/PHPStan/*</exclude-pattern>
+	</rule>
+
 	<!-- This is a procedural stand-alone file that is never loaded in a WordPress context,
 		 so this file does not have to comply with WP naming conventions. -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
