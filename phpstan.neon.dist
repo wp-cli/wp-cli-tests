@@ -24,16 +24,4 @@ parameters:
     - message: '#Dynamic call to static method#'
       path: 'tests/tests'
   strictRules:
-    disallowedLooseComparison: false
-    booleansInConditions: false
-    uselessCast: false
-    requireParentConstructorCall: false
-    disallowedConstructs: false
-    overwriteVariablesWithLoop: false
-    closureUsesThis: false
-    matchingInheritedMethodNames: false
-    numericOperandsInArithmeticOperators: false
     strictCalls: true
-    switchConditionsMatchingType: false
-    noVariableVariables: false
-    strictArrayFilter: false
