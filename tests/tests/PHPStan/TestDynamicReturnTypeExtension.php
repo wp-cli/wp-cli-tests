@@ -9,7 +9,7 @@ class TestDynamicReturnTypeExtension extends \PHPStan\Testing\TypeInferenceTestC
 	/**
 	 * @return iterable<mixed>
 	 */
-	public function dataFileAsserts(): iterable {
+	public static function dataFileAsserts(): iterable {
 		// Path to a file with actual asserts of expected types:
 		yield from self::gatherAssertTypes( dirname( __DIR__, 2 ) . '/data/parse_url.php' );
 		yield from self::gatherAssertTypes( dirname( __DIR__, 2 ) . '/data/get_flag_value.php' );
