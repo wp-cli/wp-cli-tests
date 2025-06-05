@@ -1135,7 +1135,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			]
 		);
 
-		if ( $sql_result['exit_code'] !== 0 ) {
+		if ( 0 !== $sql_result['exit_code'] ) {
 			# WP_CLI output functions are suppressed in behat context.
 			echo 'There was an error connecting to the database:' . \PHP_EOL;
 			if ( ! empty( $sql_result['stderr'] ) ) {
