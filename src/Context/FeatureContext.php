@@ -1134,12 +1134,19 @@ class FeatureContext implements SnippetAcceptingContext {
 				'send_to_shell' => false,
 			]
 		);
-		if ( ! empty( $sql_result['stderr'] ) ) {
+
+		if ( $sql_result['exit_code'] !== 0 ) {
 			# WP_CLI output functions are suppressed in behat context.
 			echo 'There was an error connecting to the database:' . \PHP_EOL;
-			echo '    ' . trim( $sql_result['stderr'] ) . \PHP_EOL;
+			if ( ! empty( $sql_result['stderr'] ) ) {
+				echo '  ' . trim( $sql_result['stderr'] ) . \PHP_EOL;
+			}
 			echo 'run `composer prepare-tests` to connect to the database.' . \PHP_EOL;
-			die( 1 );
+			die( $sql_result['exit_code'] );
+		} elseif ( ! empty( $sql_result['stderr'] ) ) {
+			// There is "error" output but not an exit code.
+			// Probably a warning, still display it.
+			echo trim( $sql_result['stderr'] ) . \PHP_EOL;
 		}
 	}
 
