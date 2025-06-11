@@ -66,7 +66,7 @@ trait GivenStepDefinitions {
 			);
 		}
 
-		$this->remove_dir( $dir );
+		self::remove_dir( $dir );
 		if ( 'empty' === $empty_or_nonexistent ) {
 			mkdir( $dir, 0777, true /*recursive*/ );
 		}
