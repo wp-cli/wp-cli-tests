@@ -20,6 +20,7 @@ class TestDynamicReturnTypeExtension extends \PHPStan\Testing\TypeInferenceTestC
 	 * @dataProvider dataFileAsserts
 	 * @param array<string> ...$args
 	 */
+	#[DataProvider( 'dataFileAsserts' )] // phpcs:ignore PHPCompatibility.Attributes.NewAttributes.PHPUnitAttributeFound
 	public function testFileAsserts( string $assertType, string $file, ...$args ): void {
 		$this->assertFileAsserts( $assertType, $file, ...$args );
 	}
