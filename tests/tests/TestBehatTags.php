@@ -2,6 +2,7 @@
 
 use WP_CLI\Tests\TestCase;
 use WP_CLI\Utils;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class TestBehatTags extends TestCase {
 
@@ -37,6 +38,7 @@ class TestBehatTags extends TestCase {
 	 * @param string $env
 	 * @param string $expected
 	 */
+	#[DataProvider( 'data_behat_tags_wp_version_github_token' )] // phpcs:ignore PHPCompatibility.Attributes.NewAttributes.PHPUnitAttributeFound
 	public function test_behat_tags_wp_version_github_token( $env, $expected ): void {
 		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
@@ -110,25 +112,7 @@ class TestBehatTags extends TestCase {
 		$contents    = '';
 		$expected    = '';
 
-		if ( '5.3' === $php_version ) {
-			$contents = '@require-php-5.2 @require-php-5.3 @require-php-5.4 @less-than-php-5.2 @less-than-php-5.3 @less-than-php-5.4';
-			$expected = '~@require-php-5.4&&~@less-than-php-5.2&&~@less-than-php-5.3';
-		} elseif ( '5.4' === $php_version ) {
-			$contents = '@require-php-5.3 @require-php-5.4 @require-php-5.5 @less-than-php-5.3 @less-than-php-5.4 @less-than-php-5.5';
-			$expected = '~@require-php-5.5&&~@less-than-php-5.3&&~@less-than-php-5.4';
-		} elseif ( '5.5' === $php_version ) {
-			$contents = '@require-php-5.4 @require-php-5.5 @require-php-5.6 @less-than-php-5.4 @less-than-php-5.5 @less-than-php-5.6';
-			$expected = '~@require-php-5.6&&~@less-than-php-5.4&&~@less-than-php-5.5';
-		} elseif ( '5.6' === $php_version ) {
-			$contents = '@require-php-5.5 @require-php-5.6 @require-php-7.0 @less-than-php-5.5 @less-than-php-5.6 @less-than-php-7.0';
-			$expected = '~@require-php-7.0&&~@less-than-php-5.5&&~@less-than-php-5.6';
-		} elseif ( '7.0' === $php_version ) {
-			$contents = '@require-php-5.6 @require-php-7.0 @require-php-7.1 @less-than-php-5.6 @less-than-php-7.0 @less-than-php-7.1';
-			$expected = '~@require-php-7.1&&~@less-than-php-5.6&&~@less-than-php-7.0';
-		} elseif ( '7.1' === $php_version ) {
-			$contents = '@require-php-7.0 @require-php-7.1 @require-php-7.2 @less-than-php-7.0 @less-than-php-7.1 @less-than-php-7.2';
-			$expected = '~@require-php-7.2&&~@less-than-php-7.0&&~@less-than-php-7.1';
-		} elseif ( '7.2' === $php_version ) {
+		if ( '7.2' === $php_version ) {
 			$contents = '@require-php-7.1 @require-php-7.2 @require-php-7.3 @less-than-php-7.1 @less-than-php-7.2 @less-than-php-7.3';
 			$expected = '~@require-php-7.3&&~@less-than-php-7.1&&~@less-than-php-7.2';
 		} elseif ( '7.3' === $php_version ) {
@@ -143,6 +127,15 @@ class TestBehatTags extends TestCase {
 		} elseif ( '8.1' === $php_version ) {
 			$contents = '@require-php-8.0 @require-php-8.1 @require-php-8.2 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2';
 			$expected = '~@require-php-8.2&&~@less-than-php-8.0&&~@less-than-php-8.1';
+		} elseif ( '8.2' === $php_version ) {
+			$contents = '@require-php-8.0 @require-php-8.1 @require-php-8.2 @require-php-8.3 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2 @less-than-php-8.3 @less-than-php-8.4';
+			$expected = '~@require-php-8.3&&~@less-than-php-8.0&&~@less-than-php-8.1&&~@less-than-php-8.2';
+		} elseif ( '8.3' === $php_version ) {
+			$contents = '@require-php-8.1 @require-php-8.2 @require-php-8.3 @require-php-8.4 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2 @less-than-php-8.3 @less-than-php-8.4';
+			$expected = '~@require-php-8.4&&~@less-than-php-8.0&&~@less-than-php-8.1&&~@less-than-php-8.2&&~@less-than-php-8.3';
+		} elseif ( '8.4' === $php_version ) {
+			$contents = '@require-php-8.2 @require-php-8.3 @require-php-8.4 @require-php-8.5 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2 @less-than-php-8.3 @less-than-php-8.4 @less-than-php-8.5';
+			$expected = '~@require-php-8.5&&~@less-than-php-8.0&&~@less-than-php-8.1&&~@less-than-php-8.2&&~@less-than-php-8.3&&~@less-than-php-8.4';
 		} else {
 			$this->markTestSkipped( "No test for PHP_VERSION $php_version." );
 		}
