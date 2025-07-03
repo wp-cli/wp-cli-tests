@@ -15,8 +15,12 @@
         "php-parallel-lint/php-console-highlighter": "^1.0",
         "php-parallel-lint/php-parallel-lint": "^1.3.1",
         "phpcompatibility/php-compatibility": "dev-develop",
-        "phpstan/extension-installer": "^1.4.3",
+        "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan": "^1.12.26",
+        "phpstan/phpstan-deprecation-rules": "^1.2",
+        "phpstan/phpstan-phpunit": "^1.4",
+        "phpstan/phpstan-strict-rules": "^1.6",
+        "swissspidy/phpstan-no-private": "^0.2.1",
         "szepeviktor/phpstan-wordpress": "^v1.3.5",
         "wp-cli/config-command": "^1 || ^2",
         "wp-cli/core-command": "^1 || ^2",
@@ -41,6 +45,11 @@
         "branch-alias": {
             "dev-main": "4.0.x-dev"
         },
+        "phpstan": {
+            "includes": [
+                "extension.neon"
+            ]
+        },
         "readme": {
             "sections": [
                 "Using",
@@ -56,6 +65,11 @@
     "autoload": {
         "psr-4": {
             "WP_CLI\\Tests\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "WP_CLI\\Tests\\Tests\\": "tests/tests"
         }
     },
     "minimum-stability": "dev",
