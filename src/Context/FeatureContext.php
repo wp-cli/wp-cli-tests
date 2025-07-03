@@ -21,6 +21,7 @@ use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
+use WP_CLI;
 use DirectoryIterator;
 use WP_CLI\Process;
 use WP_CLI\ProcessRun;
@@ -866,6 +867,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
 
+		$this->test_connection();
 		$this->drop_db();
 		$this->set_cache_dir();
 	}
@@ -1110,8 +1112,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string                $sql_cmd      Command to run.
 	 * @param array<string, string> $assoc_args   Optional. Associative array of options. Default empty.
 	 * @param bool                  $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
+	 * @return array{stdout: string, stderr: string, exit_code: int}
 	 */
-	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ): void {
+	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
 		$default_assoc_args = [
 			'host' => self::$db_settings['dbhost'],
 			'user' => self::$db_settings['dbuser'],
@@ -1120,11 +1123,19 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( $add_database ) {
 			$sql_cmd .= ' ' . escapeshellarg( self::$db_settings['dbname'] );
 		}
+		$send_to_shell = true;
+		if ( isset( $assoc_args['send_to_shell'] ) ) {
+			$send_to_shell = (bool) $assoc_args['send_to_shell'];
+			unset( $assoc_args['send_to_shell'] );
+		}
+
 		$start_time = microtime( true );
-		Utils\run_mysql_command( $sql_cmd, array_merge( $assoc_args, $default_assoc_args ) );
+		$result     = Utils\run_mysql_command( $sql_cmd, array_merge( $assoc_args, $default_assoc_args ), null, $send_to_shell );
 		if ( self::$log_run_times ) {
 			self::log_proc_method_run_time( 'run_sql ' . $sql_cmd, $start_time );
 		}
+
+		return array_combine( [ 'stdout', 'stderr', 'exit_code' ], $result );
 	}
 
 	public function create_db(): void {
@@ -1134,6 +1145,37 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$dbname = self::$db_settings['dbname'];
 		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
+	}
+
+	/**
+	 * Test if the database connection is working.
+	 */
+	public function test_connection(): void {
+		if ( 'sqlite' === self::$db_type ) {
+			return;
+		}
+
+		$sql_result = self::run_sql(
+			self::$mysql_binary . ' --no-defaults',
+			[
+				'execute'       => 'SELECT 1',
+				'send_to_shell' => false,
+			]
+		);
+
+		if ( 0 !== $sql_result['exit_code'] ) {
+			# WP_CLI output functions are suppressed in behat context.
+			echo 'There was an error connecting to the database:' . \PHP_EOL;
+			if ( ! empty( $sql_result['stderr'] ) ) {
+				echo '  ' . trim( $sql_result['stderr'] ) . \PHP_EOL;
+			}
+			echo 'run `composer prepare-tests` to connect to the database.' . \PHP_EOL;
+			die( $sql_result['exit_code'] );
+		} elseif ( ! empty( $sql_result['stderr'] ) ) {
+			// There is "error" output but not an exit code.
+			// Probably a warning, still display it.
+			echo trim( $sql_result['stderr'] ) . \PHP_EOL;
+		}
 	}
 
 	public function drop_db(): void {
