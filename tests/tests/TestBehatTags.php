@@ -6,6 +6,7 @@ use WP_CLI\Tests\TestCase;
 use WP_CLI\Utils;
 use PHPUnit\Framework\Attributes\DataProvider;
 
+// phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
 class TestBehatTags extends TestCase {
 
 	/**
@@ -191,5 +192,43 @@ class TestBehatTags extends TestCase {
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
+	}
+
+	public function test_behat_tags_db_version(): void {
+		$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
+
+		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
+		require $behat_tags;
+		$minimum_db_version = get_db_version() . '.1';
+
+		$contents  = '';
+		$expecteds = array();
+
+		switch ( $db_type ) {
+			case 'mariadb':
+				$contents    = "@require-mariadb-$minimum_db_version";
+				$expecteds[] = "~@require-mariadb-$minimum_db_version";
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-sqlite';
+				break;
+			case 'sqlite':
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-mysql-or-mariadb';
+				break;
+			case 'mysql':
+			default:
+				$contents    = "@require-mysql-$minimum_db_version";
+				$expecteds[] = "@require-mysql-$minimum_db_version";
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-sqlite';
+				break;
+		}
+
+		file_put_contents( $this->temp_dir . '/features/extension.feature', $contents );
+
+		$expected = '--tags=' . implode( '&&', $expecteds );
+		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$this->assertSame( $expected, $output );
 	}
 }

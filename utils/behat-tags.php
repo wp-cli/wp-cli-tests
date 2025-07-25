@@ -86,8 +86,7 @@ if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) )
 
 switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 	case 'mariadb':
-		$skip_tags[] = '@require-mysql';
-		$skip_tags[] = '@require-sqlite';
+		$skip_tags = array_merge( $skip_tags, [ '@require-mysql', '@require-sqlite' ], version_tags( 'require-mariadb', get_db_version(), '<', $features_folder ) );
 		break;
 	case 'sqlite':
 		$skip_tags[] = '@require-mariadb';
