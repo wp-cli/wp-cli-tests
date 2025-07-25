@@ -13,7 +13,6 @@ parameters:
     - vendor/behat/behat
   scanFiles:
     - tests/phpstan/scan-files.php
-    - util/behat-tags.php
   treatPhpDocTypesAsCertain: false
   dynamicConstantNames:
     - WP_DEBUG
