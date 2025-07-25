@@ -40,7 +40,7 @@ function version_tags(
 	return $skip_tags;
 }
 
-function mysql_version() {
+function get_db_version() {
 	preg_match( '@[0-9]+\.[0-9]+\.[0-9]+@', exec( 'mysql -V' ), $version );
 	return $version[0];
 }
@@ -96,7 +96,7 @@ switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 		break;
 	case 'mysql':
 	default:
-		$skip_tags = array_merge( $skip_tags, [ '@require-mariadb', '@require-sqlite' ], version_tags( 'require-mysql', mysql_version(), '<', $features_folder ) );
+		$skip_tags = array_merge( $skip_tags, [ '@require-mariadb', '@require-sqlite' ], version_tags( 'require-mysql', get_db_version(), '<', $features_folder ) );
 		break;
 }
 
