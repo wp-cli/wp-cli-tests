@@ -199,6 +199,7 @@ class TestBehatTags extends TestCase {
 
 		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 		require $behat_tags;
+		// @phpstan-ignore-next-line
 		$minimum_db_version = get_db_version() . '.1';
 
 		$contents  = '';
