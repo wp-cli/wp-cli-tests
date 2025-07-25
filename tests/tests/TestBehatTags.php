@@ -199,7 +199,7 @@ class TestBehatTags extends TestCase {
 
 		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 		require $behat_tags;
-		$minimum_db_version = \get_db_version() . '.1';
+		$minimum_db_version = get_db_version() . '.1';
 
 		$contents  = '';
 		$expecteds = array();
@@ -207,9 +207,9 @@ class TestBehatTags extends TestCase {
 		switch ( $db_type ) {
 			case 'mariadb':
 				$contents    = "@require-mariadb-$minimum_db_version";
-				$expecteds[] = "~@require-mariadb-$minimum_db_version";
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = "~@require-mariadb-$minimum_db_version";
 				break;
 			case 'sqlite':
 				$expecteds[] = '~@require-mariadb';
@@ -219,15 +219,15 @@ class TestBehatTags extends TestCase {
 			case 'mysql':
 			default:
 				$contents    = "@require-mysql-$minimum_db_version";
-				$expecteds[] = "@require-mysql-$minimum_db_version";
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = "@require-mysql-$minimum_db_version";
 				break;
 		}
 
 		file_put_contents( $this->temp_dir . '/features/extension.feature', $contents );
 
-		$expected = '--tags=' . implode( '&&', $expecteds );
+		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
 		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
 		$this->assertSame( $expected, $output );
 	}
