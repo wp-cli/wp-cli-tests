@@ -41,7 +41,8 @@ function version_tags(
 }
 
 function get_db_version() {
-	preg_match( '@[0-9]+\.[0-9]+\.[0-9]+@', exec( 'mysql -V' ), $version );
+	$version_string = exec( getenv( 'WP_CLI_TEST_DBTYPE' ) === 'mariadb' ? 'mariadb --version' : 'mysql -V' );
+	preg_match( '@[0-9]+\.[0-9]+\.[0-9]+@', $version_string, $version );
 	return $version[0];
 }
 
