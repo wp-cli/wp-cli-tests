@@ -221,7 +221,7 @@ class TestBehatTags extends TestCase {
 				$contents    = "@require-mysql-$minimum_db_version";
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-sqlite';
-				$expecteds[] = "@require-mysql-$minimum_db_version";
+				$expecteds[] = "~@require-mysql-$minimum_db_version";
 				break;
 		}
 
