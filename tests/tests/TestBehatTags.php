@@ -212,7 +212,7 @@ class TestBehatTags extends TestCase {
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-sqlite';
 				$expecteds[] = "~@require-mariadb-$minimum_db_version";
-				$expecteds[] = "~@require-mariadb-$db_version";
+				$expecteds[] = "~@less-than-mariadb-$db_version";
 				break;
 			case 'sqlite':
 				$expecteds[] = '~@require-mariadb';
@@ -225,7 +225,7 @@ class TestBehatTags extends TestCase {
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-sqlite';
 				$expecteds[] = "~@require-mysql-$minimum_db_version";
-				$expecteds[] = "~@require-mysql-$db_version";
+				$expecteds[] = "~@less-than-mysql-$db_version";
 				break;
 		}
 
