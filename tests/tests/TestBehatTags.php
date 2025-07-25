@@ -200,17 +200,19 @@ class TestBehatTags extends TestCase {
 		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 		require $behat_tags;
 		// @phpstan-ignore-next-line
-		$minimum_db_version = get_db_version() . '.1';
+		$db_version         = get_db_version();
+		$minimum_db_version = $db_version . '.1';
 
 		$contents  = '';
 		$expecteds = array();
 
 		switch ( $db_type ) {
 			case 'mariadb':
-				$contents    = "@require-mariadb-$minimum_db_version";
+				$contents    = "@require-mariadb-$minimum_db_version @less-than-mariadb-$db_version";
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-sqlite';
 				$expecteds[] = "~@require-mariadb-$minimum_db_version";
+				$expecteds[] = "~@require-mariadb-$db_version";
 				break;
 			case 'sqlite':
 				$expecteds[] = '~@require-mariadb';
@@ -219,10 +221,11 @@ class TestBehatTags extends TestCase {
 				break;
 			case 'mysql':
 			default:
-				$contents    = "@require-mysql-$minimum_db_version";
+				$contents    = "@require-mysql-$minimum_db_version @less-than-mysql-$db_version";
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-sqlite';
 				$expecteds[] = "~@require-mysql-$minimum_db_version";
+				$expecteds[] = "~@require-mysql-$db_version";
 				break;
 		}
 
