@@ -184,7 +184,7 @@ trait GivenStepDefinitions {
 			mkdir( $dir, 0777, true /*recursive*/ );
 		}
 
-		$config_file_contents = <<<FILE
+		$config_file_contents = <<<'FILE'
 require:
     - mock-requests.php
 FILE;
