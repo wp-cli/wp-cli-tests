@@ -41,7 +41,7 @@
 
 	<!-- For help understanding the `testVersion` configuration setting:
 		 https://github.com/PHPCompatibility/PHPCompatibility#sniffing-your-code-for-compatibility-with-specific-php-versions -->
-	<config name="testVersion" value="5.6-"/>
+	<config name="testVersion" value="7.2-"/>
 
 	<!-- Verify that everything in the global namespace is either namespaced or prefixed.
 		 See: https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards/wiki/Customizable-sniff-properties#naming-conventions-prefix-everything-in-the-global-namespace -->
@@ -59,6 +59,22 @@
 	#############################################################################
 	-->
 
+	<exclude-pattern>tests/phpstan/scan-files.php</exclude-pattern>
+
+	<rule ref="WordPress.NamingConventions">
+		<exclude-pattern>tests/data/*</exclude-pattern>
+		<exclude-pattern>src/PHPStan/*</exclude-pattern>
+		<exclude-pattern>tests/tests/PHPStan/*</exclude-pattern>
+	</rule>
+
+	<rule ref="WordPress.WP.AlternativeFunctions.parse_url_parse_url">
+		<exclude-pattern>tests/data/*</exclude-pattern>
+	</rule>
+
+	<rule ref="Squiz.PHP.CommentedOutCode.Found">
+		<exclude-pattern>src/PHPStan/*</exclude-pattern>
+	</rule>
+
 	<!-- This is a procedural stand-alone file that is never loaded in a WordPress context,
 		 so this file does not have to comply with WP naming conventions. -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
@@ -72,5 +88,14 @@
 		 applicable only. -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<exclude-pattern>*/utils/polyfills\.php$</exclude-pattern>
+	</rule>
+
+	<!-- This is a procedural stand-alone file that is never loaded in a WordPress context,
+		 so this file does not have to comply with WP naming conventions. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<exclude-pattern>*/generate-coverage\.php$</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.GlobalVariablesOverride">
+		<exclude-pattern>*/generate-coverage\.php$</exclude-pattern>
 	</rule>
 </ruleset>

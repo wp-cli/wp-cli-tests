@@ -12,3 +12,5 @@ phpunit.xml
 phpcs.xml
 .phpcs.xml
 .phpunit.result.cache
+.phpunit.cache
+build/logs

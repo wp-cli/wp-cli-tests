@@ -1,13 +1,20 @@
 <?php
 
+namespace WP_CLI\Tests\Tests;
+
 use WP_CLI\Tests\TestCase;
 use WP_CLI\Utils;
+use PHPUnit\Framework\Attributes\DataProvider;
 
+// phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
 class TestBehatTags extends TestCase {
 
+	/**
+	 * @var string
+	 */
 	public $temp_dir;
 
-	protected function set_up() {
+	protected function set_up(): void {
 		parent::set_up();
 
 		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true );
@@ -15,7 +22,7 @@ class TestBehatTags extends TestCase {
 		mkdir( $this->temp_dir . '/features' );
 	}
 
-	protected function tear_down() {
+	protected function tear_down(): void {
 
 		if ( $this->temp_dir && file_exists( $this->temp_dir ) ) {
 			foreach ( glob( $this->temp_dir . '/features/*' ) as $feature_file ) {
@@ -30,8 +37,12 @@ class TestBehatTags extends TestCase {
 
 	/**
 	 * @dataProvider data_behat_tags_wp_version_github_token
+	 *
+	 * @param string $env
+	 * @param string $expected
 	 */
-	public function test_behat_tags_wp_version_github_token( $env, $expected ) {
+	#[DataProvider( 'data_behat_tags_wp_version_github_token' )] // phpcs:ignore PHPCompatibility.Attributes.NewAttributes.PHPUnitAttributeFound
+	public function test_behat_tags_wp_version_github_token( $env, $expected ): void {
 		$env_wp_version   = getenv( 'WP_VERSION' );
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
@@ -51,11 +62,21 @@ class TestBehatTags extends TestCase {
 			$expected .= '&&~@broken-trunk';
 		}
 
-		if ( 'sqlite' !== $db_type ) {
-			$expected .= '&&~@require-sqlite';
-		}
-		if ( 'sqlite' === $db_type ) {
-			$expected .= '&&~@require-mysql';
+		switch ( $db_type ) {
+			case 'mariadb':
+				$expected .= '&&~@require-mysql';
+				$expected .= '&&~@require-sqlite';
+				break;
+			case 'sqlite':
+				$expected .= '&&~@require-mariadb';
+				$expected .= '&&~@require-mysql';
+				$expected .= '&&~@require-mysql-or-mariadb';
+				break;
+			case 'mysql':
+			default:
+				$expected .= '&&~@require-mariadb';
+				$expected .= '&&~@require-sqlite';
+				break;
 		}
 
 		$this->assertSame( '--tags=' . $expected, $output );
@@ -64,7 +85,10 @@ class TestBehatTags extends TestCase {
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
 
-	public static function data_behat_tags_wp_version_github_token() {
+	/**
+	 * @return array<array{string, string}>
+	 */
+	public static function data_behat_tags_wp_version_github_token(): array {
 		return array(
 			array( 'WP_VERSION=4.5', '~@require-wp-4.6&&~@require-wp-4.8&&~@require-wp-4.9&&~@github-api' ),
 			array( 'WP_VERSION=4.6', '~@require-wp-4.8&&~@require-wp-4.9&&~@less-than-wp-4.6&&~@github-api' ),
@@ -80,7 +104,7 @@ class TestBehatTags extends TestCase {
 		);
 	}
 
-	public function test_behat_tags_php_version() {
+	public function test_behat_tags_php_version(): void {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 
 		putenv( 'GITHUB_TOKEN' );
@@ -91,25 +115,7 @@ class TestBehatTags extends TestCase {
 		$contents    = '';
 		$expected    = '';
 
-		if ( '5.3' === $php_version ) {
-			$contents = '@require-php-5.2 @require-php-5.3 @require-php-5.4 @less-than-php-5.2 @less-than-php-5.3 @less-than-php-5.4';
-			$expected = '~@require-php-5.4&&~@less-than-php-5.2&&~@less-than-php-5.3';
-		} elseif ( '5.4' === $php_version ) {
-			$contents = '@require-php-5.3 @require-php-5.4 @require-php-5.5 @less-than-php-5.3 @less-than-php-5.4 @less-than-php-5.5';
-			$expected = '~@require-php-5.5&&~@less-than-php-5.3&&~@less-than-php-5.4';
-		} elseif ( '5.5' === $php_version ) {
-			$contents = '@require-php-5.4 @require-php-5.5 @require-php-5.6 @less-than-php-5.4 @less-than-php-5.5 @less-than-php-5.6';
-			$expected = '~@require-php-5.6&&~@less-than-php-5.4&&~@less-than-php-5.5';
-		} elseif ( '5.6' === $php_version ) {
-			$contents = '@require-php-5.5 @require-php-5.6 @require-php-7.0 @less-than-php-5.5 @less-than-php-5.6 @less-than-php-7.0';
-			$expected = '~@require-php-7.0&&~@less-than-php-5.5&&~@less-than-php-5.6';
-		} elseif ( '7.0' === $php_version ) {
-			$contents = '@require-php-5.6 @require-php-7.0 @require-php-7.1 @less-than-php-5.6 @less-than-php-7.0 @less-than-php-7.1';
-			$expected = '~@require-php-7.1&&~@less-than-php-5.6&&~@less-than-php-7.0';
-		} elseif ( '7.1' === $php_version ) {
-			$contents = '@require-php-7.0 @require-php-7.1 @require-php-7.2 @less-than-php-7.0 @less-than-php-7.1 @less-than-php-7.2';
-			$expected = '~@require-php-7.2&&~@less-than-php-7.0&&~@less-than-php-7.1';
-		} elseif ( '7.2' === $php_version ) {
+		if ( '7.2' === $php_version ) {
 			$contents = '@require-php-7.1 @require-php-7.2 @require-php-7.3 @less-than-php-7.1 @less-than-php-7.2 @less-than-php-7.3';
 			$expected = '~@require-php-7.3&&~@less-than-php-7.1&&~@less-than-php-7.2';
 		} elseif ( '7.3' === $php_version ) {
@@ -124,6 +130,15 @@ class TestBehatTags extends TestCase {
 		} elseif ( '8.1' === $php_version ) {
 			$contents = '@require-php-8.0 @require-php-8.1 @require-php-8.2 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2';
 			$expected = '~@require-php-8.2&&~@less-than-php-8.0&&~@less-than-php-8.1';
+		} elseif ( '8.2' === $php_version ) {
+			$contents = '@require-php-8.0 @require-php-8.1 @require-php-8.2 @require-php-8.3 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2 @less-than-php-8.3 @less-than-php-8.4';
+			$expected = '~@require-php-8.3&&~@less-than-php-8.0&&~@less-than-php-8.1&&~@less-than-php-8.2';
+		} elseif ( '8.3' === $php_version ) {
+			$contents = '@require-php-8.1 @require-php-8.2 @require-php-8.3 @require-php-8.4 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2 @less-than-php-8.3 @less-than-php-8.4';
+			$expected = '~@require-php-8.4&&~@less-than-php-8.0&&~@less-than-php-8.1&&~@less-than-php-8.2&&~@less-than-php-8.3';
+		} elseif ( '8.4' === $php_version ) {
+			$contents = '@require-php-8.2 @require-php-8.3 @require-php-8.4 @require-php-8.5 @less-than-php-8.0 @less-than-php-8.1 @less-than-php-8.2 @less-than-php-8.3 @less-than-php-8.4 @less-than-php-8.5';
+			$expected = '~@require-php-8.5&&~@less-than-php-8.0&&~@less-than-php-8.1&&~@less-than-php-8.2&&~@less-than-php-8.3&&~@less-than-php-8.4';
 		} else {
 			$this->markTestSkipped( "No test for PHP_VERSION $php_version." );
 		}
@@ -131,12 +146,12 @@ class TestBehatTags extends TestCase {
 		file_put_contents( $this->temp_dir . '/features/php_version.feature', $contents );
 
 		$output = exec( "cd {$this->temp_dir}; php $behat_tags" );
-		$this->assertSame( '--tags=' . $expected . '&&~@github-api&&~@broken&&~@require-sqlite', $output );
+		$this->assertSame( '--tags=' . $expected . '&&~@github-api&&~@broken&&~@require-mariadb&&~@require-sqlite', $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
 
-	public function test_behat_tags_extension() {
+	public function test_behat_tags_extension(): void {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
 
@@ -148,12 +163,23 @@ class TestBehatTags extends TestCase {
 
 		$expecteds = array();
 
-		if ( 'sqlite' !== $db_type ) {
-			$expecteds[] = '~@require-sqlite';
+		switch ( $db_type ) {
+			case 'mariadb':
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-sqlite';
+				break;
+			case 'sqlite':
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-mysql-or-mariadb';
+				break;
+			case 'mysql':
+			default:
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-sqlite';
+				break;
 		}
-		if ( 'sqlite' === $db_type ) {
-			$expecteds[] = '~@require-mysql';
-		}
+
 		if ( ! extension_loaded( 'imagick' ) ) {
 			$expecteds[] = '~@require-extension-imagick';
 		}
@@ -166,5 +192,47 @@ class TestBehatTags extends TestCase {
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
+	}
+
+	public function test_behat_tags_db_version(): void {
+		$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
+
+		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
+		require $behat_tags;
+		// @phpstan-ignore-next-line
+		$db_version         = get_db_version();
+		$minimum_db_version = $db_version . '.1';
+
+		$contents  = '';
+		$expecteds = array();
+
+		switch ( $db_type ) {
+			case 'mariadb':
+				$contents    = "@require-mariadb-$minimum_db_version @less-than-mariadb-$db_version";
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = "~@require-mariadb-$minimum_db_version";
+				$expecteds[] = "~@less-than-mariadb-$db_version";
+				break;
+			case 'sqlite':
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-mysql-or-mariadb';
+				break;
+			case 'mysql':
+			default:
+				$contents    = "@require-mysql-$minimum_db_version @less-than-mysql-$db_version";
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = "~@require-mysql-$minimum_db_version";
+				$expecteds[] = "~@less-than-mysql-$db_version";
+				break;
+		}
+
+		file_put_contents( $this->temp_dir . '/features/extension.feature', $contents );
+
+		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
+		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$this->assertSame( $expected, $output );
 	}
 }
