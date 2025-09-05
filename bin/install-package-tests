@@ -158,8 +158,11 @@ install_mysql_db_8_0_plus() {
 	set -ex # print all the commands.
 	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'localhost' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'localhost'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'localhost'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	{ set +ex; } 2> /dev/null # stop printing the commands
 }
 
@@ -169,6 +172,8 @@ install_mysql_db_lower_than_8_0() {
 	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "GRANT ALL ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mysql -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "GRANT ALL ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'localhost' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mysql -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'localhost' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	{ set +ex; } 2> /dev/null # stop printing the commands
 }
 
@@ -177,8 +182,11 @@ install_mariadb() {
 	set -ex
 	mariadb -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mariadb -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'localhost' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'localhost'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'localhost'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 }
 
 if [ "${TYPE}" = "MariaDB" ]; then
