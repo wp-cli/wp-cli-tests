@@ -769,7 +769,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private static function terminate_proc( $master_pid ): void {
 
-		$output = `ps -o ppid,pid,command | grep $master_pid`;
+		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
 		foreach ( explode( PHP_EOL, $output ) as $line ) {
 			if ( preg_match( '/^\s*(\d+)\s+(\d+)/', $line, $matches ) ) {
