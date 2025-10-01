@@ -660,14 +660,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
 
-		self::cache_wp_files();
-
-		$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
-		echo "[Debug messages]\n";
-		echo "{$result->stderr}\n";
-
-		echo "WordPress {$result->stdout}\n";
-
 		// Remove install cache if any (not setting the static var).
 		$wp_version        = getenv( 'WP_VERSION' );
 		$wp_version_suffix = ( false !== $wp_version ) ? "-$wp_version" : '';
@@ -1298,6 +1290,16 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $subdir
 	 */
 	public function download_wp( $subdir = '' ): void {
+		if ( ! self::$cache_dir ) {
+			self::cache_wp_files();
+
+			$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
+			echo "[Debug messages]\n";
+			echo "{$result->stderr}\n";
+
+			echo "WordPress {$result->stdout}\n";
+		}
+
 		$dest_dir = $this->variables['RUN_DIR'] . "/$subdir";
 
 		if ( $subdir ) {
