@@ -30,35 +30,35 @@ jobs:
         {
           "include": [
             {
-              "php": "8.4",
+              "php": 8.4,
               "wp": "latest",
               "mysql": "mysql-8.0"
             },
             {
-              "php": "8.4",
+              "php": 8.4,
               "wp": "latest",
               "dbtype": "sqlite"
             },
             {
-              "php": "8.4",
+              "php": 8.4,
               "wp": "latest",
               "mysql": "mysql-8.0",
               "os": "macos-15"
             },
             {
-              "php": "8.4",
+              "php": 8.4,
               "wp": "latest",
               "dbtype": "sqlite",
               "os": "macos-15"
             },
             {
-              "php": "8.4",
+              "php": 8.4,
               "wp": "latest",
               "mysql": "mysql-8.0",
               "os": "windows-2025"
             },
             {
-              "php": "8.4",
+              "php": 8.4,
               "wp": "latest",
               "dbtype": "sqlite",
               "os": "windows-2025"
@@ -154,27 +154,25 @@ jobs:
           # Bust the cache at least once a month - output format: YYYY-MM.
           custom-cache-suffix: $(date -u "+%Y-%m")
 
-      - name: Grab PHPUnit version
-        id: phpunit_version
-        run: echo "VERSION=$(vendor/bin/phpunit --version | grep --only-matching --max-count=1 --extended-regexp '\b[0-9]+\.[0-9]+')" >> $GITHUB_OUTPUT
-
       # PHPUnit 10+ may fail a test run when the "old" configuration format is used.
       # Luckily, there is a build-in migration tool since PHPUnit 9.3.
       - name: Migrate PHPUnit configuration for PHPUnit 10+
-        if: ${{ startsWith( steps.phpunit_version.outputs.VERSION, '1' ) }}
+        if: ${{ matrix.php >= 8.2 || matrix.php == 'nightly' }}
         continue-on-error: true
         run: composer phpunit -- --migrate-configuration
 
       - name: Setup problem matcher to provide annotations for PHPUnit
         run: echo "::add-matcher::${{ runner.tool_cache }}/phpunit.json"
 
-      - name: Run PHPUnit
+      - name: Run PHPUnit with coverage
+        if: ${{ matrix.coverage }}
         run: |
-          if [[ ${{ matrix.coverage == true }} == true ]]; then
-            composer phpunit -- --coverage-clover build/logs/unit-coverage.xml
-          else
-            composer phpunit
-          fi
+          composer phpunit -- --coverage-clover build/logs/unit-coverage.xml
+
+      - name: Run PHPUnit
+        if: ${{ ! matrix.coverage }}
+        run: |
+          composer phpunit
 
       - name: Upload code coverage report
         if: ${{ matrix.coverage }}
@@ -273,6 +271,7 @@ jobs:
           COMPOSER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Change ImageMagick policy to allow pdf->png conversion.
+        if: ${{ matrix.os == 'ubuntu-22.04' || matrix.os == '' }}
         run: |
           sudo sed -i 's/^.*policy.*coder.*none.*PDF.*//' /etc/ImageMagick-6/policy.xml
 
