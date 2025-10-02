@@ -327,20 +327,20 @@ jobs:
           WP_CLI_TEST_DBSOCKET: '${{ steps.setup-mysql.outputs.base-dir }}/tmp/mysql.sock'
           WP_CLI_TEST_COVERAGE: ${{ matrix.coverage }}
         run: |
-          ARGS=()
+          ARGS=""
 
           if [[ $WP_CLI_TEST_COVERAGE == 'true' ]]; then
             # The flag was only added in v3.17.0
             if composer behat -- --help 2>/dev/null | grep xdebug; then
-              ARGS+=("--xdebug")
+              ARGS+=" --xdebug"
             fi
           fi
 
           if [[ $RUNNER_DEBUG == '1' ]]; then
-            ARGS+=("--format=pretty")
+            ARGS+=" --format=pretty"
           fi
 
-          composer behat -- "${ARGS[@]}" || composer behat-rerun -- "${ARGS[@]}"
+          composer behat -- $ARGS || composer behat-rerun -- $ARGS
 
       - name: Retrieve list of coverage files
         id: coverage_files
