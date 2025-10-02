@@ -111,7 +111,7 @@ jobs:
                 ) |
 
                 # Finally, get the unique entries
-                unique_by(.php)
+                unique_by([.php, .os])
               )
               ' <<< "$BASE_MATRIX")" >> $GITHUB_OUTPUT
           else
