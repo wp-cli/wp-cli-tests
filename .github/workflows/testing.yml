@@ -205,9 +205,9 @@ jobs:
         run: |
           if [[ $FILE_EXISTS == 'true' ]]; then
             echo "matrix=$(jq -c \
-              --argjson with_coverage_flag "${{ inputs.with-coverage }}" \
-              --arg minimum_php "${{ inputs.minimum-php }}" \
-              --arg minimum_wp "${{ inputs.minimum-wp }}" \
+              --argjson with_coverage_flag "true" \
+              --arg minimum_php "7.2" \
+              --arg minimum_wp "4.9" \
               '
               # First, select only the versions that meet all minimum requirements
               .include |= (
