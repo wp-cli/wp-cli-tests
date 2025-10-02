@@ -124,7 +124,7 @@ jobs:
   unit: #-----------------------------------------------------------------------
     needs: prepare-unit
     if: ${{ needs.prepare-unit.outputs.matrix != '' }}
-    name: Unit test /  PHP ${{ matrix.php }}${{ matrix.coverage && ' (with coverage)' || '' }}
+    name: Unit test /  PHP ${{ matrix.php }}${{ matrix.coverage && ' (with coverage)' || '' }} (${{ matrix.os || 'ubuntu-22.04' }})
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-unit.outputs.matrix) }}
@@ -243,11 +243,11 @@ jobs:
   functional: #-----------------------------------------------------------------
     needs: prepare-functional
     if: ${{ needs.prepare-functional.outputs.matrix != '' }}
-    name: Functional - WP ${{ matrix.wp }} on PHP ${{ matrix.php }} with ${{ matrix.dbtype != 'sqlite' && matrix.mysql || 'SQLite' }}${{ matrix.coverage && ' (with coverage)' || '' }}
+    name: Functional - WP ${{ matrix.wp }} on PHP ${{ matrix.php }} with ${{ matrix.dbtype != 'sqlite' && matrix.mysql || 'SQLite' }}${{ matrix.coverage && ' (with coverage)' || '' }} (${{ matrix.os || 'ubuntu-22.04' }})
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-functional.outputs.matrix) }}
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os || 'ubuntu-22.04' }}
 
     continue-on-error: ${{ matrix.dbtype == 'sqlite' || matrix.dbtype == 'mariadb' || matrix.php == 'nightly' }}
 
