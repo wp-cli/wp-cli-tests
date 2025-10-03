@@ -198,7 +198,12 @@ class TestBehatTags extends TestCase {
 		$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
 
 		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
+
+		// Just to get the get_db_version() function.
+		ob_start();
 		require $behat_tags;
+		ob_end_clean();
+
 		// @phpstan-ignore-next-line
 		$db_version         = get_db_version();
 		$minimum_db_version = $db_version . '.1';
