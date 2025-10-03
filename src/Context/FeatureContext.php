@@ -1279,7 +1279,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	public static function remove_dir( $dir ): void {
 		if ( self::is_windows() ) {
-			Process::create( Utils\esc_cmd( 'del %s', $dir ) )->run_check();
+			Process::create( Utils\esc_cmd( 'del /f /q %s', $dir ) )->run_check();
 		} else {
 			Process::create( Utils\esc_cmd( 'rm -rf %s', $dir ) )->run_check();
 		}
