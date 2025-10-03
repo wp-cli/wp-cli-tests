@@ -15,10 +15,17 @@ is_numeric() {
         *) return 0;;            # returns 0 if numeric
     esac
 }
-# Promt color vars.
+# Prompt color vars.
 C_RED="\033[31m"
 C_BLUE="\033[34m"
 NO_FORMAT="\033[0m"
+
+# If running in CI, don't use colors.
+if [ -n "${CI}" ]; then
+	C_RED=""
+	C_BLUE=""
+	NO_FORMAT=""
+fi
 
 HOST=localhost
 PORT=""
