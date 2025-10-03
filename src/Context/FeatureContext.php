@@ -1280,11 +1280,24 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $dir
 	 */
 	public static function remove_dir( $dir ): void {
-		if ( self::is_windows() ) {
-			Process::create( Utils\esc_cmd( 'del /f /q %s', $dir ) )->run_check();
-		} else {
-			Process::create( Utils\esc_cmd( 'rm -rf %s', $dir ) )->run_check();
+		if ( ! file_exists( $dir ) ) {
+			return;
 		}
+
+		if ( ! is_dir( $dir ) ) {
+			unlink( $dir );
+			return;
+		}
+
+		foreach ( scandir( $dir ) as $item ) {
+			if ( '.' === $item || '..' === $item ) {
+				continue;
+			}
+
+			self::remove_dir( $dir . DIRECTORY_SEPARATOR . $item );
+		}
+
+		rmdir( $dir );
 	}
 
 	/**
@@ -1294,13 +1307,21 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $dest_dir
 	 */
 	public static function copy_dir( $src_dir, $dest_dir ): void {
-		$shell_command = Utils\esc_cmd( 'cp -r %s/* %s', $src_dir, $dest_dir );
-		if ( 'Darwin' === PHP_OS ) {
-			$shell_command = Utils\esc_cmd( 'cp -R %s/* %s', $src_dir, $dest_dir );
-		} elseif ( self::is_windows() ) {
-			$shell_command = Utils\esc_cmd( 'copy /y %s %s', $src_dir, $dest_dir );
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $src_dir, \RecursiveDirectoryIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::SELF_FIRST
+		);
+
+		foreach ( $iterator as $item ) {
+			$dest_path = $dest_dir . DIRECTORY_SEPARATOR . $iterator->getSubPathname();
+			if ( $item->isDir() ) {
+				if ( ! is_dir( $dest_path ) ) {
+					mkdir( $dest_path, 0777, true );
+				}
+			} else {
+				copy( $item->getPathname(), $dest_path );
+			}
 		}
-		Process::create( $shell_command )->run_check();
 	}
 
 	/**
