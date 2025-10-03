@@ -327,7 +327,8 @@ jobs:
           WP_CLI_TEST_DBTYPE: ${{ matrix.dbtype || 'mysql' }}
           WP_CLI_TEST_DBSOCKET: '${{ steps.setup-mysql.outputs.base-dir }}/tmp/mysql.sock'
           WP_CLI_TEST_COVERAGE: ${{ matrix.coverage }}
-          BEHAT_ARGS: ${{ matrix.coverage && runner.debug && '--debug --format=pretty' || matrix.coverage && '--debug' || runner.debug && '--format=pretty' || '' }}
+          # BEHAT_ARGS: ${{ matrix.coverage && runner.debug && '--debug --format=pretty' || matrix.coverage && '--debug' || runner.debug && '--format=pretty' || '' }}
+          BEHAT_ARGS: '--format=pretty'
         run: |
           composer behat -- $BEHAT_ARGS || composer behat-rerun -- $BEHAT_ARGS
 
