@@ -421,8 +421,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	 *
 	 * @return bool
 	 */
-	static private function is_windows(): bool {
-		return strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+	private static function is_windows(): bool {
+		return strtoupper( substr( PHP_OS, 0, 3 ) ) === 'WIN';
 	}
 
 	/**
