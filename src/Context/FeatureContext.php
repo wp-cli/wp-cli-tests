@@ -417,15 +417,6 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
-	 * Whether the current OS is Windows.
-	 *
-	 * @return bool
-	 */
-	private static function is_windows(): bool {
-		return strtoupper( substr( PHP_OS, 0, 3 ) ) === 'WIN';
-	}
-
-	/**
 	 * Get the environment variables required for launched `wp` processes.
 	 *
 	 * @return array<string, string|int>
@@ -665,7 +656,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		self::$mysql_binary  = Utils\get_mysql_binary_path();
 
 		// TODO: Improve Windows support upstream in Utils\get_mysql_binary_path().
-		if ( self::is_windows() && ! self::$mysql_binary ) {
+		if ( Utils\is_windows() && ! self::$mysql_binary ) {
 			self::$mysql_binary = 'mysql.exe';
 		}
 
