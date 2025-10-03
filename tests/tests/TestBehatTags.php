@@ -219,7 +219,7 @@ class TestBehatTags extends TestCase {
 
 		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 
-		// Just to get the get_db_version() function.
+		// Just to get the get_db_version() function. Prevents unexpected output.
 		ob_start();
 		require $behat_tags;
 		ob_end_clean();
