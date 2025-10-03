@@ -1296,7 +1296,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( 'Darwin' === PHP_OS ) {
 			$shell_command = Utils\esc_cmd( 'cp -R %s/* %s', $src_dir, $dest_dir );
 		} elseif ( self::is_windows() ) {
-			$shell_command = Utils\esc_cmd( 'copy /y %s/* %s', $src_dir, $dest_dir );
+			$shell_command = Utils\esc_cmd( 'copy /y %s %s', $src_dir, $dest_dir );
 		}
 		Process::create( $shell_command )->run_check();
 	}
