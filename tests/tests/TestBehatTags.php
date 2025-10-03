@@ -17,9 +17,11 @@ class TestBehatTags extends TestCase {
 	protected function set_up(): void {
 		parent::set_up();
 
-		$this->temp_dir = realpath( Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true ) );
+		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true );
 		mkdir( $this->temp_dir );
 		mkdir( $this->temp_dir . '/features' );
+
+		$this->temp_dir = realpath( $this->temp_dir );
 	}
 
 	protected function tear_down(): void {
