@@ -574,15 +574,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			mkdir( $dir );
 		}
 
-		$curl = self::is_windows() ? 'curl.exe' : 'curl';
+		$response = Utils\http_request( 'GET', $download_url, null, [], [ 'filename' => $download_location ] );
 
-		Process::create(
-			Utils\esc_cmd(
-				"$curl -sSfL %1\$s > %2\$s",
-				$download_url,
-				$download_location
-			)
-		)->run_check();
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download SQLite plugin (HTTP code {$response->status_code})" );
+		}
 
 		$zip          = new \ZipArchive();
 		$new_zip_file = $download_location;
@@ -1096,15 +1092,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			. uniqid( 'wp-cli-download-', true )
 			. '.phar';
 
-		$curl = self::is_windows() ? 'curl.exe' : 'curl';
+		$response = Utils\http_request( 'GET', $download_url, null, [], [ 'filename' => $this->variables['PHAR_PATH'] ] );
 
-		Process::create(
-			Utils\esc_cmd(
-				"$curl -sSfL %1\$s > %2\$s && chmod +x %2\$s",
-				$download_url,
-				$this->variables['PHAR_PATH']
-			)
-		)->run_check();
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download WP-CLI PHAR (HTTP code {$response->status_code})" );
+		}
 	}
 
 	/**
