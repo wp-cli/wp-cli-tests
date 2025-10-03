@@ -559,7 +559,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private static function download_sqlite_plugin( $dir ): void {
 		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-database-integration.zip';
-		$download_location = $dir . DIRECTORY_SEPARATOR . 'sqlite-database-integration.zip';
+		$download_location = $dir . '/sqlite-database-integration.zip';
 
 		if ( ! is_dir( $dir ) ) {
 			mkdir( $dir );
@@ -623,16 +623,16 @@ class FeatureContext implements SnippetAcceptingContext {
 	private static function cache_wp_files(): void {
 		$wp_version             = getenv( 'WP_VERSION' );
 		$wp_version_suffix      = ( false !== $wp_version ) ? "-$wp_version" : '';
-		self::$cache_dir        = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'wp-cli-test-core-download-cache' . $wp_version_suffix;
-		self::$sqlite_cache_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'wp-cli-test-sqlite-integration-cache';
+		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
-			if ( ! is_readable( self::$sqlite_cache_dir . DIRECTORY_SEPARATOR . 'sqlite-database-integration/db.copy' ) ) {
+			if ( ! is_readable( self::$sqlite_cache_dir . '/sqlite-database-integration/db.copy' ) ) {
 				self::download_sqlite_plugin( self::$sqlite_cache_dir );
 			}
 		}
 
-		if ( is_readable( self::$cache_dir . DIRECTORY_SEPARATOR . 'wp-config-sample.php' ) ) {
+		if ( is_readable( self::$cache_dir . '/wp-config-sample.php' ) ) {
 			return;
 		}
 
@@ -666,7 +666,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		// Remove install cache if any (not setting the static var).
 		$wp_version        = getenv( 'WP_VERSION' );
 		$wp_version_suffix = ( false !== $wp_version ) ? "-$wp_version" : '';
-		$install_cache_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'wp-cli-test-core-install-cache' . $wp_version_suffix;
+		$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( file_exists( $install_cache_dir ) ) {
 			self::remove_dir( $install_cache_dir );
 		}
@@ -793,7 +793,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( self::$suite_cache_dir ) {
 			self::remove_dir( self::$suite_cache_dir );
 		}
-		self::$suite_cache_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-test-suite-cache-' . self::$temp_dir_infix . '-', true );
+		self::$suite_cache_dir = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-test-suite-cache-' . self::$temp_dir_infix . '-', true );
 		mkdir( self::$suite_cache_dir );
 		return self::$suite_cache_dir;
 	}
@@ -1015,7 +1015,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	public function create_run_dir(): void {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
-			self::$run_dir              = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
+			self::$run_dir              = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
 			$this->variables['RUN_DIR'] = self::$run_dir;
 			mkdir( $this->variables['RUN_DIR'] );
 		}
@@ -1025,7 +1025,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $version
 	 */
 	public function build_phar( $version = 'same' ): void {
-		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-build-', true ) . '.phar';
+		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-build-', true ) . '.phar';
 
 		$is_bundle = false;
 
@@ -1094,7 +1094,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * CACHE_DIR is a cache for downloaded test data such as images. Lives until manually deleted.
 	 */
 	private function set_cache_dir(): void {
-		$path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'wp-cli-test-cache';
+		$path = sys_get_temp_dir() . '/wp-cli-test-cache';
 		if ( ! file_exists( $path ) ) {
 			mkdir( $path );
 		}
@@ -1277,7 +1277,7 @@ class FeatureContext implements SnippetAcceptingContext {
 				continue;
 			}
 
-			self::remove_dir( $dir . DIRECTORY_SEPARATOR . $item );
+			self::remove_dir( $dir . '/' . $item );
 		}
 
 		rmdir( $dir );
@@ -1296,7 +1296,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		);
 
 		foreach ( $iterator as $item ) {
-			$dest_path = $dest_dir . DIRECTORY_SEPARATOR . $iterator->getSubPathname();
+			$dest_path = $dest_dir . '/' . $iterator->getSubPathname();
 			if ( $item->isDir() ) {
 				if ( ! is_dir( $dest_path ) ) {
 					mkdir( $dest_path, 0777, true );
@@ -1400,7 +1400,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	public function install_wp( $subdir = '' ): void {
 		$wp_version              = getenv( 'WP_VERSION' );
 		$wp_version_suffix       = ( false !== $wp_version ) ? "-$wp_version" : '';
-		self::$install_cache_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'wp-cli-test-core-install-cache' . $wp_version_suffix;
+		self::$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( ! file_exists( self::$install_cache_dir ) ) {
 			mkdir( self::$install_cache_dir );
 		}
@@ -1513,17 +1513,17 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	public function composer_add_wp_cli_local_repository(): void {
 		if ( ! self::$composer_local_repository ) {
-			self::$composer_local_repository = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-composer-local-', true );
+			self::$composer_local_repository = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-composer-local-', true );
 			mkdir( self::$composer_local_repository );
 
 			$env = self::get_process_env_variables();
 			$src = $env['TRAVIS_BUILD_DIR'] ?? realpath( self::get_vendor_dir() . '/../' );
 
-			self::copy_dir( $src, self::$composer_local_repository . DIRECTORY_SEPARATOR );
-			self::remove_dir( self::$composer_local_repository . DIRECTORY_SEPARATOR . '.git' );
-			self::remove_dir( self::$composer_local_repository . DIRECTORY_SEPARATOR . 'vendor' );
+			self::copy_dir( $src, self::$composer_local_repository . '/' );
+			self::remove_dir( self::$composer_local_repository . '/.git' );
+			self::remove_dir( self::$composer_local_repository . '/vendor' );
 		}
-		$dest = self::$composer_local_repository . DIRECTORY_SEPARATOR;
+		$dest = self::$composer_local_repository . '/';
 		$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
 		$this->variables['COMPOSER_LOCAL_REPOSITORY'] = self::$composer_local_repository;
 	}

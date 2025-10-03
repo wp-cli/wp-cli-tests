@@ -20,8 +20,6 @@ class TestBehatTags extends TestCase {
 		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true );
 		mkdir( $this->temp_dir );
 		mkdir( $this->temp_dir . '/features' );
-
-		$this->temp_dir = realpath( $this->temp_dir );
 	}
 
 	protected function tear_down(): void {
@@ -179,7 +177,7 @@ class TestBehatTags extends TestCase {
 
 		putenv( 'GITHUB_TOKEN' );
 
-		$behat_tags = realpath( dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php' );
+		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 
 		file_put_contents( $this->temp_dir . '/features/extension.feature', '@require-extension-imagick @require-extension-curl' );
 
@@ -219,7 +217,7 @@ class TestBehatTags extends TestCase {
 	public function test_behat_tags_db_version(): void {
 		$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
 
-		$behat_tags = realpath( dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php' );
+		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 
 		// Just to get the get_db_version() function.
 		ob_start();
