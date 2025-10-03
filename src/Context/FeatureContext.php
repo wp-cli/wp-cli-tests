@@ -417,6 +417,15 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	 * Whether the current OS is Windows.
+	 *
+	 * @return bool
+	 */
+	static private function is_windows(): bool {
+		return strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+	}
+
+	/**
 	 * Get the environment variables required for launched `wp` processes.
 	 *
 	 * @return array<string, string|int>
@@ -565,9 +574,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			mkdir( $dir );
 		}
 
+		$curl = self::is_windows() ? 'curl.exe' : 'curl';
+
 		Process::create(
 			Utils\esc_cmd(
-				'curl -sSfL %1$s > %2$s',
+				"$curl -sSfL %1\$s > %2\$s",
 				$download_url,
 				$download_location
 			)
@@ -1078,9 +1089,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			. uniqid( 'wp-cli-download-', true )
 			. '.phar';
 
+		$curl = self::is_windows() ? 'curl.exe' : 'curl';
+
 		Process::create(
 			Utils\esc_cmd(
-				'curl -sSfL %1$s > %2$s && chmod +x %2$s',
+				"$curl -sSfL %1\$s > %2\$s && chmod +x %2\$s",
 				$download_url,
 				$this->variables['PHAR_PATH']
 			)
