@@ -252,6 +252,16 @@ jobs:
 
     continue-on-error: ${{ matrix.dbtype == 'sqlite' || matrix.dbtype == 'mariadb' || matrix.php == 'nightly' }}
 
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_TCP_PORT: 3306
+      WP_CLI_TEST_DBROOTUSER: root
+      WP_CLI_TEST_DBROOTPASS: root
+      WP_CLI_TEST_DBNAME: wp_cli_test
+      WP_CLI_TEST_DBUSER: wp_cli_test
+      WP_CLI_TEST_DBPASS: password1
+      WP_CLI_TEST_DBHOST: 127.0.0.1:3306
+
     steps:
       - name: Check out source code
         uses: actions/checkout@v5
@@ -293,23 +303,11 @@ jobs:
         with:
           mysql-version: ${{ matrix.mysql }}
           auto-start: true
-          root-password: root
-          user: wp_cli_test
-          password: password1
+          root-password: ${{ env.WP_CLI_TEST_DBROOTPASS }}
+          user: ${{ env.WP_CLI_TEST_DBUSER}}
+          password: ${{ env.WP_CLI_TEST_DBPASS}}
           my-cnf: |
             default_authentication_plugin=mysql_native_password
-
-      - name: Configure DB environment
-        if: ${{ matrix.dbtype != 'sqlite' }}
-        run: |
-          echo "MYSQL_HOST=127.0.0.1" >> $GITHUB_ENV
-          echo "MYSQL_TCP_PORT=3306" >> $GITHUB_ENV
-          echo "WP_CLI_TEST_DBROOTUSER=root" >> $GITHUB_ENV
-          echo "WP_CLI_TEST_DBROOTPASS=root" >> $GITHUB_ENV
-          echo "WP_CLI_TEST_DBNAME=wp_cli_test" >> $GITHUB_ENV
-          echo "WP_CLI_TEST_DBUSER=wp_cli_test" >> $GITHUB_ENV
-          echo "WP_CLI_TEST_DBPASS=password1" >> $GITHUB_ENV
-          echo "WP_CLI_TEST_DBHOST=127.0.0.1:3306" >> $GITHUB_ENV
 
       - name: Prepare test database
         if: ${{ matrix.dbtype != 'sqlite' }}
