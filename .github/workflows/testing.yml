@@ -171,6 +171,9 @@ jobs:
 
       - name: Run PHPUnit
         if: ${{ ! matrix.coverage }}
+        # For example TestBehatTags.php in wp-cli-tests depends on the db type.
+        env:
+          WP_CLI_TEST_DBTYPE: 'sqlite'
         run: |
           composer phpunit
 
