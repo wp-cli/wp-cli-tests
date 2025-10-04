@@ -1261,21 +1261,21 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $dir
 	 */
 	public static function remove_dir( $dir ): void {
-		if ( ! file_exists( $dir ) ) {
-			return;
-		}
-
 		if ( ! is_dir( $dir ) ) {
-			unlink( $dir );
 			return;
 		}
 
-		foreach ( scandir( $dir ) as $item ) {
-			if ( '.' === $item || '..' === $item ) {
-				continue;
-			}
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::CHILD_FIRST
+		);
 
-			self::remove_dir( $dir . '/' . $item );
+		foreach ( $iterator as $file ) {
+			if ( $file->isDir() ) {
+				rmdir( $file->getRealPath() );
+			} else {
+				unlink( $file->getRealPath() );
+			}
 		}
 
 		rmdir( $dir );
