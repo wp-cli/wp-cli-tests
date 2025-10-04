@@ -655,6 +655,11 @@ class FeatureContext implements SnippetAcceptingContext {
 		self::$behat_run_dir = getcwd();
 		self::$mysql_binary  = Utils\get_mysql_binary_path();
 
+		// TODO: Improve Windows support upstream in Utils\get_mysql_binary_path().
+		if ( Utils\is_windows() && ! self::$mysql_binary ) {
+			self::$mysql_binary = 'mysql.exe';
+		}
+
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
 
