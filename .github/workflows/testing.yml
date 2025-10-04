@@ -12,4 +12,35 @@ on:
 
 jobs:
   test:
-    uses: wp-cli/.github/.github/workflows/reusable-testing.yml@main
+    uses: wp-cli/.github/.github/workflows/reusable-testing.yml@try/test-suite
+    with:
+      matrix: |
+        {
+          "include": [
+            {
+              "php": "8.4",
+              "wp": "latest",
+              "mysql": "mysql-8.0",
+              "os": "macos-15"
+            },
+            {
+              "php": "8.4",
+              "wp": "latest",
+              "dbtype": "sqlite",
+              "os": "macos-15"
+            },
+            {
+              "php": "8.4",
+              "wp": "latest",
+              "mysql": "mysql-8.0",
+              "os": "windows-2025"
+            },
+            {
+              "php": "8.4",
+              "wp": "latest",
+              "dbtype": "sqlite",
+              "os": "windows-2025"
+            }
+          ],
+          "exclude": []
+        }

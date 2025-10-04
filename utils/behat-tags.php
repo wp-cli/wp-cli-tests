@@ -85,11 +85,11 @@ if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) )
 	$skip_tags[] = '@broken-trunk';
 }
 
-$db_version = get_db_version();
 
 switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 	case 'mariadb':
-		$skip_tags = array_merge(
+		$db_version = get_db_version();
+		$skip_tags  = array_merge(
 			$skip_tags,
 			[ '@require-mysql', '@require-sqlite' ],
 			version_tags( 'require-mariadb', $db_version, '<', $features_folder ),
@@ -103,7 +103,8 @@ switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 		break;
 	case 'mysql':
 	default:
-		$skip_tags = array_merge(
+		$db_version = get_db_version();
+		$skip_tags  = array_merge(
 			$skip_tags,
 			[ '@require-mariadb', '@require-sqlite' ],
 			version_tags( 'require-mysql', $db_version, '<', $features_folder ),
