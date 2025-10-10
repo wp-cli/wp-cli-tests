@@ -604,7 +604,10 @@ FILE;
 				continue;
 			}
 
-			Process::create( Utils\esc_cmd( 'curl -sSL %s > %s', $row['url'], $path ) )->run_check();
+			$response = Utils\http_request( 'GET', $row['url'], null, [], [ 'filename' => $path ] );
+			if ( 200 !== $response->status_code ) {
+				throw new RuntimeException( "Could not download file (HTTP code {$response->status_code})" );
+			}
 		}
 	}
 

@@ -653,11 +653,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::log_run_times_before_suite( $scope );
 		}
 		self::$behat_run_dir = getcwd();
-		self::$mysql_binary  = Utils\get_mysql_binary_path();
 
 		// TODO: Improve Windows support upstream in Utils\get_mysql_binary_path().
-		if ( Utils\is_windows() && ! self::$mysql_binary ) {
+		if ( Utils\is_windows() ) {
 			self::$mysql_binary = 'mysql.exe';
+		} else {
+			self::$mysql_binary = Utils\get_mysql_binary_path();
 		}
 
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
@@ -1056,14 +1057,18 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->composer_command( 'dump-autoload --working-dir=' . dirname( self::get_vendor_dir() ) );
 		}
 
-		$this->proc(
-			Utils\esc_cmd(
-				'php -dphar.readonly=0 %1$s %2$s --version=%3$s && chmod +x %2$s',
-				$make_phar_path,
-				$this->variables['PHAR_PATH'],
-				$version
-			)
-		)->run_check();
+		$command = Utils\esc_cmd(
+			'php -dphar.readonly=0 %1$s %2$s --version=%3$s',
+			$make_phar_path,
+			$this->variables['PHAR_PATH'],
+			$version
+		);
+
+		if ( ! Utils\is_windows() ) {
+			$command .= Utils\esc_cmd( ' && chmod +x %s', $this->variables['PHAR_PATH'] );
+		}
+
+		$this->proc( $command )->run_check();
 
 		// Revert the suffix change again
 		if ( $is_bundle && self::running_with_code_coverage() ) {
@@ -1565,7 +1570,14 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private function composer_command( $cmd ): void {
 		if ( ! isset( $this->variables['COMPOSER_PATH'] ) ) {
-			$this->variables['COMPOSER_PATH'] = exec( 'which composer' );
+			$command = Utils\is_windows() ? 'where composer' : 'which composer';
+			$path    = exec( $command );
+			if ( false === $path ) {
+				throw new RuntimeException( 'Could not find composer.' );
+			}
+			// In case of multiple paths, pick the first one.
+			$path                             = strtok( $path, PHP_EOL );
+			$this->variables['COMPOSER_PATH'] = $path;
 		}
 		$this->proc( $this->variables['COMPOSER_PATH'] . ' --no-interaction ' . $cmd )->run_check();
 	}
