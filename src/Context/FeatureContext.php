@@ -565,13 +565,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			mkdir( $dir );
 		}
 
-		Process::create(
-			Utils\esc_cmd(
-				'curl -sSfL %1$s > %2$s',
-				$download_url,
-				$download_location
-			)
-		)->run_check();
+		$response = Utils\http_request( 'GET', $download_url, null, [], [ 'filename' => $download_location ] );
+
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download SQLite plugin (HTTP code {$response->status_code})" );
+		}
 
 		$zip          = new \ZipArchive();
 		$new_zip_file = $download_location;
@@ -656,6 +654,11 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 		self::$behat_run_dir = getcwd();
 		self::$mysql_binary  = Utils\get_mysql_binary_path();
+
+		// TODO: Improve Windows support upstream in Utils\get_mysql_binary_path().
+		if ( Utils\is_windows() && ! self::$mysql_binary ) {
+			self::$mysql_binary = 'mysql.exe';
+		}
 
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
@@ -760,6 +763,10 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param int $master_pid
 	 */
 	private static function terminate_proc( $master_pid ): void {
+		if ( Utils\is_windows() ) {
+			shell_exec( "taskkill /F /T /PID $master_pid > NUL 2>&1" );
+			return;
+		}
 
 		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
@@ -772,6 +779,10 @@ class FeatureContext implements SnippetAcceptingContext {
 					self::terminate_proc( (int) $child );
 				}
 			}
+		}
+
+		if ( ! function_exists( 'posix_kill' ) ) {
+			return;
 		}
 
 		if ( ! posix_kill( (int) $master_pid, 9 ) ) {
@@ -1078,13 +1089,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			. uniqid( 'wp-cli-download-', true )
 			. '.phar';
 
-		Process::create(
-			Utils\esc_cmd(
-				'curl -sSfL %1$s > %2$s && chmod +x %2$s',
-				$download_url,
-				$this->variables['PHAR_PATH']
-			)
-		)->run_check();
+		$response = Utils\http_request( 'GET', $download_url, null, [], [ 'filename' => $this->variables['PHAR_PATH'] ] );
+
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download WP-CLI PHAR (HTTP code {$response->status_code})" );
+		}
 	}
 
 	/**
@@ -1260,7 +1269,24 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $dir
 	 */
 	public static function remove_dir( $dir ): void {
-		Process::create( Utils\esc_cmd( 'rm -rf %s', $dir ) )->run_check();
+		if ( ! is_dir( $dir ) ) {
+			return;
+		}
+
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::CHILD_FIRST
+		);
+
+		foreach ( $iterator as $file ) {
+			if ( $file->isDir() ) {
+				rmdir( $file->getRealPath() );
+			} else {
+				unlink( $file->getRealPath() );
+			}
+		}
+
+		rmdir( $dir );
 	}
 
 	/**
@@ -1270,10 +1296,21 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $dest_dir
 	 */
 	public static function copy_dir( $src_dir, $dest_dir ): void {
-		$shell_command = ( 'Darwin' === PHP_OS )
-			? Utils\esc_cmd( 'cp -R %s/* %s', $src_dir, $dest_dir )
-			: Utils\esc_cmd( 'cp -r %s/* %s', $src_dir, $dest_dir );
-		Process::create( $shell_command )->run_check();
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $src_dir, \RecursiveDirectoryIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::SELF_FIRST
+		);
+
+		foreach ( $iterator as $item ) {
+			$dest_path = $dest_dir . '/' . $iterator->getSubPathname();
+			if ( $item->isDir() ) {
+				if ( ! is_dir( $dest_path ) ) {
+					mkdir( $dest_path, 0777, true );
+				}
+			} else {
+				copy( $item->getPathname(), $dest_path );
+			}
+		}
 	}
 
 	/**
