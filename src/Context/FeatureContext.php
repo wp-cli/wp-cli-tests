@@ -764,7 +764,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private static function terminate_proc( $master_pid ): void {
 		if ( Utils\is_windows() ) {
-			proc_close( proc_open( "taskkill /F /T /PID $master_pid", [], $pipes ) );
+			shell_exec( "taskkill /F /T /PID $master_pid > NUL 2>&1" );
 			return;
 		}
 
@@ -779,6 +779,10 @@ class FeatureContext implements SnippetAcceptingContext {
 					self::terminate_proc( (int) $child );
 				}
 			}
+		}
+
+		if ( ! function_exists( 'posix_kill' ) ) {
+			return;
 		}
 
 		if ( ! posix_kill( (int) $master_pid, 9 ) ) {
