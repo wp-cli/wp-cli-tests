@@ -763,6 +763,10 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param int $master_pid
 	 */
 	private static function terminate_proc( $master_pid ): void {
+		if ( Utils\is_windows() ) {
+			proc_close( proc_open( "taskkill /F /T /PID $master_pid", [], $pipes ) );
+			return;
+		}
 
 		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
