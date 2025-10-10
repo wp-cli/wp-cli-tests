@@ -1455,7 +1455,8 @@ class FeatureContext implements SnippetAcceptingContext {
 			if ( 'sqlite' !== self::$db_type ) {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
-				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
+				$help_output               = shell_exec( "{$mysqldump_binary} --help" );
+				$support_column_statistics = false !== strpos( $help_output, 'column-statistics' );
 				$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
 				if ( $support_column_statistics ) {
 					$command .= ' --skip-column-statistics';
