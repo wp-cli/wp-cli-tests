@@ -441,11 +441,14 @@ class FeatureContext implements SnippetAcceptingContext {
 		$path_separator  = Utils\is_windows() ? ';' : ':';
 		$php_binary_path = dirname( PHP_BINARY );
 		$env             = [
-			'PATH'         => $php_binary_path . $path_separator . $bin_path . $path_separator . getenv( 'PATH' ),
-			'BEHAT_RUN'    => 1,
-			'HOME'         => sys_get_temp_dir() . '/wp-cli-home',
-			'TEST_RUN_DIR' => self::$behat_run_dir,
+			'PATH'          => $php_binary_path . $path_separator . $bin_path . $path_separator . getenv( 'PATH' ),
+			'BEHAT_RUN'     => 1,
+			'HOME'          => sys_get_temp_dir() . '/wp-cli-home',
+			'COMPOSER_HOME' => sys_get_temp_dir() . '/wp-cli-composer-home',
+			'TEST_RUN_DIR'  => self::$behat_run_dir,
 		];
+
+		$env = array_merge( $_ENV, $env );
 
 		if ( self::running_with_code_coverage() ) {
 			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
@@ -1441,7 +1444,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		$subdir = $this->replace_variables( $subdir );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
+		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }" . PHP_EOL;
 
 		if ( 'sqlite' !== self::$db_type ) {
 			$this->create_db();
@@ -1517,9 +1520,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
+		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }" . PHP_EOL;
 
-		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';\n";
+		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';" . PHP_EOL;
 
 		$this->create_config( 'WordPress', $config_extra_php );
 
