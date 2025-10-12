@@ -1242,8 +1242,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		wp_cli_behat_env_debug( "Running command: {$command}" );
-		wp_cli_behat_env_debug( "In directory: {$cwd}" );
-		wp_cli_behat_env_debug( "With PATH: {$env['PATH']}" );
 
 		return Process::create( $command, $cwd, $env );
 	}

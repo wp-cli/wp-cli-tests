@@ -84,10 +84,6 @@ class Process {
 			];
 			$proc  = \WP_CLI\Utils\proc_open_compat( $this->command, $descriptors, $pipes, $this->cwd, $this->env );
 			fclose( $pipes[0] );
-			$stdout = file_get_contents( $stdout_file );
-			$stderr = file_get_contents( $stderr_file );
-			unlink( $stdout_file );
-			unlink( $stderr_file );
 		} else {
 			$proc   = \WP_CLI\Utils\proc_open_compat( $this->command, self::$descriptors, $pipes, $this->cwd, $this->env );
 			$stdout = stream_get_contents( $pipes[1] );
@@ -97,6 +93,13 @@ class Process {
 		}
 
 		$return_code = proc_close( $proc );
+
+		if ( \WP_CLI\Utils\is_windows() ) {
+			$stdout = file_get_contents( $stdout_file );
+			$stderr = file_get_contents( $stderr_file );
+			unlink( $stdout_file );
+			unlink( $stderr_file );
+		}
 
 		$run_time = microtime( true ) - $start_time;
 
