@@ -63,7 +63,7 @@ class TestBehatTags extends TestCase {
 	 * @return string|false The output of the script.
 	 */
 	private function run_behat_tags_script( $env = '' ) {
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
+		$behat_tags = dirname( dirname( __DIR__ ) ) . DIRECTORY_SEPARATOR . 'utils' . DIRECTORY_SEPARATOR . 'behat-tags.php';
 
 		// Use the `-n` flag to disable loading of `php.ini` and ensure a clean environment.
 		$php_run = escapeshellarg( PHP_BINARY ) . ' -n ' . escapeshellarg( $behat_tags );
@@ -267,7 +267,7 @@ class TestBehatTags extends TestCase {
 	public function test_behat_tags_db_version(): void {
 		$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
 
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
+		$behat_tags = dirname( dirname( __DIR__ ) ) . DIRECTORY_SEPARATOR . 'utils' . DIRECTORY_SEPARATOR . 'behat-tags.php';
 
 		// Just to get the get_db_version() function. Prevents unexpected output.
 		ob_start();
