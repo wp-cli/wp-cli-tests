@@ -411,12 +411,11 @@ class FeatureContext implements SnippetAcceptingContext {
 		foreach ( $bin_paths as $path ) {
 			$full_bin_path = $path . DIRECTORY_SEPARATOR . $bin;
 			if ( is_file( $full_bin_path ) && is_executable( $full_bin_path ) ) {
-				$bin_path = $path;
-				break;
+				return $path;
 			}
 		}
 
-		return $bin_path;
+		return null;
 	}
 
 	/**
