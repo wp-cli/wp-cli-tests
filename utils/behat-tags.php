@@ -24,7 +24,7 @@ function version_tags(
 	}
 
 	$existing_tags = array();
-	$feature_files = glob( $features_folder . '/*.feature' );
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
 	if ( ! empty( $feature_files ) ) {
 		foreach ( $feature_files as $feature_file ) {
 			$contents = file_get_contents( $feature_file );
@@ -127,7 +127,7 @@ switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 # Require PHP extension, eg 'imagick'.
 function extension_tags( $features_folder = 'features' ) {
 	$extension_tags = array();
-	$feature_files  = glob( $features_folder . '/*.feature' );
+	$feature_files  = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
 	if ( ! empty( $feature_files ) ) {
 		foreach ( $feature_files as $feature_file ) {
 			$contents = file_get_contents( $feature_file );
