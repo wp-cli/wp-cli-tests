@@ -53,11 +53,11 @@ class TestBehatTags extends TestCase {
 
 		$command = '';
 		if ( ! empty( $env ) ) {
-			// putenv() can be unreliable, especially on Windows.
-			// Prepending the variable to the command is a more robust cross-platform solution.
+			// putenv() can be unreliable. Prepending the variable to the command is more robust.
 			if ( DIRECTORY_SEPARATOR === '\\' ) { // Windows
-				// Note: `set` is internal to `cmd.exe` and works on the subsequent command after `&&`.
-				$command = 'set ' . escapeshellarg( $env ) . ' && ';
+				// `set` is internal to `cmd.exe`. Do not escape the $env variable, as it's from a trusted
+				// data provider and `escapeshellarg` adds quotes that `set` doesn't understand.
+				$command = 'set ' . $env . ' && ';
 			} else {
 				// On Unix-like systems, this sets the variable for the duration of the command.
 				$command = $env . ' ';
@@ -65,6 +65,7 @@ class TestBehatTags extends TestCase {
 		}
 
 		$command = 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . $command . $php_run;
+		echo "Executing Command: {$command}\n";
 		$output  = exec( $command );
 
 		return $output;
@@ -238,6 +239,9 @@ class TestBehatTags extends TestCase {
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
 		$output   = $this->run_behat_tags_script();
+		echo "Imagick Loaded in Test: " . ( extension_loaded( 'imagick' ) ? 'Yes' : 'No' ) . "\n";
+		echo "Expected: {$expected}\n";
+		echo "Actual:   {$output}\n";
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
