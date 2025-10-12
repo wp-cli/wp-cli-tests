@@ -408,18 +408,12 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$bin = Utils\is_windows() ? 'wp.bat' : 'wp';
 
-		wp_cli_behat_env_debug( 'Searching for WP-CLI binary...' );
 		foreach ( $bin_paths as $path ) {
 			$full_bin_path = $path . DIRECTORY_SEPARATOR . $bin;
-			wp_cli_behat_env_debug( "Checking path: {$full_bin_path}" );
-			wp_cli_behat_env_debug( 'is_file: ' . ( is_file( $full_bin_path ) ? 'true' : 'false' ) );
-			wp_cli_behat_env_debug( 'is_executable: ' . ( is_executable( $full_bin_path ) ? 'true' : 'false' ) );
-			if ( is_file( $full_bin_path ) && is_executable( $full_bin_path ) ) {
-				wp_cli_behat_env_debug( "Found at: {$path}" );
+			if ( is_file( $full_bin_path ) && ( Utils\is_windows() || is_executable( $full_bin_path ) ) ) {
 				return $path;
 			}
 		}
-		wp_cli_behat_env_debug( 'WP-CLI binary not found in search paths.' );
 
 		return null;
 	}
