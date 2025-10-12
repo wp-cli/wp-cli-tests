@@ -23,16 +23,37 @@ class TestBehatTags extends TestCase {
 	}
 
 	protected function tear_down(): void {
-
 		if ( $this->temp_dir && file_exists( $this->temp_dir ) ) {
-			foreach ( glob( $this->temp_dir . '/features/*' ) as $feature_file ) {
-				unlink( $feature_file );
-			}
-			rmdir( $this->temp_dir . '/features' );
-			rmdir( $this->temp_dir );
+			$this->remove_dir( $this->temp_dir );
 		}
 
 		parent::tear_down();
+	}
+
+	/**
+	 * Recursively removes a directory and its contents.
+	 *
+	 * @param string $dir The directory to remove.
+	 */
+	private function remove_dir( $dir ) {
+		if ( ! is_dir( $dir ) ) {
+			return;
+		}
+
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::CHILD_FIRST
+		);
+
+		foreach ( $iterator as $file ) {
+			if ( $file->isDir() ) {
+				rmdir( $file->getRealPath() );
+			} else {
+				unlink( $file->getRealPath() );
+			}
+		}
+
+		rmdir( $dir );
 	}
 
 	/**
