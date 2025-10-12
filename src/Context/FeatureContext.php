@@ -406,12 +406,26 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::get_framework_dir() . DIRECTORY_SEPARATOR . 'bin',
 		];
 
-		$bin = Utils\is_windows() ? 'wp.bat' : 'wp';
-
-		foreach ( $bin_paths as $path ) {
-			$full_bin_path = $path . DIRECTORY_SEPARATOR . $bin;
-			if ( is_file( $full_bin_path ) && ( Utils\is_windows() || is_executable( $full_bin_path ) ) ) {
-				return $path;
+		if ( Utils\is_windows() ) {
+			foreach ( $bin_paths as $path ) {
+				$wp_script_path = $path . DIRECTORY_SEPARATOR . 'wp';
+				if ( is_file( $wp_script_path ) ) {
+					$wp_bat_path = $path . DIRECTORY_SEPARATOR . 'wp.bat';
+					if ( ! is_file( $wp_bat_path ) ) {
+						$bat_content = '@ECHO OFF' . PHP_EOL;
+						// Use the currently running PHP executable to avoid PATH issues.
+						$bat_content .= '"' . PHP_BINARY . '" "' . realpath( $wp_script_path ) . '" %*';
+						file_put_contents( $wp_bat_path, $bat_content );
+					}
+					return $path;
+				}
+			}
+		} else {
+			foreach ( $bin_paths as $path ) {
+				$full_bin_path = $path . DIRECTORY_SEPARATOR . 'wp';
+				if ( is_file( $full_bin_path ) && is_executable( $full_bin_path ) ) {
+					return $path;
+				}
 			}
 		}
 
@@ -439,19 +453,10 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
 
-		$bin = $bin_path . DIRECTORY_SEPARATOR . ( Utils\is_windows() ? 'wp.bat' : 'wp' );
-
-		if ( ! file_exists( $bin ) ) {
-			wp_cli_behat_env_debug( "WARNING: File $bin not found." );
-		}
-
-		if ( ! is_executable( $bin ) ) {
-			wp_cli_behat_env_debug( "WARNING: File $bin is not executable." );
-		}
-
-		$path_separator = Utils\is_windows() ? ';' : ':';
-		$env            = [
-			'PATH'         => $bin_path . $path_separator . getenv( 'PATH' ),
+		$path_separator  = Utils\is_windows() ? ';' : ':';
+		$php_binary_path = dirname( PHP_BINARY );
+		$env             = [
+			'PATH'         => $php_binary_path . $path_separator . $bin_path . $path_separator . getenv( 'PATH' ),
 			'BEHAT_RUN'    => 1,
 			'HOME'         => sys_get_temp_dir() . '/wp-cli-home',
 			'TEST_RUN_DIR' => self::$behat_run_dir,
@@ -1241,6 +1246,10 @@ class FeatureContext implements SnippetAcceptingContext {
 			$cwd = null;
 		}
 
+		wp_cli_behat_env_debug( "Running command: {$command}" );
+		wp_cli_behat_env_debug( "In directory: {$cwd}" );
+		wp_cli_behat_env_debug( "With PATH: {$env['PATH']}" );
+
 		return Process::create( $command, $cwd, $env );
 	}
 
@@ -1250,20 +1259,41 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $cmd
 	 */
 	public function background_proc( $cmd ): void {
-		$descriptors = [
-			0 => STDIN,
-			1 => [ 'pipe', 'w' ],
-			2 => [ 'pipe', 'w' ],
-		];
+		if ( Utils\is_windows() ) {
+			// On Windows, leaving pipes open can cause hangs.
+			// Redirect output to files and close stdin.
+			$stdout_file = tempnam( sys_get_temp_dir(), 'behat-stdout-' );
+			$stderr_file = tempnam( sys_get_temp_dir(), 'behat-stderr-' );
+			$descriptors = [
+				0 => [ 'pipe', 'r' ],
+				1 => [ 'file', $stdout_file, 'a' ],
+				2 => [ 'file', $stderr_file, 'a' ],
+			];
+		} else {
+			$descriptors = [
+				0 => STDIN,
+				1 => [ 'pipe', 'w' ],
+				2 => [ 'pipe', 'w' ],
+			];
+		}
 
 		$proc = proc_open( $cmd, $descriptors, $pipes, $this->variables['RUN_DIR'], self::get_process_env_variables() );
+
+		if ( Utils\is_windows() ) {
+			fclose( $pipes[0] );
+		}
 
 		sleep( 1 );
 
 		$status = proc_get_status( $proc );
 
 		if ( ! $status['running'] ) {
-			$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
+			if ( Utils\is_windows() ) {
+				$stderr = file_get_contents( $stderr_file );
+				$stderr = $stderr ? ': ' . $stderr : '';
+			} else {
+				$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
+			}
 			throw new RuntimeException( sprintf( "Failed to start background process '%s'%s.", $cmd, $stderr ) );
 		}
 
