@@ -61,7 +61,7 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
   Scenario: Special variables
 
     When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS-} cli info`
-    Then STDOUT should match /wp cli info/
+    Then STDOUT should match /(wp|wp\.bat) cli info/
     And STDERR should be empty
 
     When I run `echo {WP_VERSION-latest}`
