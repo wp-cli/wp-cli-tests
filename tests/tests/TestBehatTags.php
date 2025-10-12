@@ -44,12 +44,8 @@ class TestBehatTags extends TestCase {
 	private function run_behat_tags_script( $env = '' ) {
 		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 
-		// Get the loaded ini file from the current process to ensure config consistency.
-		$ini_file = php_ini_loaded_file();
-		$ini_arg  = $ini_file ? ' -c ' . escapeshellarg( $ini_file ) : '';
-
-		// Use the same PHP binary that is running the tests.
-		$php_run = escapeshellarg( PHP_BINARY ) . $ini_arg . ' ' . escapeshellarg( $behat_tags );
+		// Use the `-n` flag to disable loading of `php.ini` and ensure a clean environment.
+		$php_run = escapeshellarg( PHP_BINARY ) . ' -n ' . escapeshellarg( $behat_tags );
 
 		$command = '';
 		if ( ! empty( $env ) ) {
@@ -65,7 +61,6 @@ class TestBehatTags extends TestCase {
 		}
 
 		$command = 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . $command . $php_run;
-		echo "Executing Command: {$command}\n";
 		$output  = exec( $command );
 
 		return $output;
@@ -239,9 +234,6 @@ class TestBehatTags extends TestCase {
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
 		$output   = $this->run_behat_tags_script();
-		echo "Imagick Loaded in Test: " . ( extension_loaded( 'imagick' ) ? 'Yes' : 'No' ) . "\n";
-		echo "Expected: {$expected}\n";
-		echo "Actual:   {$output}\n";
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
