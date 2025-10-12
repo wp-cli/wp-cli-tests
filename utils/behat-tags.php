@@ -23,10 +23,17 @@ function version_tags(
 		return array();
 	}
 
-	exec(
-		"grep '@{$prefix}-[0-9\.]*' -h -o {$features_folder}/*.feature | uniq",
-		$existing_tags
-	);
+	$existing_tags = array();
+	$feature_files = glob( $features_folder . '/*.feature' );
+	if ( ! empty( $feature_files ) ) {
+		foreach ( $feature_files as $feature_file ) {
+			$contents = file_get_contents( $feature_file );
+			if ( preg_match_all( '/@' . $prefix . '-[0-9\.]+/', $contents, $matches ) ) {
+				$existing_tags = array_merge( $existing_tags, $matches[0] );
+			}
+		}
+		$existing_tags = array_unique( $existing_tags );
+	}
 
 	$skip_tags = array();
 
@@ -41,7 +48,11 @@ function version_tags(
 }
 
 function get_db_version() {
-	$version_string = exec( getenv( 'WP_CLI_TEST_DBTYPE' ) === 'mariadb' ? 'mariadb --version' : 'mysql -V' );
+	$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
+	if ( 'sqlite' === $db_type ) {
+		return '';
+	}
+	$version_string = exec( 'mariadb' === $db_type ? 'mariadb --version' : 'mysql -V' );
 	preg_match( '@[0-9]+\.[0-9]+\.[0-9]+@', $version_string, $version );
 	return $version[0];
 }
@@ -116,10 +127,16 @@ switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 # Require PHP extension, eg 'imagick'.
 function extension_tags( $features_folder = 'features' ) {
 	$extension_tags = array();
-	exec(
-		"grep '@require-extension-[A-Za-z_]*' -h -o {$features_folder}/*.feature | uniq",
-		$extension_tags
-	);
+	$feature_files  = glob( $features_folder . '/*.feature' );
+	if ( ! empty( $feature_files ) ) {
+		foreach ( $feature_files as $feature_file ) {
+			$contents = file_get_contents( $feature_file );
+			if ( preg_match_all( '/@require-extension-[A-Za-z_]*/', $contents, $matches ) ) {
+				$extension_tags = array_merge( $extension_tags, $matches[0] );
+			}
+		}
+		$extension_tags = array_unique( $extension_tags );
+	}
 
 	$skip_tags = array();
 
