@@ -55,7 +55,14 @@ class TestBehatTags extends TestCase {
 		$contents = '@require-wp-4.6 @require-wp-4.8 @require-wp-4.9 @less-than-wp-4.6 @less-than-wp-4.8 @less-than-wp-4.9';
 		file_put_contents( $this->temp_dir . '/features/wp_version.feature', $contents );
 
-		$output = exec( "cd {$this->temp_dir}; $env php $behat_tags" );
+		if ( ! empty( $env ) ) {
+			putenv( $env );
+		}
+		$output = exec( 'cd ' . escapeshellarg( $this->temp_dir ) . ' && php ' . escapeshellarg( $behat_tags ) );
+		if ( ! empty( $env ) ) {
+			list( $key ) = explode( '=', $env, 2 );
+			putenv( $key );
+		}
 
 		$expected .= '&&~@broken';
 		if ( in_array( $env, array( 'WP_VERSION=trunk', 'WP_VERSION=nightly' ), true ) ) {
