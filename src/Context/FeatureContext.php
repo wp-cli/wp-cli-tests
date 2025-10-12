@@ -702,10 +702,9 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::get_behat_internal_variables()
 		);
 
-		$mysql_binary     = Utils\get_mysql_binary_path();
 		$sql_dump_command = Utils\get_sql_dump_command();
 
-		$this->variables['MYSQL_BINARY']     = $mysql_binary;
+		$this->variables['MYSQL_BINARY']     = self::$mysql_binary;
 		$this->variables['SQL_DUMP_COMMAND'] = $sql_dump_command;
 
 		// Used in the names of the RUN_DIR and SUITE_CACHE_DIR directories.
