@@ -406,10 +406,28 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::get_framework_dir() . '/bin',
 		];
 
-		foreach ( $bin_paths as $path ) {
-			if ( is_file( "{$path}/wp" ) && is_executable( "{$path}/wp" ) ) {
-				$bin_path = $path;
-				break;
+		if ( Utils\is_windows() ) {
+			foreach ( $bin_paths as $path ) {
+				$wp_script_path = $path . DIRECTORY_SEPARATOR . 'wp';
+				$wp_bat_path    = $path . DIRECTORY_SEPARATOR . 'wp.bat';
+
+				if ( is_file( $wp_script_path ) ) {
+					if ( ! is_file( $wp_bat_path ) ) {
+						$bat_content  = '@ECHO OFF' . PHP_EOL;
+						$bat_content .= 'php "' . realpath( $wp_script_path ) . '" %*';
+						file_put_contents( $wp_bat_path, $bat_content );
+					}
+					$bin_path = $path;
+					break;
+				}
+			}
+		} else {
+			foreach ( $bin_paths as $path ) {
+				$full_bin_path = $path . DIRECTORY_SEPARATOR . 'wp';
+				if ( is_file( $full_bin_path ) && is_executable( $full_bin_path ) ) {
+					$bin_path = $path;
+					break;
+				}
 			}
 		}
 
@@ -430,14 +448,21 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		// Ensure we're using the expected `wp` binary.
 		$bin_path = self::get_bin_path();
-		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
 
-		if ( ! file_exists( "{$bin_path}/wp" ) ) {
-			wp_cli_behat_env_debug( "WARNING: No file named 'wp' found in the provided/detected binary path." );
+		if ( ! $bin_path ) {
+			throw new RuntimeException( 'Could not find WP-CLI binary path.' );
 		}
 
-		if ( ! is_executable( "{$bin_path}/wp" ) ) {
-			wp_cli_behat_env_debug( "WARNING: File named 'wp' found in the provided/detected binary path is not executable." );
+		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
+
+		$executable = Utils\is_windows() ? $bin_path . DIRECTORY_SEPARATOR . 'wp.bat' : $bin_path . DIRECTORY_SEPARATOR . 'wp';
+
+		if ( ! file_exists( $executable ) ) {
+			wp_cli_behat_env_debug( "WARNING: File $executable not found." );
+		}
+
+		if ( ! is_executable( $executable ) ) {
+			wp_cli_behat_env_debug( "WARNING: File $executable is not executable." );
 		}
 
 		$path_separator = Utils\is_windows() ? ';' : ':';
