@@ -19,7 +19,7 @@ class TestBehatTags extends TestCase {
 
 		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true );
 		mkdir( $this->temp_dir );
-		mkdir( $this->temp_dir . '/features' );
+		mkdir( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' );
 	}
 
 	protected function tear_down(): void {
@@ -71,7 +71,7 @@ class TestBehatTags extends TestCase {
 		$command = '';
 		if ( ! empty( $env ) ) {
 			// putenv() can be unreliable. Prepending the variable to the command is more robust.
-			if ( DIRECTORY_SEPARATOR === '\\' ) { // Windows
+			if ( Utils\is_windows() ) {
 				// `set` is internal to `cmd.exe`. Do not escape the $env variable, as it's from a trusted
 				// data provider and `escapeshellarg` adds quotes that `set` doesn't understand.
 				// Note: `set "VAR=VALUE"` is more robust than `set VAR=VALUE`.
@@ -104,7 +104,7 @@ class TestBehatTags extends TestCase {
 		putenv( 'GITHUB_TOKEN' );
 
 		$contents = '@require-wp-4.6 @require-wp-4.8 @require-wp-4.9 @less-than-wp-4.6 @less-than-wp-4.8 @less-than-wp-4.9';
-		file_put_contents( $this->temp_dir . '/features/wp_version.feature', $contents );
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'wp_version.feature', $contents );
 
 		$output = $this->run_behat_tags_script( $env );
 
@@ -212,7 +212,7 @@ class TestBehatTags extends TestCase {
 				break;
 		}
 
-		file_put_contents( $this->temp_dir . '/features/php_version.feature', $contents );
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'php_version.feature', $contents );
 
 		$output = $this->run_behat_tags_script();
 		$this->assertSame( '--tags=' . $expected, $output );
@@ -226,7 +226,7 @@ class TestBehatTags extends TestCase {
 
 		putenv( 'GITHUB_TOKEN' );
 
-		file_put_contents( $this->temp_dir . '/features/extension.feature', '@require-extension-imagick @require-extension-curl' );
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'extension.feature', '@require-extension-imagick @require-extension-curl' );
 
 		$expecteds = array();
 
@@ -304,7 +304,7 @@ class TestBehatTags extends TestCase {
 				break;
 		}
 
-		file_put_contents( $this->temp_dir . '/features/extension.feature', $contents );
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'extension.feature', $contents );
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
 		$output   = $this->run_behat_tags_script();
