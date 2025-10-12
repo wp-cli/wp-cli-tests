@@ -82,7 +82,7 @@ class Process {
 				1 => [ 'file', $stdout_file, 'a' ],
 				2 => [ 'file', $stderr_file, 'a' ],
 			];
-			$proc  = \WP_CLI\Utils\proc_open_compat( $this->command, $descriptors, $pipes, $this->cwd, $this->env );
+			$proc        = \WP_CLI\Utils\proc_open_compat( $this->command, $descriptors, $pipes, $this->cwd, $this->env );
 			fclose( $pipes[0] );
 		} else {
 			$proc   = \WP_CLI\Utils\proc_open_compat( $this->command, self::$descriptors, $pipes, $this->cwd, $this->env );

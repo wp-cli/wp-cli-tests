@@ -405,26 +405,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::get_framework_dir() . DIRECTORY_SEPARATOR . 'bin',
 		];
 
-		if ( Utils\is_windows() ) {
-			foreach ( $bin_paths as $path ) {
-				$wp_script_path = $path . DIRECTORY_SEPARATOR . 'wp';
-				if ( is_file( $wp_script_path ) ) {
-					$wp_bat_path = $path . DIRECTORY_SEPARATOR . 'wp.bat';
-					if ( ! is_file( $wp_bat_path ) ) {
-						$bat_content = '@ECHO OFF' . PHP_EOL;
-						// Use the currently running PHP executable to avoid PATH issues.
-						$bat_content .= '"' . PHP_BINARY . '" "' . realpath( $wp_script_path ) . '" %*';
-						file_put_contents( $wp_bat_path, $bat_content );
-					}
-					return $path;
-				}
-			}
-		} else {
-			foreach ( $bin_paths as $path ) {
-				$full_bin_path = $path . DIRECTORY_SEPARATOR . 'wp';
-				if ( is_file( $full_bin_path ) && is_executable( $full_bin_path ) ) {
-					return $path;
-				}
+		$bin = Utils\is_windows() ? 'wp.bat' : 'wp';
+
+		foreach ( $bin_paths as $path ) {
+			$full_bin_path = $path . DIRECTORY_SEPARATOR . $bin;
+			if ( is_file( $full_bin_path ) && ( Utils\is_windows() || is_executable( $full_bin_path ) ) ) {
+				return $path;
 			}
 		}
 
@@ -683,6 +669,10 @@ class FeatureContext implements SnippetAcceptingContext {
 		$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( file_exists( $install_cache_dir ) ) {
 			self::remove_dir( $install_cache_dir );
+		}
+
+		if ( getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
+			exit;
 		}
 	}
 
@@ -1847,9 +1837,6 @@ class FeatureContext implements SnippetAcceptingContext {
  * @param string $message
  */
 function wp_cli_behat_env_debug( $message ): void { // phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
-	// Always print the message to STDERR for debugging purposes.
-	fwrite( STDERR, "{$message}\n" );
-
 	if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
 		return;
 	}

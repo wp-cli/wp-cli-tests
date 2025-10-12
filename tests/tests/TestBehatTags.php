@@ -225,10 +225,13 @@ class TestBehatTags extends TestCase {
 				break;
 		}
 
-		if ( ! extension_loaded( 'imagick' ) ) {
+		// Check which extensions are loaded in the clean `php -n` environment to build the correct expectation.
+		$imagick_loaded_in_script = (bool) exec( escapeshellarg( PHP_BINARY ) . ' -n -r "echo (int)extension_loaded(\'imagick\');"' );
+		if ( ! $imagick_loaded_in_script ) {
 			$expecteds[] = '~@require-extension-imagick';
 		}
-		if ( ! extension_loaded( 'curl' ) ) {
+		$curl_loaded_in_script = (bool) exec( escapeshellarg( PHP_BINARY ) . ' -n -r "echo (int)extension_loaded(\'curl\');"' );
+		if ( ! $curl_loaded_in_script ) {
 			$expecteds[] = '~@require-extension-curl';
 		}
 
