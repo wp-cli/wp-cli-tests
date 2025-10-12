@@ -1198,6 +1198,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $command
 	 * @param array<string, string> $assoc_args
 	 * @param string $path
+	 * @param array<string, string> $extra_env
 	 * @return Process
 	 */
 	public function proc( $command, $assoc_args = [], $path = '', $extra_env = [] ): Process {
