@@ -675,7 +675,11 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::$mysql_binary = Utils\get_mysql_binary_path();
 		}
 
-		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
+		$command = 'wp cli info';
+		if ( Utils\is_windows() ) {
+			$command .= ' > NUL 2>&1';
+		}
+		$result = Process::create( $command, null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
 
 		// Remove install cache if any (not setting the static var).
@@ -684,10 +688,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( file_exists( $install_cache_dir ) ) {
 			self::remove_dir( $install_cache_dir );
-		}
-
-		if ( getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
-			exit;
 		}
 	}
 
@@ -1854,6 +1854,9 @@ class FeatureContext implements SnippetAcceptingContext {
  * @param string $message
  */
 function wp_cli_behat_env_debug( $message ): void { // phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
+	// Always print the message to STDERR for debugging purposes.
+	fwrite( STDERR, "{$message}\n" );
+
 	if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
 		return;
 	}

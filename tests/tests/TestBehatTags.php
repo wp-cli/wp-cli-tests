@@ -44,16 +44,20 @@ class TestBehatTags extends TestCase {
 	private function run_behat_tags_script( $env = '' ) {
 		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 
-		// Use the same PHP binary that is running the tests to ensure extension consistency.
-		$php_run = escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $behat_tags );
+		// Get the loaded ini file from the current process to ensure config consistency.
+		$ini_file = php_ini_loaded_file();
+		$ini_arg  = $ini_file ? ' -c ' . escapeshellarg( $ini_file ) : '';
+
+		// Use the same PHP binary that is running the tests.
+		$php_run = escapeshellarg( PHP_BINARY ) . $ini_arg . ' ' . escapeshellarg( $behat_tags );
 
 		$command = '';
 		if ( ! empty( $env ) ) {
 			// putenv() can be unreliable, especially on Windows.
 			// Prepending the variable to the command is a more robust cross-platform solution.
-			if ( Utils\is_windows() ) {
+			if ( DIRECTORY_SEPARATOR === '\\' ) { // Windows
 				// Note: `set` is internal to `cmd.exe` and works on the subsequent command after `&&`.
-				$command = 'set ' . $env . ' && ';
+				$command = 'set ' . escapeshellarg( $env ) . ' && ';
 			} else {
 				// On Unix-like systems, this sets the variable for the duration of the command.
 				$command = $env . ' ';
