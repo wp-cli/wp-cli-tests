@@ -13,7 +13,7 @@ Feature: Test that WP-CLI loads.
     Given a WP install
     And the wp-config.php file should contain:
       """
-      if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }
+      if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }
       """
     And a test_cron.php file:
       """
