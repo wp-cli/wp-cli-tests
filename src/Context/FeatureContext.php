@@ -324,9 +324,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		// We try to detect the vendor folder in the most probable locations.
 		$vendor_locations = [
 			// wp-cli/wp-cli-tests is a dependency of the current working dir.
-			getcwd() . '/vendor',
+			getcwd() . DIRECTORY_SEPARATOR . 'vendor',
 			// wp-cli/wp-cli-tests is the root project.
-			dirname( __DIR__, 2 ) . '/vendor',
+			dirname( __DIR__, 2 ) . DIRECTORY_SEPARATOR . 'vendor',
 			// wp-cli/wp-cli-tests is a dependency.
 			dirname( __DIR__, 4 ),
 		];
@@ -365,7 +365,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			// wp-cli/wp-cli is the root project.
 			dirname( $vendor_folder ),
 			// wp-cli/wp-cli is a dependency.
-			"{$vendor_folder}/wp-cli/wp-cli",
+			$vendor_folder . DIRECTORY_SEPARATOR . 'wp-cli' . DIRECTORY_SEPARATOR . 'wp-cli',
 		];
 
 		$framework_folder = '';
@@ -402,32 +402,17 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$bin_paths = [
-			self::get_vendor_dir() . '/bin',
-			self::get_framework_dir() . '/bin',
+			self::get_vendor_dir() . DIRECTORY_SEPARATOR . 'bin',
+			self::get_framework_dir() . DIRECTORY_SEPARATOR . 'bin',
 		];
 
-		if ( Utils\is_windows() ) {
-			foreach ( $bin_paths as $path ) {
-				$wp_script_path = $path . DIRECTORY_SEPARATOR . 'wp';
-				$wp_bat_path    = $path . DIRECTORY_SEPARATOR . 'wp.bat';
+		$bin = Utils\is_windows() ? 'wp.bat' : 'wp';
 
-				if ( is_file( $wp_script_path ) ) {
-					if ( ! is_file( $wp_bat_path ) ) {
-						$bat_content  = '@ECHO OFF' . PHP_EOL;
-						$bat_content .= 'php "' . realpath( $wp_script_path ) . '" %*';
-						file_put_contents( $wp_bat_path, $bat_content );
-					}
-					$bin_path = $path;
-					break;
-				}
-			}
-		} else {
-			foreach ( $bin_paths as $path ) {
-				$full_bin_path = $path . DIRECTORY_SEPARATOR . 'wp';
-				if ( is_file( $full_bin_path ) && is_executable( $full_bin_path ) ) {
-					$bin_path = $path;
-					break;
-				}
+		foreach ( $bin_paths as $path ) {
+			$full_bin_path = $path . DIRECTORY_SEPARATOR . $bin;
+			if ( is_file( $full_bin_path ) && is_executable( $full_bin_path ) ) {
+				$bin_path = $path;
+				break;
 			}
 		}
 
@@ -455,14 +440,14 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
 
-		$executable = Utils\is_windows() ? $bin_path . DIRECTORY_SEPARATOR . 'wp.bat' : $bin_path . DIRECTORY_SEPARATOR . 'wp';
+		$bin = $bin_path . DIRECTORY_SEPARATOR . ( Utils\is_windows() ? 'wp.bat' : 'wp' );
 
-		if ( ! file_exists( $executable ) ) {
-			wp_cli_behat_env_debug( "WARNING: File $executable not found." );
+		if ( ! file_exists( $bin ) ) {
+			wp_cli_behat_env_debug( "WARNING: File $bin not found." );
 		}
 
-		if ( ! is_executable( $executable ) ) {
-			wp_cli_behat_env_debug( "WARNING: File $executable is not executable." );
+		if ( ! is_executable( $bin ) ) {
+			wp_cli_behat_env_debug( "WARNING: File $bin is not executable." );
 		}
 
 		$path_separator = Utils\is_windows() ? ';' : ':';
@@ -933,18 +918,19 @@ class FeatureContext implements SnippetAcceptingContext {
 			$phar_begin     = '#!/usr/bin/env php';
 			$phar_begin_len = strlen( $phar_begin );
 			$bin_dir        = getenv( 'WP_CLI_BIN_DIR' );
+			$bin            = Utils\is_windows() ? 'wp.bat' : 'wp';
 			if ( false !== $bin_dir && file_exists( $bin_dir . '/wp' ) && file_get_contents( $bin_dir . '/wp', false, null, 0, $phar_begin_len ) === $phar_begin ) {
-				$phar_path = $bin_dir . '/wp';
+				$phar_path = $bin_dir . $bin;
 			} else {
 				$src_dir         = dirname( __DIR__, 2 );
-				$bin_path        = $src_dir . '/bin/wp';
-				$vendor_bin_path = $src_dir . '/vendor/bin/wp';
+				$bin_path        = $src_dir . '/bin/' . $bin;
+				$vendor_bin_path = $src_dir . '/vendor/bin/' . $bin;
 				if ( file_exists( $bin_path ) && is_executable( $bin_path ) ) {
 					$shell_path = $bin_path;
 				} elseif ( file_exists( $vendor_bin_path ) && is_executable( $vendor_bin_path ) ) {
 					$shell_path = $vendor_bin_path;
 				} else {
-					$shell_path = 'wp';
+					$shell_path = $bin;
 				}
 			}
 		}
