@@ -68,18 +68,23 @@ class TestBehatTags extends TestCase {
 		// Use the `-n` flag to disable loading of `php.ini` and ensure a clean environment.
 		$php_run = escapeshellarg( PHP_BINARY ) . ' -n ' . escapeshellarg( $behat_tags );
 
+		$features_dir = $this->temp_dir . DIRECTORY_SEPARATOR . 'features';
+
 		$command = '';
-		if ( ! empty( $env ) ) {
-			// putenv() can be unreliable. Prepending the variable to the command is more robust.
-			if ( Utils\is_windows() ) {
-				// `set` is internal to `cmd.exe`. Do not escape the $env variable, as it's from a trusted
-				// data provider and `escapeshellarg` adds quotes that `set` doesn't understand.
-				// Note: `set "VAR=VALUE"` is more robust than `set VAR=VALUE`.
-				$command = 'set "' . $env . '" && ';
-			} else {
-				// On Unix-like systems, this sets the variable for the duration of the command.
-				$command = $env . ' ';
+		if ( Utils\is_windows() ) {
+			// `set` is internal to `cmd.exe`. Do not escape the values, as `set` doesn't understand quotes from escapeshellarg.
+			// Note: `set "VAR=VALUE"` is more robust than `set VAR=VALUE`.
+			$command = 'set "BEHAT_FEATURES_FOLDER=' . $features_dir . '" && ';
+			if ( ! empty( $env ) ) {
+				$command .= 'set "' . $env . '" && ';
 			}
+		} else {
+			// On Unix-like systems, this sets the variable for the duration of the command.
+			$command = 'BEHAT_FEATURES_FOLDER=' . escapeshellarg( $features_dir );
+			if ( ! empty( $env ) ) {
+				$command .= ' ' . $env;
+			}
+			$command .= ' ';
 		}
 
 		$command = 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . $command . $php_run;
@@ -87,7 +92,6 @@ class TestBehatTags extends TestCase {
 
 		return $output;
 	}
-
 	/**
 	 * @dataProvider data_behat_tags_wp_version_github_token
 	 *
