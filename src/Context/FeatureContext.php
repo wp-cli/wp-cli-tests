@@ -1444,7 +1444,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		$subdir = $this->replace_variables( $subdir );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }" . PHP_EOL;
+		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
 		if ( 'sqlite' !== self::$db_type ) {
 			$this->create_db();
@@ -1520,9 +1520,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }" . PHP_EOL;
+		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
-		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';" . PHP_EOL;
+		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';\n";
 
 		$this->create_config( 'WordPress', $config_extra_php );
 
