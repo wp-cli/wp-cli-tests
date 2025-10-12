@@ -1201,12 +1201,12 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param array<string, string> $extra_env
 	 * @return Process
 	 */
-	public function proc( $command, $assoc_args = [], $path = '', $extra_env = [] ): Process {
+	public function proc( $command, $assoc_args = [], $path = '' ): Process {
 		if ( ! empty( $assoc_args ) ) {
 			$command .= Utils\assoc_args_to_str( $assoc_args );
 		}
 
-		$env = array_merge( self::get_process_env_variables(), $extra_env );
+		$env = self::get_process_env_variables();
 
 		if ( isset( $this->variables['SUITE_CACHE_DIR'] ) ) {
 			$env['WP_CLI_CACHE_DIR'] = $this->variables['SUITE_CACHE_DIR'];
@@ -1605,11 +1605,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			$path                             = strtok( $path, PHP_EOL );
 			$this->variables['COMPOSER_PATH'] = $path;
 		}
-		$extra_env = [];
-		if ( Utils\is_windows() ) {
-			$extra_env['COMPOSER_IPRESOLVE'] = '4';
-		}
-		$this->proc( $this->variables['COMPOSER_PATH'] . ' --no-interaction ' . $cmd, [], '', $extra_env )->run_check();
+		$this->proc( $this->variables['COMPOSER_PATH'] . ' --no-interaction ' . $cmd )->run_check();
 	}
 
 	/**
