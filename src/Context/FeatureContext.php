@@ -23,7 +23,6 @@ use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
 use WP_CLI;
 use DirectoryIterator;
-use WP_CLI\Process;
 use WP_CLI\ProcessRun;
 use WP_CLI\Utils;
 use WP_CLI\WpOrgApi;
@@ -675,11 +674,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			self::$mysql_binary = Utils\get_mysql_binary_path();
 		}
 
-		$command = 'wp cli info';
-		if ( Utils\is_windows() ) {
-			$command .= ' > NUL 2>&1';
-		}
-		$result = Process::create( $command, null, self::get_process_env_variables() )->run_check();
+		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
 
 		// Remove install cache if any (not setting the static var).
@@ -1884,7 +1879,6 @@ function wpcli_bootstrap_behat_feature_context(): void {
 
 	// Load helper functionality that is needed for the tests.
 	require_once "{$framework_folder}/php/utils.php";
-	require_once "{$framework_folder}/php/WP_CLI/Process.php";
 	require_once "{$framework_folder}/php/WP_CLI/ProcessRun.php";
 
 	// Manually load Composer file includes by generating a config with require:
