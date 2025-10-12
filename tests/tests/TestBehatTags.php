@@ -35,7 +35,7 @@ class TestBehatTags extends TestCase {
 	 *
 	 * @param string $dir The directory to remove.
 	 */
-	private function remove_dir( $dir ) {
+	private function remove_dir( $dir ): void {
 		if ( ! is_dir( $dir ) ) {
 			return;
 		}
