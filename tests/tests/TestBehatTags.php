@@ -36,6 +36,30 @@ class TestBehatTags extends TestCase {
 	}
 
 	/**
+	 * Runs the behat-tags.php script in a cross-platform way.
+	 *
+	 * @param string $env Environment variable string to set (e.g., 'WP_VERSION=4.5').
+	 * @return string|false The output of the script.
+	 */
+	private function run_behat_tags_script( $env = '' ) {
+		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
+
+		if ( ! empty( $env ) ) {
+			putenv( $env );
+		}
+
+		$command = 'cd ' . escapeshellarg( $this->temp_dir ) . ' && php ' . escapeshellarg( $behat_tags );
+		$output  = exec( $command );
+
+		if ( ! empty( $env ) ) {
+			list( $key ) = explode( '=', $env, 2 );
+			putenv( $key ); // Unsets the variable.
+		}
+
+		return $output;
+	}
+
+	/**
 	 * @dataProvider data_behat_tags_wp_version_github_token
 	 *
 	 * @param string $env
@@ -50,19 +74,10 @@ class TestBehatTags extends TestCase {
 		putenv( 'WP_VERSION' );
 		putenv( 'GITHUB_TOKEN' );
 
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
-
 		$contents = '@require-wp-4.6 @require-wp-4.8 @require-wp-4.9 @less-than-wp-4.6 @less-than-wp-4.8 @less-than-wp-4.9';
 		file_put_contents( $this->temp_dir . '/features/wp_version.feature', $contents );
 
-		if ( ! empty( $env ) ) {
-			putenv( $env );
-		}
-		$output = exec( 'cd ' . escapeshellarg( $this->temp_dir ) . ' && php ' . escapeshellarg( $behat_tags ) );
-		if ( ! empty( $env ) ) {
-			list( $key ) = explode( '=', $env, 2 );
-			putenv( $key );
-		}
+		$output = $this->run_behat_tags_script( $env );
 
 		$expected .= '&&~@broken';
 		if ( in_array( $env, array( 'WP_VERSION=trunk', 'WP_VERSION=nightly' ), true ) ) {
@@ -115,8 +130,6 @@ class TestBehatTags extends TestCase {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 
 		putenv( 'GITHUB_TOKEN' );
-
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 
 		$php_version = substr( PHP_VERSION, 0, 3 );
 		$contents    = '';
@@ -172,7 +185,7 @@ class TestBehatTags extends TestCase {
 
 		file_put_contents( $this->temp_dir . '/features/php_version.feature', $contents );
 
-		$output = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output = $this->run_behat_tags_script();
 		$this->assertSame( '--tags=' . $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
@@ -183,8 +196,6 @@ class TestBehatTags extends TestCase {
 		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
 
 		putenv( 'GITHUB_TOKEN' );
-
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
 
 		file_put_contents( $this->temp_dir . '/features/extension.feature', '@require-extension-imagick @require-extension-curl' );
 
@@ -215,7 +226,7 @@ class TestBehatTags extends TestCase {
 		}
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
-		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
@@ -264,7 +275,7 @@ class TestBehatTags extends TestCase {
 		file_put_contents( $this->temp_dir . '/features/extension.feature', $contents );
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
-		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 	}
 }
