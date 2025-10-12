@@ -53,7 +53,8 @@ class TestBehatTags extends TestCase {
 			if ( DIRECTORY_SEPARATOR === '\\' ) { // Windows
 				// `set` is internal to `cmd.exe`. Do not escape the $env variable, as it's from a trusted
 				// data provider and `escapeshellarg` adds quotes that `set` doesn't understand.
-				$command = 'set ' . $env . ' && ';
+				// Note: `set "VAR=VALUE"` is more robust than `set VAR=VALUE`.
+				$command = 'set "' . $env . '" && ';
 			} else {
 				// On Unix-like systems, this sets the variable for the duration of the command.
 				$command = $env . ' ';
@@ -226,11 +227,11 @@ class TestBehatTags extends TestCase {
 		}
 
 		// Check which extensions are loaded in the clean `php -n` environment to build the correct expectation.
-		$imagick_loaded_in_script = (bool) exec( escapeshellarg( PHP_BINARY ) . ' -n -r "echo (int)extension_loaded(\'imagick\');"' );
+		$imagick_loaded_in_script = (bool) exec( 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . escapeshellarg( PHP_BINARY ) . ' -n -r "echo (int)extension_loaded(\'imagick\');"' );
 		if ( ! $imagick_loaded_in_script ) {
 			$expecteds[] = '~@require-extension-imagick';
 		}
-		$curl_loaded_in_script = (bool) exec( escapeshellarg( PHP_BINARY ) . ' -n -r "echo (int)extension_loaded(\'curl\');"' );
+		$curl_loaded_in_script = (bool) exec( 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . escapeshellarg( PHP_BINARY ) . ' -n -r "echo (int)extension_loaded(\'curl\');"' );
 		if ( ! $curl_loaded_in_script ) {
 			$expecteds[] = '~@require-extension-curl';
 		}
