@@ -99,6 +99,10 @@ class Process {
 			$stderr = file_get_contents( $stderr_file );
 			unlink( $stdout_file );
 			unlink( $stderr_file );
+
+			// Normalize line endings.
+			$stdout = str_replace( "\r\n", "\n", $stdout );
+			$stderr = str_replace( "\r\n", "\n", $stderr );
 		}
 
 		$run_time = microtime( true ) - $start_time;
