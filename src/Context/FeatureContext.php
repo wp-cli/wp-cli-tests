@@ -437,6 +437,13 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
 
+		$bin           = Utils\is_windows() ? 'wp.bat' : 'wp';
+		$full_bin_path = $bin_path . DIRECTORY_SEPARATOR . $bin;
+
+		if ( ! is_executable( $full_bin_path ) ) {
+			wp_cli_behat_env_debug( "WARNING: File named '{$bin}' found in the provided/detected binary path is not executable." );
+		}
+
 		$path_separator  = Utils\is_windows() ? ';' : ':';
 		$php_binary_path = dirname( PHP_BINARY );
 		$env             = [
@@ -1231,8 +1238,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		} else {
 			$cwd = null;
 		}
-
-		wp_cli_behat_env_debug( "Running command: {$command}" );
 
 		return Process::create( $command, $cwd, $env );
 	}
