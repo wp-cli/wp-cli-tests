@@ -12,7 +12,7 @@ on:
 
 jobs:
   test:
-    uses: wp-cli/.github/.github/workflows/reusable-testing.yml@try/test-suite
+    uses: wp-cli/.github/.github/workflows/reusable-testing.yml@main
     with:
       matrix: |
         {
