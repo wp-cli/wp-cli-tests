@@ -143,10 +143,30 @@ class TestBehatTags extends TestCase {
 			$this->markTestSkipped( "No test for PHP_VERSION $php_version." );
 		}
 
+		$expected .= '&&~@github-api&&~@broken';
+
+		$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
+		switch ( $db_type ) {
+			case 'mariadb':
+				$expected .= '&&~@require-mysql';
+				$expected .= '&&~@require-sqlite';
+				break;
+			case 'sqlite':
+				$expected .= '&&~@require-mariadb';
+				$expected .= '&&~@require-mysql';
+				$expected .= '&&~@require-mysql-or-mariadb';
+				break;
+			case 'mysql':
+			default:
+				$expected .= '&&~@require-mariadb';
+				$expected .= '&&~@require-sqlite';
+				break;
+		}
+
 		file_put_contents( $this->temp_dir . '/features/php_version.feature', $contents );
 
 		$output = exec( "cd {$this->temp_dir}; php $behat_tags" );
-		$this->assertSame( '--tags=' . $expected . '&&~@github-api&&~@broken&&~@require-mariadb&&~@require-sqlite', $output );
+		$this->assertSame( '--tags=' . $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
