@@ -44,5 +44,10 @@ export WP_CLI_TESTS_ROOT
 # Generate the tags to apply environment-specific filters.
 BEHAT_TAGS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-tags.php)
 
+BEHAT_EXTRA_ARGS=()
+if [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]] && vendor/bin/behat --help 2>/dev/null | grep -q 'xdebug'; then
+	BEHAT_EXTRA_ARGS+=('--xdebug')
+fi
+
 # Run the functional tests.
-vendor/bin/behat --format progress "$BEHAT_TAGS" --strict "$@"
+vendor/bin/behat --format progress "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" "$@"
