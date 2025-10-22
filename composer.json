@@ -25,7 +25,7 @@
         "wp-cli/config-command": "^1 || ^2",
         "wp-cli/core-command": "^1 || ^2",
         "wp-cli/eval-command": "^1 || ^2",
-        "wp-cli/wp-cli": "^2.12",
+        "wp-cli/wp-cli": "dev-try/win",
         "wp-coding-standards/wpcs": "^3",
         "yoast/phpunit-polyfills": "^4.0.0"
     },
