@@ -315,7 +315,7 @@ trait Support {
 	 * @param string $actual   The actual string.
 	 * @return string The unified diff output.
 	 */
-	protected function generate_diff( $expected, $actual ) {
+	protected function generate_diff( $expected, $actual ): string {
 		$builder = new UnifiedDiffOutputBuilder(
 			"--- Expected\n+++ Actual\n",
 			false
