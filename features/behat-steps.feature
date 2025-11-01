@@ -310,8 +310,9 @@ Feature: Test that WP-CLI Behat steps work as expected
   @require-wp
   Scenario: Test STDOUT as table containing rows
     Given a WP installation
-    When I run `wp option list --fields=option_name,option_value --format=table | head -5`
-    Then STDOUT should not be empty
+    When I run `wp option list --fields=option_name --format=table --orderby=option_name | head -5`
+    Then STDOUT should be a table containing rows:
+      | option_name |
 
   @require-wp
   Scenario: Test JSON output
@@ -381,8 +382,15 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   @require-wp
-  Scenario: Test WP multisite installation
+  Scenario: Test WP multisite subdirectory installation
     Given a WP multisite subdirectory installation
+    When I run `wp site list --field=url`
+    Then STDOUT should not be empty
+    And the return code should be 0
+
+  @require-wp
+  Scenario: Test WP multisite subdomain installation
+    Given a WP multisite subdomain installation
     When I run `wp site list --field=url`
     Then STDOUT should not be empty
     And the return code should be 0
@@ -547,8 +555,10 @@ Feature: Test that WP-CLI Behat steps work as expected
   @require-wp
   Scenario: Test STDOUT end with table
     Given a WP installation
-    When I run `wp option list --fields=option_name --format=table | head -10`
-    Then STDOUT should not be empty
+    When I run `wp user list --fields=user_login --format=table`
+    Then STDOUT should end with a table containing rows:
+      | user_login |
+      | admin      |
 
   Scenario: Test combining multiple string replacements
     Given an empty directory
@@ -579,3 +589,134 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
     Then the relative.txt file should exist
     And the {RUN_DIR}/relative.txt file should exist
+
+  @require-phar
+  Scenario: Test new Phar with specific version
+    Given an empty directory
+    And a new Phar with version "2.11.0"
+    Then the wp-cli.phar file should exist
+
+  @require-phar
+  Scenario: Test new Phar with same version
+    Given an empty directory
+    And a new Phar with the same version
+    Then the wp-cli.phar file should exist
+
+  @require-phar-download
+  Scenario: Test downloaded Phar with specific version
+    Given an empty directory
+    And a downloaded Phar with version "2.11.0"
+    Then the wp-cli.phar file should exist
+
+  @require-phar-download
+  Scenario: Test downloaded Phar with same version
+    Given an empty directory
+    And a downloaded Phar with the same version
+    Then the wp-cli.phar file should exist
+
+  Scenario: Test variable naming conventions
+    When I run `echo "value1"`
+    Then save STDOUT as {VAR_NAME}
+    
+    When I run `echo {VAR_NAME}`
+    Then STDOUT should be:
+      """
+      value1
+      """
+
+  Scenario: Test variable with underscore prefix
+    When I run `echo "value2"`
+    Then save STDOUT as {_UNDERSCORE_VAR}
+    
+    When I run `echo {_UNDERSCORE_VAR}`
+    Then STDOUT should contain:
+      """
+      value2
+      """
+
+  Scenario: Test variable with numbers
+    When I run `echo "value3"`
+    Then save STDOUT as {VAR123}
+    
+    When I run `echo {VAR123}`
+    Then STDOUT should contain:
+      """
+      value3
+      """
+
+  Scenario: Test built-in variables
+    When I run `echo {RUN_DIR}`
+    Then STDOUT should not be empty
+    And STDOUT should not contain:
+      """
+      {RUN_DIR}
+      """
+
+  Scenario: Test CACHE_DIR variable
+    Given an empty cache
+    When I run `echo {SUITE_CACHE_DIR}`
+    Then STDOUT should not be empty
+    And STDOUT should not contain:
+      """
+      {SUITE_CACHE_DIR}
+      """
+
+  Scenario: Test multiline STDOUT capture
+    When I run `printf "line1\nline2\nline3"`
+    Then STDOUT should contain:
+      """
+      line1
+      """
+    And STDOUT should contain:
+      """
+      line2
+      """
+    And STDOUT should contain:
+      """
+      line3
+      """
+
+  Scenario: Test STDERR capture
+    When I try `bash -c 'echo "stdout"; echo "stderr" >&2'`
+    Then STDOUT should contain:
+      """
+      stdout
+      """
+    And STDERR should contain:
+      """
+      stderr
+      """
+
+  Scenario: Test file with multiline content
+    Given an empty directory
+    And a multiline.txt file:
+      """
+      First line
+      Second line
+      Third line
+      """
+    Then the multiline.txt file should contain:
+      """
+      First line
+      """
+    And the multiline.txt file should contain:
+      """
+      Second line
+      """
+    And the multiline.txt file should contain:
+      """
+      Third line
+      """
+
+  Scenario: Test return code not be assertion
+    When I run `true`
+    Then the return code should not be 1
+    And the return code should not be 2
+
+  @require-wp
+  Scenario: Test CSV containing with headers
+    Given a WP installation
+    When I run `wp user list --fields=user_login,user_email --format=csv`
+    Then STDOUT should be CSV containing:
+      | user_login | user_email       |
+      | admin      | admin@example.com |
