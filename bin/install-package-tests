@@ -179,5 +179,5 @@ else
 	install_mysql_db_lower_than_8_0
 fi
 
-echo "Succesfully prepared the database for running tests."
+echo "Successfully prepared the database for running tests."
 echo "This command does not have to be run again."

@@ -43,10 +43,12 @@ function version_tags(
 function get_db_type_and_version() {
 	// Detect which client binary is available.
 	$client_binary = null;
+	$output        = array();
 	exec( 'command -v mysql 2>/dev/null', $output, $mysql_exit_code );
 	if ( 0 === $mysql_exit_code ) {
 		$client_binary = 'mysql';
 	} else {
+		$output = array();
 		exec( 'command -v mariadb 2>/dev/null', $output, $mariadb_exit_code );
 		if ( 0 === $mariadb_exit_code ) {
 			$client_binary = 'mariadb';
@@ -88,7 +90,15 @@ function get_db_type_and_version() {
 		$pass_arg
 	);
 
-	$version_string = exec( $cmd );
+	$output      = array();
+	$return_code = 0;
+	exec( $cmd, $output, $return_code );
+	$version_string = isset( $output[0] ) ? $output[0] : '';
+
+	// If the connection failed, return defaults.
+	if ( 0 !== $return_code || empty( $version_string ) ) {
+		return array( 'type' => 'mysql', 'version' => '' );
+	}
 
 	// Detect database type from server version string.
 	$db_type = 'mysql';
