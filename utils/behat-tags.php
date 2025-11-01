@@ -57,7 +57,10 @@ function get_db_type_and_version() {
 
 	if ( null === $client_binary ) {
 		// No client binary found, return defaults.
-		return array( 'type' => 'mysql', 'version' => '' );
+		return array(
+			'type'    => 'mysql',
+			'version' => '',
+		);
 	}
 
 	// Build connection parameters from environment variables.
@@ -97,7 +100,10 @@ function get_db_type_and_version() {
 
 	// If the connection failed, return defaults.
 	if ( 0 !== $return_code || empty( $version_string ) ) {
-		return array( 'type' => 'mysql', 'version' => '' );
+		return array(
+			'type'    => 'mysql',
+			'version' => '',
+		);
 	}
 
 	// Detect database type from server version string.
@@ -109,7 +115,10 @@ function get_db_type_and_version() {
 	preg_match( '@[0-9]+\.[0-9]+\.[0-9]+@', $version_string, $version );
 	$db_version = isset( $version[0] ) ? $version[0] : '';
 
-	return array( 'type' => $db_type, 'version' => $db_version );
+	return array(
+		'type'    => $db_type,
+		'version' => $db_version,
+	);
 }
 
 function get_db_version() {
