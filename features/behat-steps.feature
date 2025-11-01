@@ -1,5 +1,20 @@
 Feature: Test that WP-CLI Behat steps work as expected
 
+  This feature file contains functional tests for all the Behat steps
+  provided by the WP-CLI testing framework. It ensures that each Given,
+  When, and Then step definition works correctly.
+
+  The tests are organized by step type and functionality:
+  - Basic file and directory operations
+  - Command execution and output validation
+  - Variable management and replacement
+  - WordPress installation and configuration
+  - HTTP mocking and network operations
+  - Output format validation (JSON, CSV, YAML, tables)
+
+  Each scenario tests a specific step or combination of steps to verify
+  they produce the expected behavior.
+
   Scenario: Test "Given an empty directory" step
     Given an empty directory
     Then the {RUN_DIR} directory should exist
