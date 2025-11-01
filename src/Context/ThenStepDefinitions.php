@@ -215,7 +215,17 @@ trait ThenStepDefinitions {
 		$expected = $this->replace_variables( (string) $expected );
 
 		if ( ! $this->check_that_json_string_contains_json_string( $output, $expected ) ) {
-			throw new Exception( $this->result );
+			$message = (string) $this->result;
+			// Pretty print JSON for better diff readability.
+			$expected_json = json_encode( json_decode( $expected ), JSON_PRETTY_PRINT );
+			$actual_json   = json_encode( json_decode( $output ), JSON_PRETTY_PRINT );
+			if ( $expected_json && $actual_json ) {
+				$diff = $this->generate_diff( $expected_json, $actual_json );
+				if ( ! empty( $diff ) ) {
+					$message .= "\n\n" . $diff;
+				}
+			}
+			throw new Exception( $message );
 		}
 	}
 
@@ -246,7 +256,17 @@ trait ThenStepDefinitions {
 
 		$missing = array_diff( $expected_values, $actual_values );
 		if ( ! empty( $missing ) ) {
-			throw new Exception( $this->result );
+			$message = (string) $this->result;
+			// Pretty print JSON arrays for better diff readability.
+			$expected_json = json_encode( $expected_values, JSON_PRETTY_PRINT );
+			$actual_json   = json_encode( $actual_values, JSON_PRETTY_PRINT );
+			if ( $expected_json && $actual_json ) {
+				$diff = $this->generate_diff( $expected_json, $actual_json );
+				if ( ! empty( $diff ) ) {
+					$message .= "\n\n" . $diff;
+				}
+			}
+			throw new Exception( $message );
 		}
 	}
 
@@ -276,7 +296,17 @@ trait ThenStepDefinitions {
 		}
 
 		if ( ! $this->check_that_csv_string_contains_values( $output, $expected_rows ) ) {
-			throw new Exception( $this->result );
+			$message = (string) $this->result;
+			// Convert expected rows to CSV format for diff.
+			$expected_csv = '';
+			foreach ( $expected_rows as $row ) {
+				$expected_csv .= implode( ',', array_map( 'trim', $row ) ) . "\n";
+			}
+			$diff = $this->generate_diff( trim( $expected_csv ), trim( $output ) );
+			if ( ! empty( $diff ) ) {
+				$message .= "\n\n" . $diff;
+			}
+			throw new Exception( $message );
 		}
 	}
 
@@ -303,7 +333,12 @@ trait ThenStepDefinitions {
 		$expected = $this->replace_variables( (string) $expected );
 
 		if ( ! $this->check_that_yaml_string_contains_yaml_string( $output, $expected ) ) {
-			throw new Exception( $this->result );
+			$message = (string) $this->result;
+			$diff    = $this->generate_diff( $expected, $output );
+			if ( ! empty( $diff ) ) {
+				$message .= "\n\n" . $diff;
+			}
+			throw new Exception( $message );
 		}
 	}
 
