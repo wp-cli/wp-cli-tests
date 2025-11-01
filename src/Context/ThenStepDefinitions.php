@@ -295,7 +295,7 @@ trait ThenStepDefinitions {
 		$output = $this->result->stdout;
 
 		$expected_rows = $expected->getRows();
-		foreach ( $expected as &$row ) {
+		foreach ( $expected_rows as &$row ) {
 			foreach ( $row as &$value ) {
 				$value = $this->replace_variables( $value );
 			}
@@ -317,7 +317,7 @@ trait ThenStepDefinitions {
 	}
 
 	/**
-	 * Expect STDOUT to be YAML containig certain content.
+	 * Expect STDOUT to be YAML containing certain content.
 	 *
 	 * ```
 	 * Scenario: My example scenario
