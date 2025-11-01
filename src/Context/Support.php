@@ -8,6 +8,7 @@ namespace WP_CLI\Tests\Context;
 use Behat\Behat\Exception\PendingException;
 use Exception;
 use Mustangostang\Spyc;
+use SebastianBergmann\Diff\Differ;
 
 trait Support {
 
@@ -120,6 +121,15 @@ trait Support {
 			if ( false === $message ) {
 				$message = $output;
 			}
+
+			// Add diff for 'be' comparisons to show exact differences.
+			if ( 'be' === $action ) {
+				$diff = $this->generate_diff( $expected, rtrim( $output, "\n" ) );
+				if ( ! empty( $diff ) ) {
+					$message .= "\n\n" . $diff;
+				}
+			}
+
 			throw new Exception( $message );
 		}
 	}
@@ -133,7 +143,10 @@ trait Support {
 	protected function compare_tables( $expected_rows, $actual_rows, $output ): void {
 		// The first row is the header and must be present.
 		if ( $expected_rows[0] !== $actual_rows[0] ) {
-			throw new Exception( $output );
+			$expected_table = implode( "\n", $expected_rows );
+			$actual_table   = implode( "\n", $actual_rows );
+			$diff           = $this->generate_diff( $expected_table, $actual_table );
+			throw new Exception( $output . "\n\n" . $diff );
 		}
 
 		unset( $actual_rows[0] );
@@ -141,7 +154,10 @@ trait Support {
 
 		$missing_rows = array_diff( $expected_rows, $actual_rows );
 		if ( ! empty( $missing_rows ) ) {
-			throw new Exception( $output );
+			$expected_table = implode( "\n", $expected_rows );
+			$actual_table   = implode( "\n", $actual_rows );
+			$diff           = $this->generate_diff( $expected_table, $actual_table );
+			throw new Exception( $output . "\n\n" . $diff );
 		}
 	}
 
@@ -289,5 +305,17 @@ trait Support {
 		}
 
 		return $this->compare_contents( $expected_value, $actual_value );
+	}
+
+	/**
+	 * Generate a unified diff between two strings.
+	 *
+	 * @param string $expected The expected string.
+	 * @param string $actual   The actual string.
+	 * @return string The unified diff output.
+	 */
+	protected function generate_diff( string $expected, string $actual ): string {
+		$differ = new Differ( "--- Expected\n+++ Actual\n" );
+		return $differ->diff( $expected, $actual );
 	}
 }
