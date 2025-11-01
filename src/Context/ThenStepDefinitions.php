@@ -217,12 +217,16 @@ trait ThenStepDefinitions {
 		if ( ! $this->check_that_json_string_contains_json_string( $output, $expected ) ) {
 			$message = (string) $this->result;
 			// Pretty print JSON for better diff readability.
-			$expected_json = json_encode( json_decode( $expected ), JSON_PRETTY_PRINT );
-			$actual_json   = json_encode( json_decode( $output ), JSON_PRETTY_PRINT );
-			if ( $expected_json && $actual_json ) {
-				$diff = $this->generate_diff( $expected_json, $actual_json );
-				if ( ! empty( $diff ) ) {
-					$message .= "\n\n" . $diff;
+			$expected_decoded = json_decode( $expected );
+			$actual_decoded   = json_decode( $output );
+			if ( null !== $expected_decoded && null !== $actual_decoded ) {
+				$expected_json = json_encode( $expected_decoded, JSON_PRETTY_PRINT );
+				$actual_json   = json_encode( $actual_decoded, JSON_PRETTY_PRINT );
+				if ( false !== $expected_json && false !== $actual_json ) {
+					$diff = $this->generate_diff( $expected_json, $actual_json );
+					if ( ! empty( $diff ) ) {
+						$message .= "\n\n" . $diff;
+					}
 				}
 			}
 			throw new Exception( $message );
@@ -258,12 +262,14 @@ trait ThenStepDefinitions {
 		if ( ! empty( $missing ) ) {
 			$message = (string) $this->result;
 			// Pretty print JSON arrays for better diff readability.
-			$expected_json = json_encode( $expected_values, JSON_PRETTY_PRINT );
-			$actual_json   = json_encode( $actual_values, JSON_PRETTY_PRINT );
-			if ( $expected_json && $actual_json ) {
-				$diff = $this->generate_diff( $expected_json, $actual_json );
-				if ( ! empty( $diff ) ) {
-					$message .= "\n\n" . $diff;
+			if ( null !== $expected_values && null !== $actual_values ) {
+				$expected_json = json_encode( $expected_values, JSON_PRETTY_PRINT );
+				$actual_json   = json_encode( $actual_values, JSON_PRETTY_PRINT );
+				if ( false !== $expected_json && false !== $actual_json ) {
+					$diff = $this->generate_diff( $expected_json, $actual_json );
+					if ( ! empty( $diff ) ) {
+						$message .= "\n\n" . $diff;
+					}
 				}
 			}
 			throw new Exception( $message );
