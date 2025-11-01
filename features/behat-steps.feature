@@ -325,7 +325,7 @@ Feature: Test that WP-CLI Behat steps work as expected
   @require-wp
   Scenario: Test STDOUT as table containing rows
     Given a WP installation
-    When I run `wp option list --fields=option_name --format=table --orderby=option_name | head -5`
+    When I run `wp option list --fields=option_name --format=table --orderby=option_name`
     Then STDOUT should be a table containing rows:
       | option_name |
 
@@ -335,7 +335,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     When I run `wp option get siteurl --format=json`
     Then STDOUT should be JSON containing:
       """
-      "http
+      "example.com"
       """
 
   @require-wp
@@ -350,8 +350,11 @@ Feature: Test that WP-CLI Behat steps work as expected
   @require-wp
   Scenario: Test YAML output
     Given a WP installation
-    When I run `wp eval "echo 'test: value';" | wp --skip-wordpress cli info --format=yaml | head -1`
-    Then STDOUT should not be empty
+    When I run `wp cli info --format=yaml`
+    Then STDOUT should be YAML containing:
+      """
+      PHP binary:
+      """
 
   @require-wp
   Scenario: Test save file as variable
@@ -419,11 +422,12 @@ Feature: Test that WP-CLI Behat steps work as expected
       define( 'WP_CONTENT_DIR', '' );
       """
 
+  @require-download
   Scenario: Test download step
     Given an empty cache
     And download:
-      | path                 | url                                    |
-      | {SUITE_CACHE_DIR}/test.txt | https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml |
+      | path                       | url                                    |
+      | {SUITE_CACHE_DIR}/test.txt | https://www.iana.org/robots.txt        |
     Then the {SUITE_CACHE_DIR}/test.txt file should exist
 
   @require-wp @require-composer
@@ -632,7 +636,7 @@ Feature: Test that WP-CLI Behat steps work as expected
   Scenario: Test variable naming conventions
     When I run `echo "value1"`
     Then save STDOUT as {VAR_NAME}
-    
+
     When I run `echo {VAR_NAME}`
     Then STDOUT should be:
       """
@@ -642,7 +646,7 @@ Feature: Test that WP-CLI Behat steps work as expected
   Scenario: Test variable with underscore prefix
     When I run `echo "value2"`
     Then save STDOUT as {_UNDERSCORE_VAR}
-    
+
     When I run `echo {_UNDERSCORE_VAR}`
     Then STDOUT should contain:
       """
@@ -652,7 +656,7 @@ Feature: Test that WP-CLI Behat steps work as expected
   Scenario: Test variable with numbers
     When I run `echo "value3"`
     Then save STDOUT as {VAR123}
-    
+
     When I run `echo {VAR123}`
     Then STDOUT should contain:
       """
