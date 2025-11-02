@@ -98,12 +98,10 @@ function get_db_type_and_version() {
 	exec( $cmd, $output, $return_code );
 	$version_string = isset( $output[0] ) ? $output[0] : '';
 
-	// If the connection failed, return defaults.
+	// If the connection failed, fall back to client binary version.
 	if ( 0 !== $return_code || empty( $version_string ) ) {
-		return array(
-			'type'    => 'mysql',
-			'version' => '',
-		);
+		$client_version_cmd = sprintf( '%s --version 2>/dev/null', escapeshellcmd( $client_binary ) );
+		$version_string     = exec( $client_version_cmd );
 	}
 
 	// Detect database type from server version string.
