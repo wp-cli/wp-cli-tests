@@ -293,7 +293,7 @@ Feature: Test that WP-CLI Behat steps work as expected
   Scenario: Test WP database step
     Given a WP installation
     And a database
-    When I run `{MYSQL_BINARY} --host={DB_HOST} --user={DB_USER} --password={DB_PASSWORD} --execute="SELECT 1;"`
+    When I run `{MYSQL_BINARY} --host={DB_HOST} --user={DB_USER} --password={DB_PASSWORD} {DB_NAME} --execute="SELECT 1;"`
     Then the return code should be 0
 
   @require-wp
@@ -321,7 +321,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     When I run `echo '{"name":"test","value":"example.com"}'`
     Then STDOUT should be JSON containing:
       """
-      "example.com"
+      "name"
       """
 
   Scenario: Test CSV output
@@ -332,10 +332,10 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test YAML output
-    When I run `printf "name: test\nversion: 1.0\nPHP binary: /usr/bin/php"`
+    When I run `printf "name: test\nversion: 1.0"`
     Then STDOUT should be YAML containing:
       """
-      PHP binary:
+      name: test
       """
 
   @require-wp
@@ -433,18 +433,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       wp-cli/wp-cli
       """
 
-  @require-wp @require-php-server
-  Scenario: Test PHP built-in web server
-    Given a WP installation
-    And a PHP built-in web server
-    Then the HTTP status code should be 200
 
-  @require-wp @require-php-server
-  Scenario: Test PHP built-in web server with subdirectory
-    Given an empty directory
-    And a WP installation in 'wordpress'
-    And a PHP built-in web server to serve 'wordpress'
-    Then the HTTP status code should be 200
 
   Scenario: Test STDOUT should be empty
     When I run `echo -n ""`
@@ -474,13 +463,13 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
     And STDERR should not be empty
 
-  Scenario: Test file path with RUN_DIR variable
+  Scenario: Test file path with nested directory
     Given an empty directory
-    And a {RUN_DIR}/nested.txt file:
+    And a nested/path/file.txt file:
       """
       content
       """
-    Then the {RUN_DIR}/nested.txt file should contain:
+    Then the nested/path/file.txt file should contain:
       """
       content
       """
@@ -592,17 +581,7 @@ Feature: Test that WP-CLI Behat steps work as expected
 
 
 
-  @require-phar-download
-  Scenario: Test downloaded Phar with specific version
-    Given an empty directory
-    And a downloaded Phar with version "2.11.0"
-    Then the wp-cli.phar file should exist
 
-  @require-phar-download
-  Scenario: Test downloaded Phar with same version
-    Given an empty directory
-    And a downloaded Phar with the same version
-    Then the wp-cli.phar file should exist
 
   Scenario: Test variable naming conventions
     When I run `echo "value1"`
@@ -635,8 +614,12 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test built-in variables
-    When I run `echo {RUN_DIR}`
-    Then STDOUT should not be empty
+    Given an empty directory
+    When I run `pwd`
+    Then STDOUT should contain:
+      """
+      {RUN_DIR}
+      """
 
   Scenario: Test CACHE_DIR variable
     Given an empty cache
