@@ -321,7 +321,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     When I run `echo '{"name":"test","value":"example.com"}'`
     Then STDOUT should be JSON containing:
       """
-      "name"
+      {"name":"test"}
       """
 
   Scenario: Test CSV output
