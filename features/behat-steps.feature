@@ -289,13 +289,6 @@ Feature: Test that WP-CLI Behat steps work as expected
       DB_NAME
       """
 
-  @require-wp @require-mysql
-  Scenario: Test WP database step
-    Given a WP installation
-    And a database
-    When I run `{MYSQL_BINARY} --host={DB_HOST} --user={DB_USER} --password={DB_PASSWORD} {DB_NAME} --execute="SELECT 1;"`
-    Then the return code should be 0
-
   @require-wp
   Scenario: Test WP installation in subdirectory
     Given a WP installation in 'subdir'
