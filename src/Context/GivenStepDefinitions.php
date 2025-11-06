@@ -391,36 +391,20 @@ FILE;
 	 * Scenario: My other scenario
 	 *   Given a WP install
 	 *   ...
-	 * ```
 	 *
-	 * @access public
-	 *
-	 * @Given a WP install(ation)
-	 */
-	public function given_a_wp_installation(): void {
-		$this->install_wp();
-	}
-
-	/**
-	 * Installs WordPress with a specific version.
-	 *
-	 * ```
-	 * Scenario: My example scenario
-	 *   Given a WP installation with version "6.4.2"
-	 *   ...
-	 *
-	 * Scenario: My other scenario
-	 *   Given a WP install with version "6.3.1"
+	 * Scenario: My version-specific scenario
+	 *   Given a WP 6.4.2 installation
 	 *   ...
 	 * ```
 	 *
 	 * @access public
 	 *
-	 * @Given a WP install(ation) with version :version
+	 * @Given /^a WP( ([^\s]+))? install(?:ation)?$/
 	 *
-	 * @param string $version
+	 * @param string $version_with_space Optional version with leading space
+	 * @param string $version Optional version number
 	 */
-	public function given_a_wp_installation_with_version( $version ): void {
+	public function given_a_wp_installation( $version_with_space = '', $version = '' ): void {
 		$this->install_wp( '', $version );
 	}
 
@@ -435,39 +419,21 @@ FILE;
 	 * Scenario: My other scenario
 	 *   Given a WP install in 'bar'
 	 *   ...
-	 * ```
 	 *
-	 * @access public
-	 *
-	 * @Given a WP install(ation) in :subdir
-	 *
-	 * @param string $subdir
-	 */
-	public function given_a_wp_installation_in_a_specific_folder( $subdir ): void {
-		$this->install_wp( $subdir );
-	}
-
-	/**
-	 * Installs WordPress in a given directory with a specific version.
-	 *
-	 * ```
-	 * Scenario: My example scenario
-	 *   Given a WP installation in 'foo' with version "6.4.2"
-	 *   ...
-	 *
-	 * Scenario: My other scenario
-	 *   Given a WP install in 'bar' with version "6.3.1"
+	 * Scenario: My version-specific scenario
+	 *   Given a WP 6.4.2 installation in 'wordpress'
 	 *   ...
 	 * ```
 	 *
 	 * @access public
 	 *
-	 * @Given a WP install(ation) in :subdir with version :version
+	 * @Given /^a WP( ([^\s]+))? install(?:ation)? in ['"]?([^'"]+)['"]?$/
 	 *
+	 * @param string $version_with_space Optional version with leading space
+	 * @param string $version Optional version number
 	 * @param string $subdir
-	 * @param string $version
 	 */
-	public function given_a_wp_installation_in_a_specific_folder_with_version( $subdir, $version ): void {
+	public function given_a_wp_installation_in_a_specific_folder( $version_with_space = '', $version = '', $subdir = '' ): void {
 		$this->install_wp( $subdir, $version );
 	}
 

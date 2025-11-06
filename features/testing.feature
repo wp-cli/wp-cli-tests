@@ -64,7 +64,7 @@ Feature: Test that WP-CLI loads.
       """
 
   Scenario: WP installation with specific version
-    Given a WP installation with version "6.4.2"
+    Given a WP 6.4.2 installation
 
     When I run `wp core version`
     Then STDOUT should be:
@@ -73,7 +73,7 @@ Feature: Test that WP-CLI loads.
       """
 
   Scenario: WP installation in subdirectory with specific version
-    Given a WP installation in 'wordpress' with version "6.3.1"
+    Given a WP 6.3.1 installation in 'wordpress'
 
     When I run `wp core version --path=wordpress`
     Then STDOUT should be:
