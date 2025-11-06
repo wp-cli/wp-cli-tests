@@ -624,7 +624,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private static function cache_wp_files( $version = '' ): void {
 		$wp_version             = $version ?: getenv( 'WP_VERSION' );
-		$wp_version_suffix      = ( false !== $wp_version && '' !== $wp_version ) ? "-$wp_version" : '';
+		$wp_version_suffix      = $wp_version ? "-$wp_version" : '';
 		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
@@ -1292,7 +1292,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	public function download_wp( $subdir = '', $version = '' ): void {
 		$wp_version        = $version ?: getenv( 'WP_VERSION' );
-		$wp_version_suffix = ( false !== $wp_version && '' !== $wp_version ) ? "-$wp_version" : '';
+		$wp_version_suffix = $wp_version ? "-$wp_version" : '';
 		$expected_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 
 		if ( ! self::$cache_dir || self::$cache_dir !== $expected_cache_dir ) {
@@ -1374,7 +1374,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	public function install_wp( $subdir = '', $version = '' ): void {
 		$wp_version              = $version ?: getenv( 'WP_VERSION' );
-		$wp_version_suffix       = ( false !== $wp_version && '' !== $wp_version ) ? "-$wp_version" : '';
+		$wp_version_suffix       = $wp_version ? "-$wp_version" : '';
 		self::$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( ! file_exists( self::$install_cache_dir ) ) {
 			mkdir( self::$install_cache_dir );
