@@ -621,6 +621,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * We cache the results of `wp core download` to improve test performance.
 	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
+	 *
+	 * @param string $version
 	 */
 	private static function cache_wp_files( $version = '' ): void {
 		$wp_version             = $version ?: getenv( 'WP_VERSION' );
