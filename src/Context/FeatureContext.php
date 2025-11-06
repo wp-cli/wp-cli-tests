@@ -1291,8 +1291,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $version
 	 */
 	public function download_wp( $subdir = '', $version = '' ): void {
-		$wp_version        = $version ?: getenv( 'WP_VERSION' );
-		$wp_version_suffix = $wp_version ? "-$wp_version" : '';
+		$wp_version         = $version ?: getenv( 'WP_VERSION' );
+		$wp_version_suffix  = $wp_version ? "-$wp_version" : '';
 		$expected_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 
 		if ( ! self::$cache_dir || self::$cache_dir !== $expected_cache_dir ) {

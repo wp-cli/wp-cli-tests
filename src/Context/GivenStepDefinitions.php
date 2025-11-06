@@ -420,7 +420,7 @@ FILE;
 	 *   ...
 	 *
 	 * Scenario: My version-specific scenario
-	 *   Given a WP 6.4.2 installation in 'wordpress'
+	 *   Given a WP 6.4.2 installation in 'subdir'
 	 *   ...
 	 * ```
 	 *
