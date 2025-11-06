@@ -399,13 +399,12 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^a WP( ([^\s]+))? install(?:ation)?$/
+	 * @Given /^a WP( [^\s]+)? install(?:ation)?$/
 	 *
-	 * @param string $version_with_space Optional version with leading space
-	 * @param string $version Optional version number
+	 * @param string $version Optional version number (may include leading space)
 	 */
-	public function given_a_wp_installation( $version_with_space = '', $version = '' ): void {
-		$this->install_wp( '', $version );
+	public function given_a_wp_installation( $version = '' ): void {
+		$this->install_wp( '', trim( $version ) );
 	}
 
 	/**
@@ -427,14 +426,13 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^a WP( ([^\s]+))? install(?:ation)? in ['"]?([^'"]+)['"]?$/
+	 * @Given /^a WP( [^\s]+)? install(?:ation)? in ['"]?([^'"]+)['"]?$/
 	 *
-	 * @param string $version_with_space Optional version with leading space
-	 * @param string $version Optional version number
+	 * @param string $version Optional version number (may include leading space)
 	 * @param string $subdir
 	 */
-	public function given_a_wp_installation_in_a_specific_folder( $version_with_space = '', $version = '', $subdir = '' ): void {
-		$this->install_wp( $subdir, $version );
+	public function given_a_wp_installation_in_a_specific_folder( $version = '', $subdir = '' ): void {
+		$this->install_wp( $subdir, trim( $version ) );
 	}
 
 	/**
