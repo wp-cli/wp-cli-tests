@@ -402,6 +402,29 @@ FILE;
 	}
 
 	/**
+	 * Installs WordPress with a specific version.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation with version "6.4.2"
+	 *   ...
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP install with version "6.3.1"
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given a WP install(ation) with version :version
+	 *
+	 * @param string $version
+	 */
+	public function given_a_wp_installation_with_version( $version ): void {
+		$this->install_wp( '', $version );
+	}
+
+	/**
 	 * Installs WordPress in a given directory.
 	 *
 	 * ```
@@ -422,6 +445,30 @@ FILE;
 	 */
 	public function given_a_wp_installation_in_a_specific_folder( $subdir ): void {
 		$this->install_wp( $subdir );
+	}
+
+	/**
+	 * Installs WordPress in a given directory with a specific version.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation in 'foo' with version "6.4.2"
+	 *   ...
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP install in 'bar' with version "6.3.1"
+	 *   ...
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given a WP install(ation) in :subdir with version :version
+	 *
+	 * @param string $subdir
+	 * @param string $version
+	 */
+	public function given_a_wp_installation_in_a_specific_folder_with_version( $subdir, $version ): void {
+		$this->install_wp( $subdir, $version );
 	}
 
 	/**

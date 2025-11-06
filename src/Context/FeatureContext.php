@@ -622,9 +622,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * We cache the results of `wp core download` to improve test performance.
 	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
 	 */
-	private static function cache_wp_files(): void {
-		$wp_version             = getenv( 'WP_VERSION' );
-		$wp_version_suffix      = ( false !== $wp_version ) ? "-$wp_version" : '';
+	private static function cache_wp_files( $version = '' ): void {
+		$wp_version             = $version ?: getenv( 'WP_VERSION' );
+		$wp_version_suffix      = ( false !== $wp_version && '' !== $wp_version ) ? "-$wp_version" : '';
 		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
@@ -1289,9 +1289,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * @param string $subdir
 	 */
-	public function download_wp( $subdir = '' ): void {
+	public function download_wp( $subdir = '', $version = '' ): void {
 		if ( ! self::$cache_dir ) {
-			self::cache_wp_files();
+			self::cache_wp_files( $version );
 
 			$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
 			echo "[Debug messages]\n";
@@ -1365,10 +1365,11 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * @param string $subdir
+	 * @param string $version
 	 */
-	public function install_wp( $subdir = '' ): void {
-		$wp_version              = getenv( 'WP_VERSION' );
-		$wp_version_suffix       = ( false !== $wp_version ) ? "-$wp_version" : '';
+	public function install_wp( $subdir = '', $version = '' ): void {
+		$wp_version              = $version ?: getenv( 'WP_VERSION' );
+		$wp_version_suffix       = ( false !== $wp_version && '' !== $wp_version ) ? "-$wp_version" : '';
 		self::$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( ! file_exists( self::$install_cache_dir ) ) {
 			mkdir( self::$install_cache_dir );
@@ -1383,7 +1384,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->create_db();
 		}
 		$this->create_run_dir();
-		$this->download_wp( $subdir );
+		$this->download_wp( $subdir, $version );
 		$this->create_config( $subdir, $config_extra_php );
 
 		$install_args = [
