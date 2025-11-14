@@ -9,6 +9,7 @@ use Behat\Behat\Exception\PendingException;
 use Exception;
 use Mustangostang\Spyc;
 use SebastianBergmann\Diff\Differ;
+use SebastianBergmann\Diff\Output\UnifiedDiffOutputBuilder;
 
 trait Support {
 
@@ -315,7 +316,11 @@ trait Support {
 	 * @return string The unified diff output.
 	 */
 	protected function generate_diff( string $expected, string $actual ): string {
-		$differ = new Differ( "--- Expected\n+++ Actual\n" );
+		$builder = new UnifiedDiffOutputBuilder(
+			"--- Expected\n+++ Actual\n",
+			false
+		);
+		$differ  = new Differ( $builder );
 		return $differ->diff( $expected, $actual );
 	}
 }
