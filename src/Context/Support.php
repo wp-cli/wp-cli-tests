@@ -123,12 +123,9 @@ trait Support {
 				$message = $output;
 			}
 
-			// Add diff for 'be' comparisons to show exact differences.
-			if ( 'be' === $action ) {
-				$diff = $this->generate_diff( $expected, rtrim( $output, "\n" ) );
-				if ( ! empty( $diff ) ) {
-					$message .= "\n\n" . $diff;
-				}
+			$diff = $this->generate_diff( $expected, rtrim( $output, "\n" ) );
+			if ( ! empty( $diff ) ) {
+				$message .= "\n\n" . $diff;
 			}
 
 			throw new Exception( $message );
