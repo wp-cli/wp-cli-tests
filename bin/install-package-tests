@@ -87,14 +87,16 @@ fi
 
 echo "Detecting database version..."
 
-TYPE="MySQL"
-CLIENT_VERSION=$(mysql --version 2>/dev/null)
-
-case "${CLIENT_VERSION}" in
-	*"MariaDB"*)
-		TYPE="MariaDB"
-		;;
-esac
+# Detect which client binary is available.
+CLIENT_BINARY=""
+if command -v mysql >/dev/null 2>&1; then
+	CLIENT_BINARY="mysql"
+elif command -v mariadb >/dev/null 2>&1; then
+	CLIENT_BINARY="mariadb"
+else
+	echo "${C_RED}Error: Neither 'mysql' nor 'mariadb' client binary found.${NO_FORMAT}"
+	exit 1
+fi
 
 if [ -z "$PS1" ]; then
 	# These vars are because github actions gave problems in the past.
@@ -105,11 +107,16 @@ else
 	MYSQL_WAIT=0
 fi
 
-if [ "${TYPE}" = "MySQL" ]; then
-	SERVER_VERSION=$(mysql -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
-else
-	SERVER_VERSION=$(mariadb -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}")
-fi
+# Use the detected client binary to query the server version.
+SERVER_VERSION=$(${CLIENT_BINARY} -e "SELECT VERSION()" --skip-column-names ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}" 2>/dev/null)
+
+# Detect the database type from the server version string.
+TYPE="MySQL"
+case "${SERVER_VERSION}" in
+	*"MariaDB"*|*"mariadb"*)
+		TYPE="MariaDB"
+		;;
+esac
 
 VERSION=$(echo "${SERVER_VERSION}" | grep -o '^[^-]*')
 MAJOR=$(echo "${VERSION}" | cut -d. -f1)
@@ -119,66 +126,49 @@ echo "Detected ${TYPE} at version ${MAJOR}.${MINOR}"
 
 echo 'Checking if database is ready...'
 
-if [ "${TYPE}" = "MySQL" ]; then
-	while ! mysql ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
-	do
-		i=$((i+1))
-		if [ "${MYSQL_TRIES}" -gt 1 ]; then
-			echo "Waiting for MySQL(${i}/${MYSQL_TRIES})..."
-			sleep ${MYSQL_WAIT}
-		fi
+i=0
+while ! ${CLIENT_BINARY} ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" 2>/dev/null | grep 'information_schema' >/dev/null;
+do
+	i=$((i+1))
+	if [ "${MYSQL_TRIES}" -gt 1 ]; then
+		echo "Waiting for database server (${i}/${MYSQL_TRIES})..."
+		sleep ${MYSQL_WAIT}
+	fi
 
-		if [ $i -ge $MYSQL_TRIES ]; then
-			echo "${C_RED}MySQL failed to start. Aborting.${NO_FORMAT}"
-			echo "Cannot connect to MySQL server. For all available variables, check the documentation at:"
-			echo " ${C_BLUE}https://github.com/wp-cli/wp-cli-tests?tab=readme-ov-file#the-database-credentials${NO_FORMAT}"
-			exit 1
-		fi
-	done
-else
-	while ! mariadb ${HOST_STRING} --user="${USER}" "${PASSWORD_STRING}" --execute="SHOW DATABASES;" | grep 'information_schema' >/dev/null;
-	do
-		i=$((i+1))
-		if [ "${MYSQL_TRIES}" -gt 1 ]; then
-			echo "Waiting for MariaDB(${i}/${MYSQL_TRIES})..."
-			sleep ${MYSQL_WAIT}
-		fi
-
-		if [ $i -ge $MYSQL_TRIES ]; then
-			echo "${C_RED}MariaDB failed to start. Aborting.${NO_FORMAT}"
-			echo "Cannot connect to MariaDB server. For all available variables, check the documentation at:"
-			echo " ${C_BLUE}https://github.com/wp-cli/wp-cli-tests?tab=readme-ov-file#the-database-credentials${NO_FORMAT}"
-			exit 1
-		fi
-	done
-fi
+	if [ $i -ge $MYSQL_TRIES ]; then
+		echo "${C_RED}Database server failed to start. Aborting.${NO_FORMAT}"
+		echo "Cannot connect to database server. For all available variables, check the documentation at:"
+		echo " ${C_BLUE}https://github.com/wp-cli/wp-cli-tests?tab=readme-ov-file#the-database-credentials${NO_FORMAT}"
+		exit 1
+	fi
+done
 
 # Prepare the database for running the tests with a MySQL version 8.0 or higher.
 install_mysql_db_8_0_plus() {
 	set -ex # print all the commands.
-	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	{ set +ex; } 2> /dev/null # stop printing the commands
 }
 
 # Prepare the database for running the tests with a MySQL version lower than 8.0.
 install_mysql_db_lower_than_8_0() {
 	set -ex # print all the commands.
-	mysql -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "GRANT ALL ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mysql -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "GRANT ALL ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	{ set +ex; } 2> /dev/null # stop printing the commands
 }
 
 # Prepare the database for running the tests with MariaDB
 install_mariadb() {
 	set -ex
-	mariadb -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mariadb -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
-	mariadb -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 }
 
 if [ "${TYPE}" = "MariaDB" ]; then
@@ -189,5 +179,5 @@ else
 	install_mysql_db_lower_than_8_0
 fi
 
-echo "Succesfully prepared the database for running tests."
+echo "Successfully prepared the database for running tests."
 echo "This command does not have to be run again."

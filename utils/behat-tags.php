@@ -40,10 +40,88 @@ function version_tags(
 	return $skip_tags;
 }
 
-function get_db_version() {
-	$version_string = exec( getenv( 'WP_CLI_TEST_DBTYPE' ) === 'mariadb' ? 'mariadb --version' : 'mysql -V' );
+function get_db_type_and_version() {
+	// Detect which client binary is available.
+	$client_binary = null;
+	$output        = array();
+	exec( 'command -v mysql 2>/dev/null', $output, $mysql_exit_code );
+	if ( 0 === $mysql_exit_code ) {
+		$client_binary = 'mysql';
+	} else {
+		$output = array();
+		exec( 'command -v mariadb 2>/dev/null', $output, $mariadb_exit_code );
+		if ( 0 === $mariadb_exit_code ) {
+			$client_binary = 'mariadb';
+		}
+	}
+
+	if ( null === $client_binary ) {
+		// No client binary found, return defaults.
+		return array(
+			'type'    => 'mysql',
+			'version' => '',
+		);
+	}
+
+	// Build connection parameters from environment variables.
+	$host = getenv( 'WP_CLI_TEST_DBHOST' ) ?: 'localhost';
+	$user = getenv( 'WP_CLI_TEST_DBROOTUSER' ) ?: 'root';
+	$pass = getenv( 'WP_CLI_TEST_DBROOTPASS' );
+
+	// Build the command to get the server version.
+	$host_parts = explode( ':', $host );
+	$host_arg   = '-h' . escapeshellarg( $host_parts[0] );
+
+	$port_arg = '';
+	if ( isset( $host_parts[1] ) ) {
+		// Check if it's a port number or socket path.
+		if ( is_numeric( $host_parts[1] ) ) {
+			$port_arg = ' --port=' . escapeshellarg( $host_parts[1] ) . ' --protocol=tcp';
+		} else {
+			$port_arg = ' --socket=' . escapeshellarg( $host_parts[1] ) . ' --protocol=socket';
+		}
+	}
+
+	$pass_arg = false !== $pass && '' !== $pass ? '-p' . escapeshellarg( $pass ) : '';
+
+	$cmd = sprintf(
+		'%s %s %s -u%s %s -e "SELECT VERSION()" --skip-column-names 2>/dev/null',
+		escapeshellcmd( $client_binary ),
+		$host_arg,
+		$port_arg,
+		escapeshellarg( $user ),
+		$pass_arg
+	);
+
+	$output      = array();
+	$return_code = 0;
+	exec( $cmd, $output, $return_code );
+	$version_string = isset( $output[0] ) ? $output[0] : '';
+
+	// If the connection failed, fall back to client binary version.
+	if ( 0 !== $return_code || empty( $version_string ) ) {
+		$client_version_cmd = sprintf( '%s --version 2>/dev/null', escapeshellcmd( $client_binary ) );
+		$version_string     = exec( $client_version_cmd );
+	}
+
+	// Detect database type from server version string.
+	$db_type = 'mysql';
+	if ( false !== stripos( $version_string, 'mariadb' ) ) {
+		$db_type = 'mariadb';
+	}
+
 	preg_match( '@[0-9]+\.[0-9]+\.[0-9]+@', $version_string, $version );
-	return $version[0];
+	$db_version = isset( $version[0] ) ? $version[0] : '';
+
+	return array(
+		'type'    => $db_type,
+		'version' => $db_version,
+	);
+}
+
+function get_db_version() {
+	$db_info = get_db_type_and_version();
+	return $db_info['version'];
 }
 
 $features_folder = getenv( 'BEHAT_FEATURES_FOLDER' ) ?: 'features';
@@ -85,9 +163,13 @@ if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) )
 	$skip_tags[] = '@broken-trunk';
 }
 
-$db_version = get_db_version();
+$db_info    = get_db_type_and_version();
+$db_version = $db_info['version'];
+// Use detected database type from server, unless WP_CLI_TEST_DBTYPE is 'sqlite'.
+$env_db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
+$db_type     = 'sqlite' === $env_db_type ? 'sqlite' : $db_info['type'];
 
-switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
+switch ( $db_type ) {
 	case 'mariadb':
 		$skip_tags = array_merge(
 			$skip_tags,
