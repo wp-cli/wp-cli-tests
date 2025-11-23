@@ -3,28 +3,28 @@
 # Run the Behat tests only if a Behat config file is found.
 if [ ! -f "behat.yml" ]; then
 	echo 'Did not detect "behat.yml" file, skipping Behat tests.'
-  exit 0;
+	exit 0;
 fi
 
 if ! command -v jq &> /dev/null
 then
-    echo 'The required "jq" command was not found, please install it to run the Behat tests.'
-    echo "See https://stedolan.github.io/jq/download/ for installation instructions."
-    exit 1;
+	echo 'The required "jq" command was not found, please install it to run the Behat tests.'
+	echo "See https://stedolan.github.io/jq/download/ for installation instructions."
+	exit 1;
 fi
 
 if [[ "$@" == *"--help"* ]]; then
-    vendor/bin/behat "$@"
-    ret=$?
-    exit $ret
+	vendor/bin/behat "$@"
+	ret=$?
+	exit $ret
 fi
 
 # POSIX compliant function to check if a string is numeric.
 is_numeric() {
-    case $1 in
-        ''|*[!0-9]*) return 1;;  # returns 1 if not numeric
-        *) return 0;;            # returns 0 if numeric
-    esac
+	case $1 in
+		''|*[!0-9]*) return 1;;  # returns 1 if not numeric
+		*) return 0;;            # returns 0 if numeric
+	esac
 }
 
 # If DB type is already set to SQLite, there's nothing to do.
@@ -100,11 +100,11 @@ SOURCE="${BASH_SOURCE[0]}"
 
 # Resolve $SOURCE until the file is no longer a symlink.
 while [ -h "$SOURCE" ]; do
-  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-  SOURCE="$(readlink "$SOURCE")"
-  # If $SOURCE was a relative symlink, we need to resolve it relative to the
-  # path where the symlink file was located.
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+	DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+	SOURCE="$(readlink "$SOURCE")"
+	# If $SOURCE was a relative symlink, we need to resolve it relative to the
+	# path where the symlink file was located.
+	[[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
 done
 
 # Fetch the root folder of the WP-CLI tests package.
