@@ -130,7 +130,7 @@ function extension_tags( $features_folder = 'features' ) {
 	$feature_files  = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
 	if ( ! empty( $feature_files ) ) {
 		foreach ( $feature_files as $feature_file ) {
-			$contents = (string) get_contents( $feature_file );
+			$contents = (string) file_get_contents( $feature_file );
 			if ( preg_match_all( '/@require-extension-[A-Za-z_]*/', $contents, $matches ) ) {
 				$extension_tags = array_merge( $extension_tags, $matches[0] );
 			}
