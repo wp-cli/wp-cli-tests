@@ -47,9 +47,9 @@ class TestBehatTags extends TestCase {
 
 		foreach ( $iterator as $file ) {
 			if ( $file->isDir() ) {
-				rmdir( $file->getRealPath() );
+				rmdir( $file->getPathname() );
 			} else {
-				unlink( $file->getRealPath() );
+				unlink( $file->getPathname() );
 			}
 		}
 

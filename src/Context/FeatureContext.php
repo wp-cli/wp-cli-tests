@@ -606,6 +606,12 @@ class FeatureContext implements SnippetAcceptingContext {
 		$db_copy   = $dir . '/wp-content/mu-plugins/sqlite-database-integration/db.copy';
 		$db_dropin = $dir . '/wp-content/db.php';
 
+		$db_copy_contents = file_get_contents( $db_copy );
+
+		if ( false === $db_copy_contents ) {
+			return;
+		}
+
 		/* similar to https://github.com/WordPress/sqlite-database-integration/blob/3306576c9b606bc23bbb26c15383fef08e03ab11/activate.php#L95 */
 		$file_contents = str_replace(
 			array(
@@ -618,7 +624,7 @@ class FeatureContext implements SnippetAcceptingContext {
 				'sqlite-database-integration/load.php',
 				'/mu-plugins/',
 			),
-			file_get_contents( $db_copy )
+			$db_copy_contents
 		);
 
 		file_put_contents( $db_dropin, $file_contents );
@@ -916,7 +922,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			$phar_begin_len = strlen( $phar_begin );
 			$bin_dir        = getenv( 'WP_CLI_BIN_DIR' );
 			$bin            = Utils\is_windows() ? 'wp.bat' : 'wp';
-			if ( false !== $bin_dir && file_exists( $bin_dir . '/wp' ) && file_get_contents( $bin_dir . '/wp', false, null, 0, $phar_begin_len ) === $phar_begin ) {
+			if ( false !== $bin_dir && file_exists( $bin_dir . DIRECTORY_SEPARATOR . $bin ) && (string) file_get_contents( $bin_dir . DIRECTORY_SEPARATOR . $bin, false, null, 0, $phar_begin_len ) === $phar_begin ) {
 				$phar_path = $bin_dir . $bin;
 			} else {
 				$src_dir         = dirname( __DIR__, 2 );
@@ -1278,7 +1284,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		if ( ! $status['running'] ) {
 			if ( Utils\is_windows() ) {
-				$stderr = file_get_contents( $stderr_file );
+				$stderr = (string) file_get_contents( $stderr_file );
 				$stderr = $stderr ? ': ' . $stderr : '';
 			} else {
 				$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
@@ -1879,7 +1885,7 @@ function wpcli_bootstrap_behat_feature_context(): void {
 		return;
 	}
 
-	$composer = json_decode( file_get_contents( $project_composer ) );
+	$composer = json_decode( (string) file_get_contents( $project_composer ) );
 	if ( empty( $composer->autoload->files ) ) {
 		return;
 	}
