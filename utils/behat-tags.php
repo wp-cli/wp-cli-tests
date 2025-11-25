@@ -151,7 +151,75 @@ function extension_tags( $features_folder = 'features' ) {
 	return $skip_tags;
 }
 
+/**
+ * An array of tags for excluding tests based on the operating system.
+ *
+ * @param string $features_folder The folder where the feature files are located.
+ * @return array
+ */
+function os_tags( $features_folder = 'features' ) {
+	$os_tags       = array();
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+	if ( ! empty( $feature_files ) ) {
+		foreach ( $feature_files as $feature_file ) {
+			$contents = (string) file_get_contents( $feature_file );
+			if ( preg_match_all( '/@(require-(windows|macos|linux)|skip-(windows|macos|linux))/', $contents, $matches ) ) {
+				$os_tags = array_merge( $os_tags, $matches[0] );
+			}
+		}
+		$os_tags = array_unique( $os_tags );
+	}
+
+	if ( empty( $os_tags ) ) {
+		return array();
+	}
+
+	$skip_tags = array();
+
+	$is_windows = 'Windows' === PHP_OS_FAMILY;
+	$is_macos   = 'Darwin' === PHP_OS_FAMILY;
+	$is_linux   = 'Linux' === PHP_OS_FAMILY;
+
+	foreach ( $os_tags as $tag ) {
+		switch ( $tag ) {
+			case '@require-windows':
+				if ( ! $is_windows ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@require-macos':
+				if ( ! $is_macos ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@require-linux':
+				if ( ! $is_linux ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@skip-windows':
+				if ( $is_windows ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@skip-macos':
+				if ( $is_macos ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@skip-linux':
+				if ( $is_linux ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+		}
+	}
+
+	return $skip_tags;
+}
+
 $skip_tags = array_merge( $skip_tags, extension_tags( $features_folder ) );
+$skip_tags = array_merge( $skip_tags, os_tags( $features_folder ) );
 
 if ( ! empty( $skip_tags ) ) {
 	echo '--tags=~' . implode( '&&~', $skip_tags );

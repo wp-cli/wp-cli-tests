@@ -314,4 +314,62 @@ class TestBehatTags extends TestCase {
 		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 	}
+
+	public function test_behat_tags_os(): void {
+		$env_github_token = getenv( 'GITHUB_TOKEN' );
+		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
+
+		putenv( 'GITHUB_TOKEN' );
+
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'os.feature', '@require-windows @skip-windows @require-macos @skip-macos @require-linux @skip-linux' );
+
+		$expecteds = array();
+
+		switch ( $db_type ) {
+			case 'mariadb':
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-sqlite';
+				break;
+			case 'sqlite':
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-mysql-or-mariadb';
+				break;
+			case 'mysql':
+			default:
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-sqlite';
+				break;
+		}
+
+		// `PHP_OS_FAMILY` is available since PHP 7.2.
+		$is_windows = 'Windows' === PHP_OS_FAMILY;
+		$is_macos   = 'Darwin' === PHP_OS_FAMILY;
+		$is_linux   = 'Linux' === PHP_OS_FAMILY;
+
+		if ( ! $is_windows ) {
+			$expecteds[] = '~@require-windows';
+		}
+		if ( $is_windows ) {
+			$expecteds[] = '~@skip-windows';
+		}
+		if ( ! $is_macos ) {
+			$expecteds[] = '~@require-macos';
+		}
+		if ( $is_macos ) {
+			$expecteds[] = '~@skip-macos';
+		}
+		if ( ! $is_linux ) {
+			$expecteds[] = '~@require-linux';
+		}
+		if ( $is_linux ) {
+			$expecteds[] = '~@skip-linux';
+		}
+
+		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
+		$output   = $this->run_behat_tags_script();
+		$this->assertSame( $expected, $output );
+
+		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
+	}
 }
