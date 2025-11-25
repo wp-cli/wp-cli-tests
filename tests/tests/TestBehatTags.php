@@ -342,7 +342,6 @@ class TestBehatTags extends TestCase {
 				break;
 		}
 
-		// `PHP_OS_FAMILY` is available since PHP 7.2.
 		$is_windows = 'Windows' === PHP_OS_FAMILY;
 		$is_macos   = 'Darwin' === PHP_OS_FAMILY;
 		$is_linux   = 'Linux' === PHP_OS_FAMILY;
