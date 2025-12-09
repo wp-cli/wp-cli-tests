@@ -306,11 +306,11 @@ trait ThenStepDefinitions {
 			// Convert expected rows to CSV format for diff.
 			$expected_csv = '';
 			foreach ( $expected_rows as $row ) {
-				$expected_csv .= implode( ',', array_map( 'trim', $row ) ) . "\n";
+				$expected_csv .= implode( ',', array_map( 'trim', $row ) ) . PHP_EOL;
 			}
 			$diff = $this->generate_diff( trim( $expected_csv ), trim( $output ) );
 			if ( ! empty( $diff ) ) {
-				$message .= "\n\n" . $diff;
+				$message .= PHP_EOL . PHP_EOL . $diff;
 			}
 			throw new Exception( $message );
 		}
