@@ -403,7 +403,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       | {SUITE_CACHE_DIR}/test.txt | https://www.iana.org/robots.txt        |
     Then the {SUITE_CACHE_DIR}/test.txt file should exist
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test WP installation with Composer
     Given a WP installation with Composer
     Then the composer.json file should exist
@@ -411,13 +412,15 @@ Feature: Test that WP-CLI Behat steps work as expected
     When I run `wp core version`
     Then STDOUT should not be empty
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test WP installation with Composer and custom vendor directory
     Given a WP installation with Composer and a custom vendor directory 'custom-vendor'
     Then the composer.json file should exist
     And the custom-vendor directory should exist
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test dependency on current wp-cli
     Given a WP installation with Composer
     And a dependency on current wp-cli
