@@ -1387,13 +1387,13 @@ class FeatureContext implements SnippetAcceptingContext {
 		$dest_dir = $this->variables['RUN_DIR'] . "/$subdir";
 
 		if ( $subdir ) {
-			mkdir( $dest_dir );
+			mkdir( $dest_dir, 0777, true /*recursive*/ );
 		}
 
 		self::copy_dir( self::$cache_dir, $dest_dir );
 
 		if ( ! is_dir( $dest_dir . '/wp-content/mu-plugins' ) ) {
-			mkdir( $dest_dir . '/wp-content/mu-plugins' );
+			mkdir( $dest_dir . '/wp-content/mu-plugins', 0777, true /*recursive*/ );
 		}
 
 		// Disable emailing.
