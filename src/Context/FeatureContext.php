@@ -1042,7 +1042,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	public function create_run_dir(): void {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
-			self::$run_dir              = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
+			self::$run_dir              = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
 			$this->variables['RUN_DIR'] = self::$run_dir;
 			mkdir( $this->variables['RUN_DIR'] );
 		}
