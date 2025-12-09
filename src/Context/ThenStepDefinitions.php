@@ -215,7 +215,21 @@ trait ThenStepDefinitions {
 		$expected = $this->replace_variables( (string) $expected );
 
 		if ( ! $this->check_that_json_string_contains_json_string( $output, $expected ) ) {
-			throw new Exception( $this->result );
+			$message = (string) $this->result;
+			// Pretty print JSON for better diff readability.
+			$expected_decoded = json_decode( $expected );
+			$actual_decoded   = json_decode( $output );
+			if ( null !== $expected_decoded && null !== $actual_decoded ) {
+				$expected_json = json_encode( $expected_decoded, JSON_PRETTY_PRINT );
+				$actual_json   = json_encode( $actual_decoded, JSON_PRETTY_PRINT );
+				if ( false !== $expected_json && false !== $actual_json ) {
+					$diff = $this->generate_diff( $expected_json, $actual_json );
+					if ( ! empty( $diff ) ) {
+						$message .= "\n\n" . $diff;
+					}
+				}
+			}
+			throw new Exception( $message );
 		}
 	}
 
@@ -246,7 +260,19 @@ trait ThenStepDefinitions {
 
 		$missing = array_diff( $expected_values, $actual_values );
 		if ( ! empty( $missing ) ) {
-			throw new Exception( $this->result );
+			$message = (string) $this->result;
+			// Pretty print JSON arrays for better diff readability.
+			if ( null !== $expected_values && null !== $actual_values ) {
+				$expected_json = json_encode( $expected_values, JSON_PRETTY_PRINT );
+				$actual_json   = json_encode( $actual_values, JSON_PRETTY_PRINT );
+				if ( false !== $expected_json && false !== $actual_json ) {
+					$diff = $this->generate_diff( $expected_json, $actual_json );
+					if ( ! empty( $diff ) ) {
+						$message .= "\n\n" . $diff;
+					}
+				}
+			}
+			throw new Exception( $message );
 		}
 	}
 
@@ -269,19 +295,29 @@ trait ThenStepDefinitions {
 		$output = $this->result->stdout;
 
 		$expected_rows = $expected->getRows();
-		foreach ( $expected as &$row ) {
+		foreach ( $expected_rows as &$row ) {
 			foreach ( $row as &$value ) {
 				$value = $this->replace_variables( $value );
 			}
 		}
 
 		if ( ! $this->check_that_csv_string_contains_values( $output, $expected_rows ) ) {
-			throw new Exception( $this->result );
+			$message = (string) $this->result;
+			// Convert expected rows to CSV format for diff.
+			$expected_csv = '';
+			foreach ( $expected_rows as $row ) {
+				$expected_csv .= implode( ',', array_map( 'trim', $row ) ) . "\n";
+			}
+			$diff = $this->generate_diff( trim( $expected_csv ), trim( $output ) );
+			if ( ! empty( $diff ) ) {
+				$message .= "\n\n" . $diff;
+			}
+			throw new Exception( $message );
 		}
 	}
 
 	/**
-	 * Expect STDOUT to be YAML containig certain content.
+	 * Expect STDOUT to be YAML containing certain content.
 	 *
 	 * ```
 	 * Scenario: My example scenario
@@ -303,7 +339,12 @@ trait ThenStepDefinitions {
 		$expected = $this->replace_variables( (string) $expected );
 
 		if ( ! $this->check_that_yaml_string_contains_yaml_string( $output, $expected ) ) {
-			throw new Exception( $this->result );
+			$message = (string) $this->result;
+			$diff    = $this->generate_diff( $expected, $output );
+			if ( ! empty( $diff ) ) {
+				$message .= "\n\n" . $diff;
+			}
+			throw new Exception( $message );
 		}
 	}
 
