@@ -566,6 +566,7 @@ trait ThenStepDefinitions {
 	 * @param int $return_code Expected HTTP status code.
 	 */
 	public function then_the_http_status_code_should_be( $return_code ): void {
+		// @phpstan-ignore staticMethod.deprecatedClass
 		$response = Requests::request( 'http://localhost:8080' );
 		$this->assert_equals( $return_code, $response->status_code );
 	}

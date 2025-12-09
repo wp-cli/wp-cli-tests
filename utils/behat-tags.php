@@ -40,6 +40,12 @@ function version_tags(
 	return $skip_tags;
 }
 
+function get_db_version() {
+	$version_string = exec( getenv( 'WP_CLI_TEST_DBTYPE' ) === 'mariadb' ? 'mariadb --version' : 'mysql -V' );
+	preg_match( '@[0-9]+\.[0-9]+\.[0-9]+@', $version_string, $version );
+	return $version[0];
+}
+
 $features_folder = getenv( 'BEHAT_FEATURES_FOLDER' ) ?: 'features';
 $wp_version      = getenv( 'WP_VERSION' );
 $wp_version_reqs = array();
@@ -79,10 +85,16 @@ if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) )
 	$skip_tags[] = '@broken-trunk';
 }
 
+$db_version = get_db_version();
+
 switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 	case 'mariadb':
-		$skip_tags[] = '@require-mysql';
-		$skip_tags[] = '@require-sqlite';
+		$skip_tags = array_merge(
+			$skip_tags,
+			[ '@require-mysql', '@require-sqlite' ],
+			version_tags( 'require-mariadb', $db_version, '<', $features_folder ),
+			version_tags( 'less-than-mariadb', $db_version, '>=', $features_folder )
+		);
 		break;
 	case 'sqlite':
 		$skip_tags[] = '@require-mariadb';
@@ -91,8 +103,12 @@ switch ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 		break;
 	case 'mysql':
 	default:
-		$skip_tags[] = '@require-mariadb';
-		$skip_tags[] = '@require-sqlite';
+		$skip_tags = array_merge(
+			$skip_tags,
+			[ '@require-mariadb', '@require-sqlite' ],
+			version_tags( 'require-mysql', $db_version, '<', $features_folder ),
+			version_tags( 'less-than-mysql', $db_version, '>=', $features_folder )
+		);
 		break;
 }
 

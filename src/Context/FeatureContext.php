@@ -21,6 +21,7 @@ use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
+use WP_CLI;
 use DirectoryIterator;
 use WP_CLI\Process;
 use WP_CLI\ProcessRun;
@@ -29,6 +30,8 @@ use WP_CLI\WpOrgApi;
 
 /**
  * Features context.
+ *
+ * @phpstan-ignore class.implementsDeprecatedInterface
  */
 class FeatureContext implements SnippetAcceptingContext {
 
@@ -269,12 +272,21 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	 * Whether tests are currently running with code coverage collection.
+	 *
+	 * @return bool
+	 */
+	private static function running_with_code_coverage() {
+		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
+
+		return \in_array( $with_code_coverage, [ 'true', '1' ], true );
+	}
+
+	/**
 	 * @AfterSuite
 	 */
 	public static function merge_coverage_reports(): void {
-		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
-
-		if ( ! \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+		if ( ! self::running_with_code_coverage() ) {
 			return;
 		}
 
@@ -436,9 +448,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			'TEST_RUN_DIR' => self::$behat_run_dir,
 		];
 
-		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
-
-		if ( \in_array( $with_code_coverage, [ 'true', '1' ], true ) ) {
+		if ( self::running_with_code_coverage() ) {
 			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
 
 			if ( ! $has_coverage_driver ) {
@@ -650,14 +660,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
 
-		self::cache_wp_files();
-
-		$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
-		echo "[Debug messages]\n";
-		echo "{$result->stderr}\n";
-
-		echo "WordPress {$result->stdout}\n";
-
 		// Remove install cache if any (not setting the static var).
 		$wp_version        = getenv( 'WP_VERSION' );
 		$wp_version_suffix = ( false !== $wp_version ) ? "-$wp_version" : '';
@@ -759,7 +761,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 */
 	private static function terminate_proc( $master_pid ): void {
 
-		$output = `ps -o ppid,pid,command | grep $master_pid`;
+		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
 		foreach ( explode( PHP_EOL, $output ) as $line ) {
 			if ( preg_match( '/^\s*(\d+)\s+(\d+)/', $line, $matches ) ) {
@@ -857,6 +859,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$this->variables['CORE_CONFIG_SETTINGS'] = Utils\assoc_args_to_str( self::$db_settings );
 
+		$this->test_connection();
 		$this->drop_db();
 		$this->set_cache_dir();
 	}
@@ -1021,12 +1024,25 @@ class FeatureContext implements SnippetAcceptingContext {
 	public function build_phar( $version = 'same' ): void {
 		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-build-', true ) . '.phar';
 
+		$is_bundle = false;
+
 		// Test running against a package installed as a WP-CLI dependency
 		// WP-CLI bundle installed as a project dependency
 		$make_phar_path = self::get_vendor_dir() . '/wp-cli/wp-cli-bundle/utils/make-phar.php';
 		if ( ! file_exists( $make_phar_path ) ) {
 			// Running against WP-CLI bundle proper
+			$is_bundle = true;
+
 			$make_phar_path = self::get_vendor_dir() . '/../utils/make-phar.php';
+		}
+
+		// Temporarily modify the Composer autoloader used within the Phar
+		// so that it doesn't clash if autoloading is already happening outside of it,
+		// for example when generating code coverage.
+		// This modifies composer.json.
+		if ( $is_bundle && self::running_with_code_coverage() ) {
+			$this->composer_command( 'config autoloader-suffix "WpCliTestsPhar" --working-dir=' . dirname( self::get_vendor_dir() ) );
+			$this->composer_command( 'dump-autoload --working-dir=' . dirname( self::get_vendor_dir() ) );
 		}
 
 		$this->proc(
@@ -1037,6 +1053,12 @@ class FeatureContext implements SnippetAcceptingContext {
 				$version
 			)
 		)->run_check();
+
+		// Revert the suffix change again
+		if ( $is_bundle && self::running_with_code_coverage() ) {
+			$this->composer_command( 'config autoloader-suffix "WpCliBundle" --working-dir=' . dirname( self::get_vendor_dir() ) );
+			$this->composer_command( 'dump-autoload --working-dir=' . dirname( self::get_vendor_dir() ) );
+		}
 	}
 
 	/**
@@ -1082,8 +1104,9 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string                $sql_cmd      Command to run.
 	 * @param array<string, string> $assoc_args   Optional. Associative array of options. Default empty.
 	 * @param bool                  $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
+	 * @return array{stdout: string, stderr: string, exit_code: int}
 	 */
-	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ): void {
+	private static function run_sql( $sql_cmd, $assoc_args = [], $add_database = false ) {
 		$default_assoc_args = [
 			'host' => self::$db_settings['dbhost'],
 			'user' => self::$db_settings['dbuser'],
@@ -1092,11 +1115,19 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( $add_database ) {
 			$sql_cmd .= ' ' . escapeshellarg( self::$db_settings['dbname'] );
 		}
+		$send_to_shell = true;
+		if ( isset( $assoc_args['send_to_shell'] ) ) {
+			$send_to_shell = (bool) $assoc_args['send_to_shell'];
+			unset( $assoc_args['send_to_shell'] );
+		}
+
 		$start_time = microtime( true );
-		Utils\run_mysql_command( $sql_cmd, array_merge( $assoc_args, $default_assoc_args ) );
+		$result     = Utils\run_mysql_command( $sql_cmd, array_merge( $assoc_args, $default_assoc_args ), null, $send_to_shell );
 		if ( self::$log_run_times ) {
 			self::log_proc_method_run_time( 'run_sql ' . $sql_cmd, $start_time );
 		}
+
+		return array_combine( [ 'stdout', 'stderr', 'exit_code' ], $result );
 	}
 
 	public function create_db(): void {
@@ -1106,6 +1137,37 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$dbname = self::$db_settings['dbname'];
 		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
+	}
+
+	/**
+	 * Test if the database connection is working.
+	 */
+	public function test_connection(): void {
+		if ( 'sqlite' === self::$db_type ) {
+			return;
+		}
+
+		$sql_result = self::run_sql(
+			self::$mysql_binary . ' --no-defaults',
+			[
+				'execute'       => 'SELECT 1',
+				'send_to_shell' => false,
+			]
+		);
+
+		if ( 0 !== $sql_result['exit_code'] ) {
+			# WP_CLI output functions are suppressed in behat context.
+			echo 'There was an error connecting to the database:' . \PHP_EOL;
+			if ( ! empty( $sql_result['stderr'] ) ) {
+				echo '  ' . trim( $sql_result['stderr'] ) . \PHP_EOL;
+			}
+			echo 'run `composer prepare-tests` to connect to the database.' . \PHP_EOL;
+			die( $sql_result['exit_code'] );
+		} elseif ( ! empty( $sql_result['stderr'] ) ) {
+			// There is "error" output but not an exit code.
+			// Probably a warning, still display it.
+			echo trim( $sql_result['stderr'] ) . \PHP_EOL;
+		}
 	}
 
 	public function drop_db(): void {
@@ -1228,6 +1290,16 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @param string $subdir
 	 */
 	public function download_wp( $subdir = '' ): void {
+		if ( ! self::$cache_dir ) {
+			self::cache_wp_files();
+
+			$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
+			echo "[Debug messages]\n";
+			echo "{$result->stderr}\n";
+
+			echo "WordPress {$result->stdout}\n";
+		}
+
 		$dest_dir = $this->variables['RUN_DIR'] . "/$subdir";
 
 		if ( $subdir ) {
