@@ -19,7 +19,10 @@ if ( ! file_exists( $wp_versions_file_path ) ) {
 	curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, true );
 
 	curl_exec( $ch );
-	curl_close( $ch );
+	if ( PHP_VERSION_ID < 80000 ) { // curl_close() has no effect as of PHP 8.0.
+		// phpcs:ignore PHPCompatibility.FunctionUse.RemovedFunctions.curl_closeDeprecated,Generic.PHP.DeprecatedFunctions.Deprecated
+		curl_close( $ch );
+	}
 	fclose( $fp );
 }
 

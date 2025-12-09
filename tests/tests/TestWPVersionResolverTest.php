@@ -5,7 +5,10 @@ use WP_CLI\Tests\TestCase;
 
 class TestWPVersionResolverTest extends TestCase {
 
-	private $temp_file;
+	/**
+	 * @var string
+	 */
+	private $temp_file = '';
 
 	protected function set_up() {
 		parent::set_up();
@@ -25,7 +28,10 @@ class TestWPVersionResolverTest extends TestCase {
 		parent::tear_down();
 	}
 
-	private function wp_versions_data() {
+	/**
+	 * @return array<string, string>
+	 */
+	private function wp_versions_data(): array {
 		return array(
 			'5.4'   => 'insecure',
 			'5.9'   => 'insecure',
@@ -45,7 +51,10 @@ class TestWPVersionResolverTest extends TestCase {
 		);
 	}
 
-	public static function data_wp_version_resolver() {
+	/**
+	 * @return array<int, array{0: string, 1: string}>
+	 */
+	public static function data_wp_version_resolver(): array {
 		return array(
 			array( '5.0', '5.0' ), // Does not match any version. So return as it is.
 			array( '5', '5.9.2' ), // Return the latest major version.
@@ -68,8 +77,11 @@ class TestWPVersionResolverTest extends TestCase {
 
 	/**
 	 * @dataProvider data_wp_version_resolver
+	 *
+	 * @param string $env
+	 * @param string $expected
 	 */
-	public function test_wp_version_resolver( $env, $expected ) {
+	public function test_wp_version_resolver( $env, $expected ): void {
 		if ( $env ) {
 			putenv( "WP_VERSION=$env" );
 		}
