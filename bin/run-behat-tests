@@ -3,20 +3,90 @@
 # Run the Behat tests only if a Behat config file is found.
 if [ ! -f "behat.yml" ]; then
 	echo 'Did not detect "behat.yml" file, skipping Behat tests.'
-  exit 0;
+	exit 0;
 fi
 
 if ! command -v jq &> /dev/null
 then
-    echo 'The required "jq" command was not found, please install it to run the Behat tests.'
-    echo "See https://stedolan.github.io/jq/download/ for installation instructions."
-    exit 1;
+	echo 'The required "jq" command was not found, please install it to run the Behat tests.'
+	echo "See https://stedolan.github.io/jq/download/ for installation instructions."
+	exit 1;
 fi
 
 if [[ "$@" == *"--help"* ]]; then
-    vendor/bin/behat "$@"
-    ret=$?
-    exit $ret
+	vendor/bin/behat "$@"
+	ret=$?
+	exit $ret
+fi
+
+# POSIX compliant function to check if a string is numeric.
+is_numeric() {
+	case $1 in
+		''|*[!0-9]*) return 1;;  # returns 1 if not numeric
+		*) return 0;;            # returns 0 if numeric
+	esac
+}
+
+# If DB type is already set to SQLite, there's nothing to do.
+if [ "${WP_CLI_TEST_DBTYPE-}" = "sqlite" ]; then
+	echo "WP_CLI_TEST_DBTYPE is set to 'sqlite', skipping database check."
+else
+	# Check for database client and connectivity.
+	DB_CLIENT=""
+	if command -v mysql &> /dev/null; then
+		DB_CLIENT="mysql"
+	elif command -v mariadb &> /dev/null; then
+		DB_CLIENT="mariadb"
+	fi
+
+	if [ -z "${DB_CLIENT}" ]; then
+		echo "Warning: Could not find 'mysql' or 'mariadb' client."
+		echo "The tests will continue to be run, but with WP_CLI_TEST_DBTYPE=sqlite."
+		export WP_CLI_TEST_DBTYPE=sqlite
+	else
+		HOST_STRING=''
+		if [ -n "${WP_CLI_TEST_DBHOST}" ]; then
+			case ${WP_CLI_TEST_DBHOST##*[]]} in
+				(*:*) HOST=${WP_CLI_TEST_DBHOST%:*} PORT=${WP_CLI_TEST_DBHOST##*:};;
+				(*)   HOST=${WP_CLI_TEST_DBHOST};;
+			esac
+			HOST_STRING="-h${HOST}"
+			if [ -n "${PORT}" ]; then
+				# If the port is not numeric, then we assume it is a socket path.
+				if is_numeric "${PORT}"; then
+					HOST_STRING="${HOST_STRING} --port=${PORT} --protocol=tcp"
+				else
+					HOST_STRING="${HOST_STRING} --socket=${PORT} --protocol=socket"
+				fi
+			fi
+		fi
+
+		USER=${WP_CLI_TEST_DBUSER:-wp_cli_test}
+
+		if [ -z "${WP_CLI_TEST_DBPASS+x}" ]; then
+			# not set, use default
+			PASSWORD="password1"
+		else
+			# is set, use its value (could be empty)
+			PASSWORD="${WP_CLI_TEST_DBPASS}"
+		fi
+
+		PASSWORD_ARG=""
+		if [ -n "${PASSWORD}" ]; then
+			PASSWORD_ARG="-p${PASSWORD}"
+		fi
+
+		DBNAME=${WP_CLI_TEST_DBNAME:-wp_cli_test}
+
+		# We need to test the connection.
+		# Let's try to connect to the specific test database.
+		if ! ${DB_CLIENT} ${HOST_STRING} --user="${USER}" ${PASSWORD_ARG} --execute="USE \`${DBNAME}\`;" 2>/dev/null; then
+			echo "Warning: Could not connect to the MySQL/MariaDB database."
+			echo "Please make sure the database is running and run 'composer prepare-tests' once to set it up."
+			echo "The tests will continue to be run, but with WP_CLI_TEST_DBTYPE=sqlite."
+			export WP_CLI_TEST_DBTYPE=sqlite
+		fi
+	fi
 fi
 
 # Turn WP_VERSION into an actual number to make sure our tags work correctly.
@@ -30,11 +100,11 @@ SOURCE="${BASH_SOURCE[0]}"
 
 # Resolve $SOURCE until the file is no longer a symlink.
 while [ -h "$SOURCE" ]; do
-  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-  SOURCE="$(readlink "$SOURCE")"
-  # If $SOURCE was a relative symlink, we need to resolve it relative to the
-  # path where the symlink file was located.
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+	DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+	SOURCE="$(readlink "$SOURCE")"
+	# If $SOURCE was a relative symlink, we need to resolve it relative to the
+	# path where the symlink file was located.
+	[[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
 done
 
 # Fetch the root folder of the WP-CLI tests package.
@@ -44,5 +114,10 @@ export WP_CLI_TESTS_ROOT
 # Generate the tags to apply environment-specific filters.
 BEHAT_TAGS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-tags.php)
 
+BEHAT_EXTRA_ARGS=()
+if [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]] && vendor/bin/behat --help 2>/dev/null | grep -q 'xdebug'; then
+	BEHAT_EXTRA_ARGS+=('--xdebug')
+fi
+
 # Run the functional tests.
-vendor/bin/behat --format progress "$BEHAT_TAGS" --strict "$@"
+vendor/bin/behat --format progress "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" "$@"
