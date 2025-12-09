@@ -57,7 +57,8 @@ Feature: Test that WP-CLI loads.
       sqlite
       """
 
-  @require-sqlite
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-sqlite @skip-windows
   Scenario: Composer installation
     Given a WP install with Composer
 
