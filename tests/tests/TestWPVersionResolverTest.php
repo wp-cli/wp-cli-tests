@@ -2,6 +2,7 @@
 
 use WP_CLI\Utils;
 use WP_CLI\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class TestWPVersionResolverTest extends TestCase {
 
@@ -81,6 +82,7 @@ class TestWPVersionResolverTest extends TestCase {
 	 * @param string $env
 	 * @param string $expected
 	 */
+	#[DataProvider( 'data_wp_version_resolver' )] // phpcs:ignore PHPCompatibility.Attributes.NewAttributes.PHPUnitAttributeFound
 	public function test_wp_version_resolver( $env, $expected ): void {
 		if ( $env ) {
 			putenv( "WP_VERSION=$env" );
