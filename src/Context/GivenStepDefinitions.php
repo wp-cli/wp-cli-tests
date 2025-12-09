@@ -391,14 +391,20 @@ FILE;
 	 * Scenario: My other scenario
 	 *   Given a WP install
 	 *   ...
+	 *
+	 * Scenario: My version-specific scenario
+	 *   Given a WP 6.4.2 installation
+	 *   ...
 	 * ```
 	 *
 	 * @access public
 	 *
-	 * @Given a WP install(ation)
+	 * @Given /^a WP( [^\s]+)? install(?:ation)?$/
+	 *
+	 * @param string $version Optional version number (may include leading space)
 	 */
-	public function given_a_wp_installation(): void {
-		$this->install_wp();
+	public function given_a_wp_installation( $version = '' ): void {
+		$this->install_wp( '', trim( $version ) );
 	}
 
 	/**
@@ -412,16 +418,21 @@ FILE;
 	 * Scenario: My other scenario
 	 *   Given a WP install in 'bar'
 	 *   ...
+	 *
+	 * Scenario: My version-specific scenario
+	 *   Given a WP 6.4.2 installation in 'subdir'
+	 *   ...
 	 * ```
 	 *
 	 * @access public
 	 *
-	 * @Given a WP install(ation) in :subdir
+	 * @Given /^a WP( [^\s]+)? install(?:ation)? in ['"]?([^'"]+)['"]?$/
 	 *
+	 * @param string $version Optional version number (may include leading space)
 	 * @param string $subdir
 	 */
-	public function given_a_wp_installation_in_a_specific_folder( $subdir ): void {
-		$this->install_wp( $subdir );
+	public function given_a_wp_installation_in_a_specific_folder( $version = '', $subdir = '' ): void {
+		$this->install_wp( $subdir, trim( $version ) );
 	}
 
 	/**

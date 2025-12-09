@@ -66,3 +66,21 @@ Feature: Test that WP-CLI loads.
       """
       sqlite
       """
+
+  Scenario: WP installation with specific version
+    Given a WP 6.4.2 installation
+
+    When I run `wp core version`
+    Then STDOUT should be:
+      """
+      6.4.2
+      """
+
+  Scenario: WP installation in subdirectory with specific version
+    Given a WP 6.3.1 installation in 'wordpress'
+
+    When I run `wp core version --path=wordpress`
+    Then STDOUT should be:
+      """
+      6.3.1
+      """
