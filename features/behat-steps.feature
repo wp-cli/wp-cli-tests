@@ -28,7 +28,8 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then the test-dir directory should not exist
 
   Scenario: Test "Given an empty cache" step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     Then the {SUITE_CACHE_DIR} directory should exist
 
   Scenario: Test "Given a file" step
@@ -44,7 +45,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test "Given a cache file" step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     And a test-cache.txt cache file:
       """
       Cached content
