@@ -426,8 +426,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       wp-cli/wp-cli
       """
 
-
-
+  @require-linux
   Scenario: Test STDOUT should be empty
     When I run `echo -n ""`
     Then STDOUT should be empty
