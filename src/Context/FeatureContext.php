@@ -786,13 +786,15 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
-		foreach ( explode( PHP_EOL, $output ) as $line ) {
-			if ( preg_match( '/^\s*(\d+)\s+(\d+)/', $line, $matches ) ) {
-				$parent = $matches[1];
-				$child  = $matches[2];
+		if ( is_string( $output ) ) {
+			foreach ( explode( PHP_EOL, $output ) as $line ) {
+				if ( preg_match( '/^\s*(\d+)\s+(\d+)/', $line, $matches ) ) {
+					$parent = $matches[1];
+					$child  = $matches[2];
 
-				if ( (int) $parent === (int) $master_pid ) {
-					self::terminate_proc( (int) $child );
+					if ( (int) $parent === (int) $master_pid ) {
+						self::terminate_proc( (int) $child );
+					}
 				}
 			}
 		}
