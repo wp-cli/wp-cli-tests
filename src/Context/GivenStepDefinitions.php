@@ -399,7 +399,7 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^a WP( [^\s]+)? install(?:ation)?$/
+	 * @Given /^a WP( \d[^\s]+)? install(?:ation)?$/
 	 *
 	 * @param string $version Optional version number (may include leading space)
 	 */
