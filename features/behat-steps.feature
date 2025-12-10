@@ -277,6 +277,15 @@ Feature: Test that WP-CLI Behat steps work as expected
     And the return code should be 0
 
   @require-wp
+  Scenario: Test WP installation steps
+    Given a WP 6.8 installation
+    When I run `wp core version`
+    Then STDOUT should contain:
+      """
+      6.8
+      """
+
+  @require-wp
   Scenario: Test WP files and wp-config.php steps
     Given an empty directory
     And WP files
@@ -295,8 +304,6 @@ Feature: Test that WP-CLI Behat steps work as expected
     When I run `wp core version` from 'subdir'
     Then STDOUT should not be empty
     And the return code should be 0
-
-
 
   @require-wp
   Scenario: Test version string comparison
@@ -373,6 +380,12 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
       WP_CONTENT_DIR
       """
+
+  @require-wp
+  Scenario: Test WP multisite installation
+    Given a WP multisite installation
+    When I run `wp core is-installed`
+    Then the return code should be 0
 
   @require-wp
   Scenario: Test WP multisite subdirectory installation
