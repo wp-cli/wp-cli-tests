@@ -399,7 +399,8 @@ Feature: Test that WP-CLI Behat steps work as expected
 
   @require-download
   Scenario: Test download step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     And download:
       | path                       | url                                    |
       | {SUITE_CACHE_DIR}/test.txt | https://www.iana.org/robots.txt        |
