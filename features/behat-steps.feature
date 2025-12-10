@@ -681,3 +681,4 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then STDOUT should be CSV containing:
       | user_login | user_email        |
       | admin      | admin@example.com |
+      | user2      | user2@example.com |
