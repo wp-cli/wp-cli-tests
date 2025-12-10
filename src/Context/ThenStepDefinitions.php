@@ -456,7 +456,7 @@ trait ThenStepDefinitions {
 		$path = $this->replace_variables( $path );
 
 		// If it's a relative path, make it relative to the current test dir.
-		if ( DIRECTORY_SEPARATOR !== $path[0] ) {
+		if ( DIRECTORY_SEPARATOR !== $path[0] && 0 !== strpos( $path, $this->variables['RUN_DIR'] ) ) {
 			$path = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR . $path;
 		}
 
