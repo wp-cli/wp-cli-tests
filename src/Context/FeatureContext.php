@@ -2,7 +2,7 @@
 
 namespace WP_CLI\Tests\Context;
 
-use Behat\Behat\Context\SnippetAcceptingContext;
+use Behat\Behat\Context\Context;
 use Behat\Behat\EventDispatcher\Event\OutlineTested;
 use Behat\Behat\Hook\Scope\AfterScenarioScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
@@ -13,7 +13,6 @@ use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
 use Behat\Behat\Hook\Scope\AfterFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeStepScope;
-use Behat\Testwork\Hook\Scope\HookScope;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Driver\Xdebug;
@@ -21,7 +20,6 @@ use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
-use WP_CLI;
 use DirectoryIterator;
 use WP_CLI\Process;
 use WP_CLI\ProcessRun;
@@ -33,7 +31,7 @@ use WP_CLI\WpOrgApi;
  *
  * @phpstan-ignore class.implementsDeprecatedInterface
  */
-class FeatureContext implements SnippetAcceptingContext {
+class FeatureContext implements Context {
 
 	use GivenStepDefinitions;
 	use ThenStepDefinitions;
