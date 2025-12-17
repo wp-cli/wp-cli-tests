@@ -283,6 +283,17 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	 * Whether tests are currently running with Xdebug step debugging enabled.
+	 *
+	 * @return bool
+	 */
+	private static function running_with_xdebug() {
+		$with_xdebug = (string) getenv( 'WP_CLI_TEST_XDEBUG' );
+
+		return \in_array( $with_xdebug, [ 'true', '1' ], true );
+	}
+
+	/**
 	 * @AfterSuite
 	 */
 	public static function merge_coverage_reports(): void {
@@ -464,6 +475,12 @@ class FeatureContext implements SnippetAcceptingContext {
 			$current               = getenv( 'WP_CLI_REQUIRE' );
 			$updated               = $current ? "{$current},{$coverage_require_file}" : $coverage_require_file;
 			$env['WP_CLI_REQUIRE'] = $updated;
+		}
+
+		if ( self::running_with_xdebug() ) {
+			$env['XDEBUG_MODE']    = 'debug';
+			$env['XDEBUG_SESSION'] = '1';
+			$env['XDEBUG_CONFIG']  = 'idekey=WP_CLI_TEST_XDEBUG log_level=0';
 		}
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
