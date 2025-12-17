@@ -674,8 +674,6 @@ class FeatureContext implements Context {
 	 * @AfterSuite
 	 */
 	public static function afterSuite( AfterSuiteScope $scope ): void {
-		self::bootstrap_feature_context();
-
 		if ( self::$composer_local_repository ) {
 			self::remove_dir( self::$composer_local_repository );
 			self::$composer_local_repository = null;
@@ -801,8 +799,6 @@ class FeatureContext implements Context {
 	 * Every scenario gets its own context object.
 	 */
 	public function __construct() {
-		self::bootstrap_feature_context();
-
 		if ( getenv( 'WP_CLI_TEST_DBROOTUSER' ) ) {
 			$this->variables['DB_ROOT_USER'] = getenv( 'WP_CLI_TEST_DBROOTUSER' );
 		}
