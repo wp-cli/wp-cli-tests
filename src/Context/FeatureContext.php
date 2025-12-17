@@ -282,9 +282,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		return \in_array( $with_code_coverage, [ 'true', '1' ], true );
 	}
 
-	/**
-	 * @AfterSuite
-	 */
 	public static function merge_coverage_reports(): void {
 		if ( ! self::running_with_code_coverage() ) {
 			return;
@@ -430,14 +427,14 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		// Ensure we're using the expected `wp` binary.
 		$bin_path = self::get_bin_path();
-		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
+		self::debug( "WP-CLI binary path: {$bin_path}" );
 
 		if ( ! file_exists( "{$bin_path}/wp" ) ) {
-			wp_cli_behat_env_debug( "WARNING: No file named 'wp' found in the provided/detected binary path." );
+			self::debug( "WARNING: No file named 'wp' found in the provided/detected binary path." );
 		}
 
 		if ( ! is_executable( "{$bin_path}/wp" ) ) {
-			wp_cli_behat_env_debug( "WARNING: File named 'wp' found in the provided/detected binary path is not executable." );
+			self::debug( "WARNING: File named 'wp' found in the provided/detected binary path is not executable." );
 		}
 
 		$path_separator = Utils\is_windows() ? ';' : ':';
@@ -502,9 +499,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		// Dump environment for debugging purposes, but before adding the GitHub token.
-		wp_cli_behat_env_debug( 'Environment:' );
+		self::debug( 'Environment:' );
 		foreach ( $env as $key => $value ) {
-			wp_cli_behat_env_debug( "   [{$key}] => {$value}" );
+			self::debug( "   [{$key}] => {$value}" );
 		}
 
 		$github_token = getenv( 'GITHUB_TOKEN' );
@@ -651,6 +648,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @BeforeSuite
 	 */
 	public static function prepare( BeforeSuiteScope $scope ): void {
+		self::bootstrap_feature_context();
+
 		// Test performance statistics - useful for detecting slow tests.
 		self::$log_run_times = getenv( 'WP_CLI_TEST_LOG_RUN_TIMES' );
 		if ( false !== self::$log_run_times ) {
@@ -679,6 +678,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @AfterSuite
 	 */
 	public static function afterSuite( AfterSuiteScope $scope ): void {
+		self::bootstrap_feature_context();
+
 		if ( self::$composer_local_repository ) {
 			self::remove_dir( self::$composer_local_repository );
 			self::$composer_local_repository = null;
@@ -687,6 +688,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( self::$log_run_times ) {
 			self::log_run_times_after_suite( $scope );
 		}
+
+		self::merge_coverage_reports();
 	}
 
 	/**
@@ -802,6 +805,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * Every scenario gets its own context object.
 	 */
 	public function __construct() {
+		$this->bootstrap_feature_context();
+
 		if ( getenv( 'WP_CLI_TEST_DBROOTUSER' ) ) {
 			$this->variables['DB_ROOT_USER'] = getenv( 'WP_CLI_TEST_DBROOTUSER' );
 		}
@@ -864,6 +869,74 @@ class FeatureContext implements SnippetAcceptingContext {
 		$this->test_connection();
 		$this->drop_db();
 		$this->set_cache_dir();
+	}
+
+	/**
+	 * @param string $message
+	 */
+	protected static function debug( $message ): void { // phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
+		if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
+			return;
+		}
+
+		echo "{$message}\n";
+	}
+
+	/**
+	 * Load required support files as needed before heading into the Behat context.
+	 */
+	protected static function bootstrap_feature_context(): void {
+		$vendor_folder = self::get_vendor_dir();
+		self::debug( "Vendor folder location: {$vendor_folder}" );
+
+		// Didn't manage to detect a valid vendor folder.
+		if ( empty( $vendor_folder ) ) {
+			return;
+		}
+
+		// We assume the vendor folder is located in the project root folder.
+		$project_folder = dirname( $vendor_folder );
+
+		$framework_folder = self::get_framework_dir();
+		self::debug( "Framework folder location: {$framework_folder}" );
+
+		// Load helper functionality that is needed for the tests.
+		require_once "{$framework_folder}/php/utils.php";
+		require_once "{$framework_folder}/php/WP_CLI/Process.php";
+		require_once "{$framework_folder}/php/WP_CLI/ProcessRun.php";
+
+		// Manually load Composer file includes by generating a config with require:
+		// statements for each file.
+		$project_composer = "{$project_folder}/composer.json";
+		if ( ! file_exists( $project_composer ) ) {
+			return;
+		}
+
+		$composer = json_decode( file_get_contents( $project_composer ) );
+		if ( empty( $composer->autoload->files ) ) {
+			return;
+		}
+
+		$contents = "require:\n";
+		foreach ( $composer->autoload->files as $file ) {
+			$contents .= "  - {$project_folder}/{$file}\n";
+		}
+
+		$temp_folder = sys_get_temp_dir() . '/wp-cli-package-test';
+		if (
+			! is_dir( $temp_folder )
+			&& ! mkdir( $temp_folder )
+			&& ! is_dir( $temp_folder )
+		) {
+			return;
+		}
+
+		$project_config = "{$temp_folder}/config.yml";
+		file_put_contents( $project_config, $contents );
+		putenv( 'WP_CLI_CONFIG_PATH=' . $project_config );
+
+		self::debug( "Project config file location: {$project_config}" );
+		self::debug( "Project config:\n{$contents}" );
 	}
 
 	/**
@@ -1766,74 +1839,3 @@ class FeatureContext implements SnippetAcceptingContext {
 		++self::$proc_method_run_times[ $key ][1];
 	}
 }
-
-
-/**
- * @param string $message
- */
-function wp_cli_behat_env_debug( $message ): void { // phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
-	if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
-		return;
-	}
-
-	echo "{$message}\n";
-}
-
-/**
- * Load required support files as needed before heading into the Behat context.
- */
-function wpcli_bootstrap_behat_feature_context(): void {
-	$vendor_folder = FeatureContext::get_vendor_dir();
-	wp_cli_behat_env_debug( "Vendor folder location: {$vendor_folder}" );
-
-	// Didn't manage to detect a valid vendor folder.
-	if ( empty( $vendor_folder ) ) {
-		return;
-	}
-
-	// We assume the vendor folder is located in the project root folder.
-	$project_folder = dirname( $vendor_folder );
-
-	$framework_folder = FeatureContext::get_framework_dir();
-	wp_cli_behat_env_debug( "Framework folder location: {$framework_folder}" );
-
-	// Load helper functionality that is needed for the tests.
-	require_once "{$framework_folder}/php/utils.php";
-	require_once "{$framework_folder}/php/WP_CLI/Process.php";
-	require_once "{$framework_folder}/php/WP_CLI/ProcessRun.php";
-
-	// Manually load Composer file includes by generating a config with require:
-	// statements for each file.
-	$project_composer = "{$project_folder}/composer.json";
-	if ( ! file_exists( $project_composer ) ) {
-		return;
-	}
-
-	$composer = json_decode( file_get_contents( $project_composer ) );
-	if ( empty( $composer->autoload->files ) ) {
-		return;
-	}
-
-	$contents = "require:\n";
-	foreach ( $composer->autoload->files as $file ) {
-		$contents .= "  - {$project_folder}/{$file}\n";
-	}
-
-	$temp_folder = sys_get_temp_dir() . '/wp-cli-package-test';
-	if (
-		! is_dir( $temp_folder )
-		&& ! mkdir( $temp_folder )
-		&& ! is_dir( $temp_folder )
-	) {
-		return;
-	}
-
-	$project_config = "{$temp_folder}/config.yml";
-	file_put_contents( $project_config, $contents );
-	putenv( 'WP_CLI_CONFIG_PATH=' . $project_config );
-
-	wp_cli_behat_env_debug( "Project config file location: {$project_config}" );
-	wp_cli_behat_env_debug( "Project config:\n{$contents}" );
-}
-
-wpcli_bootstrap_behat_feature_context();
