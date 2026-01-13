@@ -28,7 +28,8 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then the test-dir directory should not exist
 
   Scenario: Test "Given an empty cache" step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     Then the {SUITE_CACHE_DIR} directory should exist
 
   Scenario: Test "Given a file" step
@@ -44,7 +45,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test "Given a cache file" step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     And a test-cache.txt cache file:
       """
       Cached content
@@ -410,13 +412,15 @@ Feature: Test that WP-CLI Behat steps work as expected
 
   @require-download
   Scenario: Test download step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     And download:
       | path                       | url                                    |
       | {SUITE_CACHE_DIR}/test.txt | https://www.iana.org/robots.txt        |
     Then the {SUITE_CACHE_DIR}/test.txt file should exist
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test WP installation with Composer
     Given a WP installation with Composer
     Then the composer.json file should exist
@@ -424,13 +428,15 @@ Feature: Test that WP-CLI Behat steps work as expected
     When I run `wp core version`
     Then STDOUT should not be empty
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test WP installation with Composer and custom vendor directory
     Given a WP installation with Composer and a custom vendor directory 'custom-vendor'
     Then the composer.json file should exist
     And the custom-vendor directory should exist
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test dependency on current wp-cli
     Given a WP installation with Composer
     And a dependency on current wp-cli
@@ -439,8 +445,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       wp-cli/wp-cli
       """
 
-
-
+  @require-linux
   Scenario: Test STDOUT should be empty
     When I run `echo -n ""`
     Then STDOUT should be empty
@@ -689,3 +694,4 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then STDOUT should be CSV containing:
       | user_login | user_email        |
       | admin      | admin@example.com |
+      | user2      | user2@example.com |
