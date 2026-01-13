@@ -762,7 +762,7 @@ class FeatureContext implements Context {
 
 		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
-		foreach ( explode( PHP_EOL, $output ) as $line ) {
+		foreach ( explode( PHP_EOL, $output ? $output : '' ) as $line ) {
 			if ( preg_match( '/^\s*(\d+)\s+(\d+)/', $line, $matches ) ) {
 				$parent = $matches[1];
 				$child  = $matches[2];
