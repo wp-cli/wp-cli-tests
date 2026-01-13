@@ -120,4 +120,4 @@ if [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]] && vendor/bin/behat --help 2>/dev/n
 fi
 
 # Run the functional tests.
-vendor/bin/behat --format progress "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" "$@"
+vendor/bin/behat --snippets-for="WP_CLI\Tests\Context\FeatureContext" --format progress "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" "$@"
