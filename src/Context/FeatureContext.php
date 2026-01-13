@@ -980,7 +980,7 @@ class FeatureContext implements Context {
 		}
 
 		$str = preg_replace_callback(
-			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-([^}]*)}/',
+			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-(.*)}/',
 			static function ( $matches ) use ( $phar_path, $shell_path ) {
 				return $phar_path ? "php {$matches[1]} {$phar_path}" : ( 'WP_CLI_PHP_ARGS=' . escapeshellarg( $matches[1] ) . ' ' . $shell_path );
 			},
