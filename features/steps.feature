@@ -74,6 +74,9 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
     Then STDOUT should match /^WP_CLI_PHP_ARGS=-dopen_basedir=.* ?wp cli info/
     And STDERR should be empty
 
+    When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS--dopen_basedir={RUN_DIR}} eval 'echo "{RUN_DIR}";'`
+    Then STDOUT should match /^WP_CLI_PHP_ARGS=-dopen_basedir=(.*)(.*) ?wp eval echo "\1";/
+
   @require-mysql-or-mariadb
   Scenario: SQL related variables
     When I run `echo {MYSQL_BINARY}`
