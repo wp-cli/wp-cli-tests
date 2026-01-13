@@ -939,10 +939,10 @@ class FeatureContext implements Context {
 	 * @return string
 	 */
 	public function replace_variables( $str ) {
+		$str = preg_replace_callback( '/\{([A-Z_][A-Z_0-9]*)\}/', [ $this, 'replace_var' ], $str );
 		if ( false !== strpos( $str, '{INVOKE_WP_CLI_WITH_PHP_ARGS-' ) ) {
 			$str = $this->replace_invoke_wp_cli_with_php_args( $str );
 		}
-		$str = preg_replace_callback( '/\{([A-Z_][A-Z_0-9]*)\}/', [ $this, 'replace_var' ], $str );
 		if ( false !== strpos( $str, '{WP_VERSION-' ) ) {
 			$str = $this->replace_wp_versions( $str );
 		}
