@@ -785,15 +785,13 @@ class FeatureContext implements Context {
 
 		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
-		if ( is_string( $output ) ) {
-			foreach ( explode( PHP_EOL, $output ) as $line ) {
-				if ( preg_match( '/^\s*(\d+)\s+(\d+)/', $line, $matches ) ) {
-					$parent = $matches[1];
-					$child  = $matches[2];
+		foreach ( explode( PHP_EOL, $output ? $output : '' ) as $line ) {
+			if ( preg_match( '/^\s*(\d+)\s+(\d+)/', $line, $matches ) ) {
+				$parent = $matches[1];
+				$child  = $matches[2];
 
-					if ( (int) $parent === (int) $master_pid ) {
-						self::terminate_proc( (int) $child );
-					}
+				if ( (int) $parent === (int) $master_pid ) {
+					self::terminate_proc( (int) $child );
 				}
 			}
 		}
@@ -968,10 +966,10 @@ class FeatureContext implements Context {
 	 * @return string
 	 */
 	public function replace_variables( $str ) {
+		$str = preg_replace_callback( '/\{([A-Z_][A-Z_0-9]*)\}/', [ $this, 'replace_var' ], $str );
 		if ( false !== strpos( $str, '{INVOKE_WP_CLI_WITH_PHP_ARGS-' ) ) {
 			$str = $this->replace_invoke_wp_cli_with_php_args( $str );
 		}
-		$str = preg_replace_callback( '/\{([A-Z_][A-Z_0-9]*)\}/', [ $this, 'replace_var' ], $str );
 		if ( false !== strpos( $str, '{WP_VERSION-' ) ) {
 			$str = $this->replace_wp_versions( $str );
 		}
@@ -1010,7 +1008,7 @@ class FeatureContext implements Context {
 		}
 
 		$str = preg_replace_callback(
-			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-([^}]*)}/',
+			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-(.*)}/',
 			static function ( $matches ) use ( $phar_path, $shell_path ) {
 				return $phar_path ? "php {$matches[1]} {$phar_path}" : ( 'WP_CLI_PHP_ARGS=' . escapeshellarg( $matches[1] ) . ' ' . $shell_path );
 			},
