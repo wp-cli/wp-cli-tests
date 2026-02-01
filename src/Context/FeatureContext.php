@@ -1247,7 +1247,7 @@ class FeatureContext implements Context {
 
 	/**
 	 * @param string $command
-	 * @param array<string, string> $assoc_args
+	 * @param array<string, mixed> $assoc_args
 	 * @param string $path
 	 * @return Process
 	 */
