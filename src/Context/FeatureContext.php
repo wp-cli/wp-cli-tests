@@ -834,7 +834,8 @@ class FeatureContext implements Context {
 		if ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 			$this->variables['DB_TYPE'] = getenv( 'WP_CLI_TEST_DBTYPE' );
 		} else {
-			$this->variables['DB_TYPE'] = 'mysql';
+			// Auto-detect database type if not explicitly set
+			$this->variables['DB_TYPE'] = Utils\get_db_type();
 		}
 
 		if ( getenv( 'MYSQL_TCP_PORT' ) ) {
@@ -1166,18 +1167,12 @@ class FeatureContext implements Context {
 	}
 
 	/**
-	 * Check if the given binary path is for MariaDB.
+	 * Check if the current database type is MariaDB.
 	 *
-	 * Checks if the binary name contains 'mariadb' to distinguish MariaDB from MySQL.
-	 * This is a simple heuristic that works for standard installations where the
-	 * binary is named 'mariadb' or 'mariadb-dump'. Custom builds with non-standard
-	 * naming may not be detected correctly.
-	 *
-	 * @param string $binary_path Path to the database binary.
 	 * @return bool True if MariaDB, false otherwise.
 	 */
-	private static function is_mariadb( $binary_path ) {
-		return false !== strpos( basename( $binary_path ), 'mariadb' );
+	private static function is_mariadb() {
+		return 'mariadb' === self::$db_type;
 	}
 
 	/**
@@ -1218,7 +1213,7 @@ class FeatureContext implements Context {
 		}
 
 		$dbname   = self::$db_settings['dbname'];
-		$ssl_flag = self::is_mariadb( self::$mysql_binary ) ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag = self::is_mariadb() ? ' --ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
@@ -1230,7 +1225,7 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		$ssl_flag   = self::is_mariadb( self::$mysql_binary ) ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag   = self::is_mariadb() ? ' --ssl-verify-server-cert' : '';
 		$sql_result = self::run_sql(
 			self::$mysql_binary . ' --no-defaults' . $ssl_flag,
 			[
@@ -1259,7 +1254,7 @@ class FeatureContext implements Context {
 			return;
 		}
 		$dbname   = self::$db_settings['dbname'];
-		$ssl_flag = self::is_mariadb( self::$mysql_binary ) ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag = self::is_mariadb() ? ' --ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
@@ -1497,7 +1492,7 @@ class FeatureContext implements Context {
 			if ( 'sqlite' === self::$db_type ) {
 				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
 			} else {
-				$ssl_flag = self::is_mariadb( self::$mysql_binary ) ? ' --ssl-verify-server-cert' : '';
+				$ssl_flag = self::is_mariadb() ? ' --ssl-verify-server-cert' : '';
 				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
@@ -1511,7 +1506,7 @@ class FeatureContext implements Context {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
 				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
-				$ssl_flag                  = self::is_mariadb( $mysqldump_binary ) ? ' --ssl-verify-server-cert' : '';
+				$ssl_flag                  = self::is_mariadb() ? ' --ssl-verify-server-cert' : '';
 				$command                   = "{$mysqldump_binary} --no-defaults{$ssl_flag} --no-tablespaces";
 				if ( $support_column_statistics ) {
 					$command .= ' --skip-column-statistics';
