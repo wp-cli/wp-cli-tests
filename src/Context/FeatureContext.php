@@ -1168,6 +1168,11 @@ class FeatureContext implements Context {
 	/**
 	 * Check if the given binary path is for MariaDB.
 	 *
+	 * Checks if the binary name contains 'mariadb' to distinguish MariaDB from MySQL.
+	 * This is a simple heuristic that works for standard installations where the
+	 * binary is named 'mariadb' or 'mariadb-dump'. Custom builds with non-standard
+	 * naming may not be detected correctly.
+	 *
 	 * @param string $binary_path Path to the database binary.
 	 * @return bool True if MariaDB, false otherwise.
 	 */
