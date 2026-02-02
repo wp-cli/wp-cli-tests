@@ -39,11 +39,8 @@ class WPCliRuncommandDynamicReturnTypeExtension implements DynamicStaticMethodRe
 	): Type {
 		$args = $methodCall->getArgs();
 
-		/** @var ConstantBooleanType|ConstantStringType $returnOption */
 		$returnOption = new ConstantBooleanType( true );
-		/** @var ConstantBooleanType|ConstantStringType $parseOption */
 		$parseOption = new ConstantBooleanType( false );
-		/** @var ConstantBooleanType $exitOnErrorOption */
 		$exitOnErrorOption = new ConstantBooleanType( true );
 
 		$optionsAreStaticallyKnown = true;
