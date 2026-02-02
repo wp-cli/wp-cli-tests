@@ -1166,6 +1166,16 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Check if the given binary path is for MariaDB.
+	 *
+	 * @param string $binary_path Path to the database binary.
+	 * @return bool True if MariaDB, false otherwise.
+	 */
+	private static function is_mariadb( $binary_path ) {
+		return false !== strpos( basename( $binary_path ), 'mariadb' );
+	}
+
+	/**
 	 * Run a MySQL command with `$db_settings`.
 	 *
 	 * @param string                $sql_cmd      Command to run.
@@ -1203,7 +1213,7 @@ class FeatureContext implements Context {
 		}
 
 		$dbname   = self::$db_settings['dbname'];
-		$ssl_flag = ( false !== strpos( self::$mysql_binary, 'mariadb' ) ) ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag = self::is_mariadb( self::$mysql_binary ) ? ' --ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
@@ -1215,7 +1225,7 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		$ssl_flag   = ( false !== strpos( self::$mysql_binary, 'mariadb' ) ) ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag   = self::is_mariadb( self::$mysql_binary ) ? ' --ssl-verify-server-cert' : '';
 		$sql_result = self::run_sql(
 			self::$mysql_binary . ' --no-defaults' . $ssl_flag,
 			[
@@ -1244,7 +1254,7 @@ class FeatureContext implements Context {
 			return;
 		}
 		$dbname   = self::$db_settings['dbname'];
-		$ssl_flag = ( false !== strpos( self::$mysql_binary, 'mariadb' ) ) ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag = self::is_mariadb( self::$mysql_binary ) ? ' --ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
@@ -1482,7 +1492,7 @@ class FeatureContext implements Context {
 			if ( 'sqlite' === self::$db_type ) {
 				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
 			} else {
-				$ssl_flag = ( false !== strpos( self::$mysql_binary, 'mariadb' ) ) ? ' --ssl-verify-server-cert' : '';
+				$ssl_flag = self::is_mariadb( self::$mysql_binary ) ? ' --ssl-verify-server-cert' : '';
 				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
@@ -1496,7 +1506,7 @@ class FeatureContext implements Context {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
 				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
-				$ssl_flag                  = ( false !== strpos( $mysqldump_binary, 'mariadb' ) ) ? ' --ssl-verify-server-cert' : '';
+				$ssl_flag                  = self::is_mariadb( $mysqldump_binary ) ? ' --ssl-verify-server-cert' : '';
 				$command                   = "{$mysqldump_binary} --no-defaults{$ssl_flag} --no-tablespaces";
 				if ( $support_column_statistics ) {
 					$command .= ' --skip-column-statistics';
