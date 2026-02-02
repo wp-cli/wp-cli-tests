@@ -21,7 +21,5 @@ parameters:
   ignoreErrors:
     # Needs fixing in WP-CLI.
     - message: '#Parameter \#1 \$cmd of function WP_CLI\\Utils\\esc_cmd expects array<string>#'
-    - message: '#Dynamic call to static method#'
-      path: 'tests/tests'
   strictRules:
     strictCalls: true

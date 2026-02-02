@@ -1169,7 +1169,7 @@ class FeatureContext implements Context {
 	 * Run a MySQL command with `$db_settings`.
 	 *
 	 * @param string                $sql_cmd      Command to run.
-	 * @param array<string, string> $assoc_args   Optional. Associative array of options. Default empty.
+	 * @param array<string, string|bool> $assoc_args   Optional. Associative array of options. Default empty.
 	 * @param bool                  $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
 	 * @return array{stdout: string, stderr: string, exit_code: int}
 	 */
@@ -1247,7 +1247,7 @@ class FeatureContext implements Context {
 
 	/**
 	 * @param string $command
-	 * @param array<string, string> $assoc_args
+	 * @param array<string, mixed> $assoc_args
 	 * @param string $path
 	 * @return Process
 	 */
