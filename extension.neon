@@ -29,6 +29,14 @@ parameters:
     switchConditionsMatchingType: false
     noVariableVariables: false
     strictArrayFilter: false
+    booleansInLoopConditions: false
+    disallowedBacktick: false
+    disallowedEmpty: false
+    disallowedImplicitArrayCreation: false
+    disallowedShortTernary: false
+    strictFunctionCalls: false
+    dynamicCallOnStaticMethod: false
+    illegalConstructorMethodCall: false
 
 # Add the schema from phpstan-strict-rules so it's available without loading the extension
 # and the above configuration works.
@@ -48,4 +56,12 @@ parametersSchema:
     switchConditionsMatchingType: anyOf(bool(), arrayOf(bool()))
     noVariableVariables: anyOf(bool(), arrayOf(bool()))
     strictArrayFilter: anyOf(bool(), arrayOf(bool()))
+    booleansInLoopConditions: anyOf(bool(), arrayOf(bool()))
+    disallowedBacktick: anyOf(bool(), arrayOf(bool()))
+    disallowedEmpty: anyOf(bool(), arrayOf(bool()))
+    disallowedImplicitArrayCreation: anyOf(bool(), arrayOf(bool()))
+    disallowedShortTernary: anyOf(bool(), arrayOf(bool()))
+    strictFunctionCalls: anyOf(bool(), arrayOf(bool()))
+    dynamicCallOnStaticMethod: anyOf(bool(), arrayOf(bool()))
+    illegalConstructorMethodCall: anyOf(bool(), arrayOf(bool()))
   ])
