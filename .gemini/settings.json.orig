@@ -1,1 +1,0 @@
-{ "contextFileName": "AGENTS.md", "advanced": { "bugCommand": { "urlTemplate": "https://github.com/wp-cli/wp-cli-tests/issues/new?template=1-BUG_REPORT.md&title={title}" } } }
