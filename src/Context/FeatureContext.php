@@ -134,6 +134,13 @@ class FeatureContext implements Context {
 	private $running_procs = [];
 
 	/**
+	 * Array of temporary file paths created for background processes on Windows. Used to clean them up at the end of the scenario.
+	 *
+	 * @var array<string>
+	 */
+	private $temp_files = [];
+
+	/**
 	 * Array of variables available as {VARIABLE_NAME}. Some are always set: CORE_CONFIG_SETTINGS, DB_USER, DB_PASSWORD, DB_HOST, SRC_DIR, CACHE_DIR, WP_VERSION-version-latest.
 	 * Some are step-dependent: RUN_DIR, SUITE_CACHE_DIR, COMPOSER_LOCAL_REPOSITORY, PHAR_PATH. One is set on use: INVOKE_WP_CLI_WITH_PHP_ARGS-args.
 	 * Scenarios can define their own variables using "Given save" steps. Variables are reset for each scenario.
@@ -767,6 +774,10 @@ class FeatureContext implements Context {
 			self::terminate_proc( $status['pid'] );
 		}
 
+		// Clean up temporary files created for background processes on Windows.
+		$this->cleanup_temp_files( ...$this->temp_files );
+		$this->temp_files = [];
+
 		if ( self::$log_run_times ) {
 			self::log_run_times_after_scenario( $scope );
 		}
@@ -1355,6 +1366,8 @@ class FeatureContext implements Context {
 			if ( Utils\is_windows() ) {
 				$stderr = (string) file_get_contents( $stderr_file );
 				$stderr = $stderr ? ': ' . $stderr : '';
+				// Clean up temporary files.
+				$this->cleanup_temp_files( $stdout_file, $stderr_file );
 			} else {
 				$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
 			}
@@ -1362,6 +1375,25 @@ class FeatureContext implements Context {
 		}
 
 		$this->running_procs[] = $proc;
+
+		// Track temporary files for cleanup at the end of the scenario.
+		if ( Utils\is_windows() ) {
+			$this->temp_files[] = $stdout_file;
+			$this->temp_files[] = $stderr_file;
+		}
+	}
+
+	/**
+	 * Clean up temporary files safely.
+	 *
+	 * @param string ...$files File paths to clean up.
+	 */
+	private function cleanup_temp_files( ...$files ): void {
+		foreach ( $files as $file ) {
+			if ( file_exists( $file ) ) {
+				unlink( $file );
+			}
+		}
 	}
 
 	/**
