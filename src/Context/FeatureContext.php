@@ -1356,8 +1356,8 @@ class FeatureContext implements Context {
 				$stderr = (string) file_get_contents( $stderr_file );
 				$stderr = $stderr ? ': ' . $stderr : '';
 				// Clean up temporary files.
-				unlink( $stdout_file );
-				unlink( $stderr_file );
+				@unlink( $stdout_file );
+				@unlink( $stderr_file );
 			} else {
 				$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
 			}
