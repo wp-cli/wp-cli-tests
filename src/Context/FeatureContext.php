@@ -775,11 +775,7 @@ class FeatureContext implements Context {
 		}
 
 		// Clean up temporary files created for background processes on Windows.
-		foreach ( $this->temp_files as $temp_file ) {
-			if ( file_exists( $temp_file ) ) {
-				unlink( $temp_file );
-			}
-		}
+		$this->cleanup_temp_files( ...$this->temp_files );
 		$this->temp_files = [];
 
 		if ( self::$log_run_times ) {
@@ -1371,12 +1367,7 @@ class FeatureContext implements Context {
 				$stderr = (string) file_get_contents( $stderr_file );
 				$stderr = $stderr ? ': ' . $stderr : '';
 				// Clean up temporary files.
-				if ( file_exists( $stdout_file ) ) {
-					unlink( $stdout_file );
-				}
-				if ( file_exists( $stderr_file ) ) {
-					unlink( $stderr_file );
-				}
+				$this->cleanup_temp_files( $stdout_file, $stderr_file );
 			} else {
 				$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
 			}
@@ -1389,6 +1380,19 @@ class FeatureContext implements Context {
 		if ( Utils\is_windows() ) {
 			$this->temp_files[] = $stdout_file;
 			$this->temp_files[] = $stderr_file;
+		}
+	}
+
+	/**
+	 * Clean up temporary files safely.
+	 *
+	 * @param string ...$files File paths to clean up.
+	 */
+	private function cleanup_temp_files( ...$files ): void {
+		foreach ( $files as $file ) {
+			if ( file_exists( $file ) ) {
+				unlink( $file );
+			}
 		}
 	}
 
