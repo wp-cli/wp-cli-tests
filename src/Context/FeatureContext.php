@@ -834,7 +834,8 @@ class FeatureContext implements Context {
 		if ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 			$this->variables['DB_TYPE'] = getenv( 'WP_CLI_TEST_DBTYPE' );
 		} else {
-			$this->variables['DB_TYPE'] = 'mysql';
+			// Auto-detect database type if not explicitly set
+			$this->variables['DB_TYPE'] = Utils\get_db_type();
 		}
 
 		if ( getenv( 'MYSQL_TCP_PORT' ) ) {
@@ -1202,8 +1203,9 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		$dbname = self::$db_settings['dbname'];
-		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
+		$dbname   = self::$db_settings['dbname'];
+		$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
 	/**
@@ -1214,8 +1216,9 @@ class FeatureContext implements Context {
 			return;
 		}
 
+		$ssl_flag   = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
 		$sql_result = self::run_sql(
-			self::$mysql_binary . ' --no-defaults',
+			self::$mysql_binary . ' --no-defaults' . $ssl_flag,
 			[
 				'execute'       => 'SELECT 1',
 				'send_to_shell' => false,
@@ -1241,8 +1244,9 @@ class FeatureContext implements Context {
 		if ( 'sqlite' === self::$db_type ) {
 			return;
 		}
-		$dbname = self::$db_settings['dbname'];
-		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
+		$dbname   = self::$db_settings['dbname'];
+		$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
 	/**
@@ -1479,7 +1483,8 @@ class FeatureContext implements Context {
 			if ( 'sqlite' === self::$db_type ) {
 				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
 			} else {
-				self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
+				$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
@@ -1492,7 +1497,8 @@ class FeatureContext implements Context {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
 				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
-				$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
+				$ssl_flag                  = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+				$command                   = "{$mysqldump_binary} --no-defaults{$ssl_flag} --no-tablespaces";
 				if ( $support_column_statistics ) {
 					$command .= ' --skip-column-statistics';
 				}
