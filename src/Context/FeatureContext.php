@@ -1432,11 +1432,14 @@ class FeatureContext implements Context {
 			\RecursiveIteratorIterator::CHILD_FIRST
 		);
 
+		/**
+		 * @var \SplFileInfo $file
+		 */
 		foreach ( $iterator as $file ) {
 			if ( $file->isDir() ) {
-				rmdir( $file->getRealPath() );
+				rmdir( $file->getPathname() );
 			} else {
-				unlink( $file->getRealPath() );
+				unlink( $file->getPathname() );
 			}
 		}
 
@@ -1455,6 +1458,9 @@ class FeatureContext implements Context {
 			\RecursiveIteratorIterator::SELF_FIRST
 		);
 
+		/**
+		 * @var \SplFileInfo $item
+		 */
 		foreach ( $iterator as $item ) {
 			$dest_path = $dest_dir . '/' . $iterator->getSubPathname();
 			if ( $item->isDir() ) {
