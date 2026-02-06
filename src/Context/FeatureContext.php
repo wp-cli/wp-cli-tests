@@ -1004,7 +1004,7 @@ class FeatureContext implements Context {
 			$bin_dir        = getenv( 'WP_CLI_BIN_DIR' );
 			$bin            = Utils\is_windows() ? 'wp.bat' : 'wp';
 			if ( false !== $bin_dir && file_exists( $bin_dir . DIRECTORY_SEPARATOR . $bin ) && (string) file_get_contents( $bin_dir . DIRECTORY_SEPARATOR . $bin, false, null, 0, $phar_begin_len ) === $phar_begin ) {
-				$phar_path = $bin_dir . $bin;
+				$phar_path = $bin_dir . DIRECTORY_SEPARATOR . $bin;
 			} else {
 				$src_dir         = dirname( __DIR__, 2 );
 				$bin_path        = $src_dir . '/bin/' . $bin;
