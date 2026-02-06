@@ -453,7 +453,7 @@ Feature: Test that WP-CLI Behat steps work as expected
   Scenario: Test running command from subdirectory
     Given an empty directory
     And an empty testdir directory
-    When I run `pwd` from 'testdir'
+    When I run `php -r "echo getcwd();"` from 'testdir'
     Then STDOUT should contain:
       """
       testdir
@@ -626,7 +626,7 @@ Feature: Test that WP-CLI Behat steps work as expected
 
   Scenario: Test built-in variables
     Given an empty directory
-    When I run `pwd`
+    When I run `php -r "echo getcwd();"`
     Then STDOUT should contain:
       """
       {RUN_DIR}
