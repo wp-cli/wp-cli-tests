@@ -653,7 +653,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test STDERR capture
-    When I try `bash -c 'echo "stdout"; echo "stderr" >&2'`
+    When I try `php -r "echo 'stdout' . PHP_EOL; fwrite(STDERR, 'stderr' . PHP_EOL);"`
     Then STDOUT should contain:
       """
       stdout
