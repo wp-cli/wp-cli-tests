@@ -70,7 +70,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test "When I run" step with basic command
-    When I run `echo "test output"`
+    When I run `php -r "echo 'test output' . PHP_EOL;"`
     Then STDOUT should be:
       """
       test output
@@ -83,7 +83,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then the return code should be 1
 
   Scenario: Test "save STDOUT as" variable
-    When I run `echo "saved value"`
+    When I run `php -r "echo 'saved value' . PHP_EOL;"`
     Then save STDOUT as {MY_VAR}
 
     When I run `echo {MY_VAR}`
@@ -133,7 +133,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then STDERR should be empty
 
   Scenario: Test "STDOUT should match" regex
-    When I run `echo "test-123"`
+    When I run `php -r "echo 'test-123' . PHP_EOL;"`
     Then STDOUT should match /^test-\d+$/
 
   Scenario: Test "STDOUT should not match" regex
@@ -254,7 +254,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test STDOUT strictly be
-    When I run `echo "exact"`
+    When I run `php -r "echo 'exact' . PHP_EOL;"`
     Then STDOUT should strictly be:
       """
       exact
@@ -320,7 +320,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       | foo  | 1.0     |
 
   Scenario: Test JSON output
-    When I run `echo '{"name":"test","value":"example.com"}'`
+    When I run `php -r "echo '{\"name\":\"test\",\"value\":\"example.com\"}' . PHP_EOL;"`
     Then STDOUT should be JSON containing:
       """
       {"name":"test"}
@@ -526,7 +526,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test version comparison operators
-    When I run `echo "5.6.2"`
+    When I run `php -r "echo '5.6.2' . PHP_EOL;"`
     Then STDOUT should be a version string > 5.6.1
     And STDOUT should be a version string >= 5.6.2
     And STDOUT should be a version string < 5.6.3
@@ -595,7 +595,7 @@ Feature: Test that WP-CLI Behat steps work as expected
 
 
   Scenario: Test variable naming conventions
-    When I run `echo "value1"`
+    When I run `php -r "echo 'value1' . PHP_EOL;"`
     Then save STDOUT as {VAR_NAME}
 
     When I run `echo {VAR_NAME}`
