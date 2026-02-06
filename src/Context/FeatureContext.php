@@ -456,7 +456,7 @@ class FeatureContext implements Context {
 			'TEST_RUN_DIR'  => self::$behat_run_dir,
 		];
 
-		$env = array_merge( $env, $_ENV );
+		$env = array_merge( $_ENV, $env );
 
 		if ( self::running_with_code_coverage() ) {
 			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
