@@ -455,7 +455,7 @@ trait ThenStepDefinitions {
 	public function then_a_specific_file_folder_should_exist( $path, $type, $strictly, $action, $expected = null ): void {
 		$path = $this->replace_variables( $path );
 
-		$is_absolute = preg_match( '#^[a-zA-Z]:\\\\#', $path ) || ( '/' === $path[0] || '\\' === $path[0] );
+		$is_absolute = preg_match( '#^[a-zA-Z]:\\\\#', $path ) || ( strlen( $path ) > 0 && ( '/' === $path[0] || '\\' === $path[0] ) );
 
 		// If it's a relative path, make it relative to the current test dir.
 		if ( ! $is_absolute ) {

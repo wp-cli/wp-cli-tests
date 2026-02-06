@@ -611,7 +611,7 @@ class FeatureContext implements Context {
 		$db_copy_contents = file_get_contents( $db_copy );
 
 		if ( false === $db_copy_contents ) {
-			return;
+			throw new RuntimeException( "Could not read db.copy file at: {$db_copy}" );
 		}
 
 		/* similar to https://github.com/WordPress/sqlite-database-integration/blob/3306576c9b606bc23bbb26c15383fef08e03ab11/activate.php#L95 */
@@ -789,6 +789,8 @@ class FeatureContext implements Context {
 	 * @param int $master_pid
 	 */
 	private static function terminate_proc( $master_pid ): void {
+		$master_pid = (int) $master_pid;
+
 		if ( Utils\is_windows() ) {
 			shell_exec( "taskkill /F /T /PID $master_pid > NUL 2>&1" );
 			return;
@@ -801,7 +803,7 @@ class FeatureContext implements Context {
 				$parent = $matches[1];
 				$child  = $matches[2];
 
-				if ( (int) $parent === (int) $master_pid ) {
+				if ( (int) $parent === $master_pid ) {
 					self::terminate_proc( (int) $child );
 				}
 			}
@@ -811,7 +813,7 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		if ( ! posix_kill( (int) $master_pid, 9 ) ) {
+		if ( ! posix_kill( $master_pid, 9 ) ) {
 			$errno = posix_get_last_error();
 			// Ignore "No such process" error as that's what we want.
 			if ( 3 /*ESRCH*/ !== $errno ) {
@@ -1008,7 +1010,13 @@ class FeatureContext implements Context {
 			$phar_begin_len = strlen( $phar_begin );
 			$bin_dir        = getenv( 'WP_CLI_BIN_DIR' );
 			$bin            = Utils\is_windows() ? 'wp.bat' : 'wp';
-			if ( false !== $bin_dir && file_exists( $bin_dir . DIRECTORY_SEPARATOR . $bin ) && (string) file_get_contents( $bin_dir . DIRECTORY_SEPARATOR . $bin, false, null, 0, $phar_begin_len ) === $phar_begin ) {
+			if (
+				false !== $bin_dir &&
+				// A .bat file will never start with a shebang.
+				! Utils\is_windows() &&
+				file_exists( $bin_dir . DIRECTORY_SEPARATOR . $bin ) &&
+				(string) file_get_contents( $bin_dir . DIRECTORY_SEPARATOR . $bin, false, null, 0, $phar_begin_len ) === $phar_begin
+			) {
 				$phar_path = $bin_dir . DIRECTORY_SEPARATOR . $bin;
 			} else {
 				$src_dir         = dirname( __DIR__, 2 );
@@ -1623,7 +1631,7 @@ class FeatureContext implements Context {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
 				$help_output               = shell_exec( "{$mysqldump_binary} --help" );
-				$support_column_statistics = false !== strpos( $help_output, 'column-statistics' );
+				$support_column_statistics = ( null !== $help_output && false !== strpos( $help_output, 'column-statistics' ) );
 				$ssl_flag                  = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
 				$command                   = "{$mysqldump_binary} --no-defaults{$ssl_flag} --no-tablespaces";
 				if ( $support_column_statistics ) {
@@ -1735,7 +1743,7 @@ class FeatureContext implements Context {
 		if ( ! isset( $this->variables['COMPOSER_PATH'] ) ) {
 			$command = Utils\is_windows() ? 'where composer' : 'which composer';
 			$path    = exec( $command );
-			if ( false === $path ) {
+			if ( false === $path || empty( $path ) ) {
 				throw new RuntimeException( 'Could not find composer.' );
 			}
 			// In case of multiple paths, pick the first one.
