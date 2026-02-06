@@ -28,7 +28,8 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then the test-dir directory should not exist
 
   Scenario: Test "Given an empty cache" step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     Then the {SUITE_CACHE_DIR} directory should exist
 
   Scenario: Test "Given a file" step
@@ -44,7 +45,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test "Given a cache file" step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     And a test-cache.txt cache file:
       """
       Cached content
@@ -68,7 +70,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test "When I run" step with basic command
-    When I run `echo "test output"`
+    When I run `php -r "echo 'test output' . PHP_EOL;"`
     Then STDOUT should be:
       """
       test output
@@ -81,7 +83,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then the return code should be 1
 
   Scenario: Test "save STDOUT as" variable
-    When I run `echo "saved value"`
+    When I run `php -r "echo 'saved value' . PHP_EOL;"`
     Then save STDOUT as {MY_VAR}
 
     When I run `echo {MY_VAR}`
@@ -131,7 +133,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then STDERR should be empty
 
   Scenario: Test "STDOUT should match" regex
-    When I run `echo "test-123"`
+    When I run `php -r "echo 'test-123' . PHP_EOL;"`
     Then STDOUT should match /^test-\d+$/
 
   Scenario: Test "STDOUT should not match" regex
@@ -252,7 +254,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test STDOUT strictly be
-    When I run `echo "exact"`
+    When I run `php -r "echo 'exact' . PHP_EOL;"`
     Then STDOUT should strictly be:
       """
       exact
@@ -318,7 +320,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       | foo  | 1.0     |
 
   Scenario: Test JSON output
-    When I run `echo '{"name":"test","value":"example.com"}'`
+    When I run `php -r "echo '{\"name\":\"test\",\"value\":\"example.com\"}' . PHP_EOL;"`
     Then STDOUT should be JSON containing:
       """
       {"name":"test"}
@@ -410,13 +412,15 @@ Feature: Test that WP-CLI Behat steps work as expected
 
   @require-download
   Scenario: Test download step
-    Given an empty cache
+    Given a WP installation
+    And an empty cache
     And download:
       | path                       | url                                    |
       | {SUITE_CACHE_DIR}/test.txt | https://www.iana.org/robots.txt        |
     Then the {SUITE_CACHE_DIR}/test.txt file should exist
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test WP installation with Composer
     Given a WP installation with Composer
     Then the composer.json file should exist
@@ -424,13 +428,15 @@ Feature: Test that WP-CLI Behat steps work as expected
     When I run `wp core version`
     Then STDOUT should not be empty
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test WP installation with Composer and custom vendor directory
     Given a WP installation with Composer and a custom vendor directory 'custom-vendor'
     Then the composer.json file should exist
     And the custom-vendor directory should exist
 
-  @require-wp @require-composer
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-wp @require-composer @skip-windows
   Scenario: Test dependency on current wp-cli
     Given a WP installation with Composer
     And a dependency on current wp-cli
@@ -439,8 +445,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       wp-cli/wp-cli
       """
 
-
-
+  @require-linux
   Scenario: Test STDOUT should be empty
     When I run `echo -n ""`
     Then STDOUT should be empty
@@ -448,7 +453,7 @@ Feature: Test that WP-CLI Behat steps work as expected
   Scenario: Test running command from subdirectory
     Given an empty directory
     And an empty testdir directory
-    When I run `pwd` from 'testdir'
+    When I run `php -r "echo getcwd();"` from 'testdir'
     Then STDOUT should contain:
       """
       testdir
@@ -521,7 +526,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test version comparison operators
-    When I run `echo "5.6.2"`
+    When I run `php -r "echo '5.6.2' . PHP_EOL;"`
     Then STDOUT should be a version string > 5.6.1
     And STDOUT should be a version string >= 5.6.2
     And STDOUT should be a version string < 5.6.3
@@ -590,7 +595,7 @@ Feature: Test that WP-CLI Behat steps work as expected
 
 
   Scenario: Test variable naming conventions
-    When I run `echo "value1"`
+    When I run `php -r "echo 'value1' . PHP_EOL;"`
     Then save STDOUT as {VAR_NAME}
 
     When I run `echo {VAR_NAME}`
@@ -621,7 +626,7 @@ Feature: Test that WP-CLI Behat steps work as expected
 
   Scenario: Test built-in variables
     Given an empty directory
-    When I run `pwd`
+    When I run `php -r "echo getcwd();"`
     Then STDOUT should contain:
       """
       {RUN_DIR}
@@ -648,7 +653,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   Scenario: Test STDERR capture
-    When I try `bash -c 'echo "stdout"; echo "stderr" >&2'`
+    When I try `php -r "echo 'stdout' . PHP_EOL; fwrite(STDERR, 'stderr' . PHP_EOL);"`
     Then STDOUT should contain:
       """
       stdout
@@ -689,3 +694,4 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then STDOUT should be CSV containing:
       | user_login | user_email        |
       | admin      | admin@example.com |
+      | user2      | user2@example.com |
