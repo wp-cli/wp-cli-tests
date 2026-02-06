@@ -943,7 +943,12 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		$composer = json_decode( (string) file_get_contents( $project_composer ) );
+		$composer_contents = file_get_contents( $project_composer );
+		if ( false === $composer_contents ) {
+			return;
+		}
+
+		$composer = json_decode( $composer_contents );
 		if ( empty( $composer->autoload->files ) ) {
 			return;
 		}
