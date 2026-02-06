@@ -1194,6 +1194,10 @@ class FeatureContext implements Context {
 		if ( 200 !== $response->status_code ) {
 			throw new RuntimeException( "Could not download WP-CLI PHAR (HTTP code {$response->status_code})" );
 		}
+
+		if ( ! Utils\is_windows() ) {
+			chmod( $this->variables['PHAR_PATH'], 0755 );
+		}
 	}
 
 	/**
