@@ -173,7 +173,7 @@ switch ( $db_type ) {
 	case 'mariadb':
 		$skip_tags = array_merge(
 			$skip_tags,
-			[ '@require-mysql', '@require-sqlite' ],
+			[ '@require-mysql', '@require-sqlite', '@skip-mariadb' ],
 			version_tags( 'require-mariadb', $db_version, '<', $features_folder ),
 			version_tags( 'less-than-mariadb', $db_version, '>=', $features_folder )
 		);
@@ -182,12 +182,13 @@ switch ( $db_type ) {
 		$skip_tags[] = '@require-mariadb';
 		$skip_tags[] = '@require-mysql';
 		$skip_tags[] = '@require-mysql-or-mariadb';
+		$skip_tags[] = '@skip-sqlite';
 		break;
 	case 'mysql':
 	default:
 		$skip_tags = array_merge(
 			$skip_tags,
-			[ '@require-mariadb', '@require-sqlite' ],
+			[ '@require-mariadb', '@require-sqlite', '@skip-mysql' ],
 			version_tags( 'require-mysql', $db_version, '<', $features_folder ),
 			version_tags( 'less-than-mysql', $db_version, '>=', $features_folder )
 		);
