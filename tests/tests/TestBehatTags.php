@@ -341,16 +341,19 @@ class TestBehatTags extends TestCase {
 			case 'mariadb':
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mariadb';
 				break;
 			case 'sqlite':
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-mysql-or-mariadb';
+				$expecteds[] = '~@skip-sqlite';
 				break;
 			case 'mysql':
 			default:
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mysql';
 				break;
 		}
 
