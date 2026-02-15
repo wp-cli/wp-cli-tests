@@ -85,3 +85,34 @@ Feature: Test that WP-CLI loads.
       """
       6.3.1
       """
+
+  @skip-mysql
+  Scenario: Skip on MySQL databases
+    Given a WP install
+
+    When I run `wp eval 'echo "This should only run on MariaDB or SQLite";'`
+    Then STDOUT should contain:
+      """
+      This should only run on MariaDB or SQLite
+      """
+
+  @skip-mariadb
+  Scenario: Skip on MariaDB databases
+    Given a WP install
+
+    When I run `wp eval 'echo "This should only run on MySQL or SQLite";'`
+    Then STDOUT should contain:
+      """
+      This should only run on MySQL or SQLite
+      """
+
+  @skip-sqlite
+  Scenario: Skip on SQLite databases
+    Given a WP install
+
+    When I run `wp eval 'echo "This should only run on MySQL or MariaDB";'`
+    Then STDOUT should contain:
+      """
+      This should only run on MySQL or MariaDB
+      """
+
