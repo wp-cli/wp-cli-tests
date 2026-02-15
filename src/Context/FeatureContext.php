@@ -1444,12 +1444,12 @@ class FeatureContext implements Context {
 		 * @var \SplFileInfo $file
 		 */
 		foreach ( $iterator as $file ) {
+			# Suppress warnings for instance when deleting SQLite database files,
+			# which appears to emit a warning on Windows.
+			# See https://bugs.php.net/bug.php?id=78930.
 			if ( $file->isDir() ) {
-				rmdir( $file->getPathname() );
+				@rmdir( $file->getPathname() );
 			} else {
-				# Suppress warnings for instance when deleting SQLite database files,
-				# which appears to emit a warning on Windows.
-				# See https://bugs.php.net/bug.php?id=78930.
 				@unlink( $file->getPathname() );
 			}
 		}
