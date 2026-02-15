@@ -1447,7 +1447,10 @@ class FeatureContext implements Context {
 			if ( $file->isDir() ) {
 				rmdir( $file->getPathname() );
 			} else {
-				unlink( $file->getPathname() );
+				# Suppress warnings for instance when deleting SQLite database files,
+				# which appears to emit a warning on Windows.
+				# See https://bugs.php.net/bug.php?id=78930.
+				@unlink( $file->getPathname() );
 			}
 		}
 
