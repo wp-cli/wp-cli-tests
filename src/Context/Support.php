@@ -244,7 +244,7 @@ trait Support {
 			static function ( $str ) {
 				return str_getcsv( $str, ',', '"', '\\' );
 			},
-			explode( PHP_EOL, $actual_csv )
+			explode( "\n", $actual_csv )
 		);
 
 		if ( empty( $actual_csv ) ) {
