@@ -18,25 +18,25 @@ jobs:
         {
           "include": [
             {
-              "php": "8.4",
+              "php": "8.5",
               "wp": "latest",
               "mysql": "mysql-8.0",
               "os": "macos-15"
             },
             {
-              "php": "8.4",
+              "php": "8.5",
               "wp": "latest",
               "dbtype": "sqlite",
               "os": "macos-15"
             },
             {
-              "php": "8.4",
+              "php": "8.5",
               "wp": "latest",
               "mysql": "mysql-8.0",
               "os": "windows-2025"
             },
             {
-              "php": "8.4",
+              "php": "8.5",
               "wp": "latest",
               "dbtype": "sqlite",
               "os": "windows-2025"
