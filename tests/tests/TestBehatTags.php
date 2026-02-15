@@ -420,7 +420,7 @@ class TestBehatTags extends TestCase {
 		}
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
-		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
