@@ -1440,13 +1440,14 @@ class FeatureContext implements Context {
 			\RecursiveIteratorIterator::CHILD_FIRST
 		);
 
+		# Suppress warnings for instance when deleting SQLite database files,
+		# which appears to emit a warning on Windows.
+		# See https://bugs.php.net/bug.php?id=78930.
+
 		/**
 		 * @var \SplFileInfo $file
 		 */
 		foreach ( $iterator as $file ) {
-			# Suppress warnings for instance when deleting SQLite database files,
-			# which appears to emit a warning on Windows.
-			# See https://bugs.php.net/bug.php?id=78930.
 			if ( $file->isDir() ) {
 				@rmdir( $file->getPathname() );
 			} else {
@@ -1454,7 +1455,7 @@ class FeatureContext implements Context {
 			}
 		}
 
-		rmdir( $dir );
+		@rmdir( $dir );
 	}
 
 	/**
