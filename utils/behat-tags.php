@@ -23,10 +23,17 @@ function version_tags(
 		return array();
 	}
 
-	exec(
-		"grep '@{$prefix}-[0-9\.]*' -h -o {$features_folder}/*.feature | uniq",
-		$existing_tags
-	);
+	$existing_tags = array();
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+	if ( ! empty( $feature_files ) ) {
+		foreach ( $feature_files as $feature_file ) {
+			$contents = (string) file_get_contents( $feature_file );
+			if ( preg_match_all( '/@' . $prefix . '-[0-9\.]+/', $contents, $matches ) ) {
+				$existing_tags = array_merge( $existing_tags, $matches[0] );
+			}
+		}
+		$existing_tags = array_unique( $existing_tags );
+	}
 
 	$skip_tags = array();
 
@@ -171,7 +178,8 @@ $db_type     = 'sqlite' === $env_db_type ? 'sqlite' : $db_info['type'];
 
 switch ( $db_type ) {
 	case 'mariadb':
-		$skip_tags = array_merge(
+		$db_version = get_db_version();
+		$skip_tags  = array_merge(
 			$skip_tags,
 			[ '@require-mysql', '@require-sqlite', '@skip-mariadb' ],
 			version_tags( 'require-mariadb', $db_version, '<', $features_folder ),
@@ -186,7 +194,8 @@ switch ( $db_type ) {
 		break;
 	case 'mysql':
 	default:
-		$skip_tags = array_merge(
+		$db_version = get_db_version();
+		$skip_tags  = array_merge(
 			$skip_tags,
 			[ '@require-mariadb', '@require-sqlite', '@skip-mysql' ],
 			version_tags( 'require-mysql', $db_version, '<', $features_folder ),
@@ -198,10 +207,16 @@ switch ( $db_type ) {
 # Require PHP extension, eg 'imagick'.
 function extension_tags( $features_folder = 'features' ) {
 	$extension_tags = array();
-	exec(
-		"grep '@require-extension-[A-Za-z_]*' -h -o {$features_folder}/*.feature | uniq",
-		$extension_tags
-	);
+	$feature_files  = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+	if ( ! empty( $feature_files ) ) {
+		foreach ( $feature_files as $feature_file ) {
+			$contents = (string) file_get_contents( $feature_file );
+			if ( preg_match_all( '/@require-extension-[A-Za-z_]*/', $contents, $matches ) ) {
+				$extension_tags = array_merge( $extension_tags, $matches[0] );
+			}
+		}
+		$extension_tags = array_unique( $extension_tags );
+	}
 
 	$skip_tags = array();
 
@@ -216,7 +231,75 @@ function extension_tags( $features_folder = 'features' ) {
 	return $skip_tags;
 }
 
+/**
+ * An array of tags for excluding tests based on the operating system.
+ *
+ * @param string $features_folder The folder where the feature files are located.
+ * @return array
+ */
+function os_tags( $features_folder = 'features' ) {
+	$os_tags       = array();
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+	if ( ! empty( $feature_files ) ) {
+		foreach ( $feature_files as $feature_file ) {
+			$contents = (string) file_get_contents( $feature_file );
+			if ( preg_match_all( '/@(require-(windows|macos|linux)|skip-(windows|macos|linux))/', $contents, $matches ) ) {
+				$os_tags = array_merge( $os_tags, $matches[0] );
+			}
+		}
+		$os_tags = array_unique( $os_tags );
+	}
+
+	if ( empty( $os_tags ) ) {
+		return array();
+	}
+
+	$skip_tags = array();
+
+	$is_windows = 'Windows' === PHP_OS_FAMILY;
+	$is_macos   = 'Darwin' === PHP_OS_FAMILY;
+	$is_linux   = 'Linux' === PHP_OS_FAMILY;
+
+	foreach ( $os_tags as $tag ) {
+		switch ( $tag ) {
+			case '@require-windows':
+				if ( ! $is_windows ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@require-macos':
+				if ( ! $is_macos ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@require-linux':
+				if ( ! $is_linux ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@skip-windows':
+				if ( $is_windows ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@skip-macos':
+				if ( $is_macos ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+			case '@skip-linux':
+				if ( $is_linux ) {
+					$skip_tags[] = $tag;
+				}
+				break;
+		}
+	}
+
+	return $skip_tags;
+}
+
 $skip_tags = array_merge( $skip_tags, extension_tags( $features_folder ) );
+$skip_tags = array_merge( $skip_tags, os_tags( $features_folder ) );
 
 if ( ! empty( $skip_tags ) ) {
 	echo '--tags=~' . implode( '&&~', $skip_tags );

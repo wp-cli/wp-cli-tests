@@ -19,22 +19,79 @@ class TestBehatTags extends TestCase {
 
 		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-behat-tags-', true );
 		mkdir( $this->temp_dir );
-		mkdir( $this->temp_dir . '/features' );
+		mkdir( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' );
 	}
 
 	protected function tear_down(): void {
-
 		if ( $this->temp_dir && file_exists( $this->temp_dir ) ) {
-			foreach ( glob( $this->temp_dir . '/features/*' ) as $feature_file ) {
-				unlink( $feature_file );
-			}
-			rmdir( $this->temp_dir . '/features' );
-			rmdir( $this->temp_dir );
+			$this->remove_dir( $this->temp_dir );
 		}
 
 		parent::tear_down();
 	}
 
+	/**
+	 * Recursively removes a directory and its contents.
+	 *
+	 * @param string $dir The directory to remove.
+	 */
+	private function remove_dir( $dir ): void {
+		if ( ! is_dir( $dir ) ) {
+			return;
+		}
+
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::CHILD_FIRST
+		);
+
+		foreach ( $iterator as $file ) {
+			if ( $file->isDir() ) {
+				rmdir( $file->getPathname() );
+			} else {
+				unlink( $file->getPathname() );
+			}
+		}
+
+		rmdir( $dir );
+	}
+
+	/**
+	 * Runs the behat-tags.php script in a cross-platform way.
+	 *
+	 * @param string $env Environment variable string to set (e.g., 'WP_VERSION=4.5').
+	 * @return string|false The output of the script.
+	 */
+	private function run_behat_tags_script( $env = '' ) {
+		$behat_tags = dirname( dirname( __DIR__ ) ) . DIRECTORY_SEPARATOR . 'utils' . DIRECTORY_SEPARATOR . 'behat-tags.php';
+
+		// Use the `-n` flag to disable loading of `php.ini` and ensure a clean environment.
+		$php_run = escapeshellarg( PHP_BINARY ) . ' -n ' . escapeshellarg( $behat_tags );
+
+		$features_dir = $this->temp_dir . DIRECTORY_SEPARATOR . 'features';
+
+		$command = '';
+		if ( Utils\is_windows() ) {
+			// `set` is internal to `cmd.exe`. Do not escape the values, as `set` doesn't understand quotes from escapeshellarg.
+			// Note: `set "VAR=VALUE"` is more robust than `set VAR=VALUE`.
+			$command = 'set "BEHAT_FEATURES_FOLDER=' . $features_dir . '" && ';
+			if ( ! empty( $env ) ) {
+				$command .= 'set "' . $env . '" && ';
+			}
+		} else {
+			// On Unix-like systems, this sets the variable for the duration of the command.
+			$command = 'BEHAT_FEATURES_FOLDER=' . escapeshellarg( $features_dir );
+			if ( ! empty( $env ) ) {
+				$command .= ' ' . $env;
+			}
+			$command .= ' ';
+		}
+
+		$command = 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . $command . $php_run;
+		$output  = exec( $command );
+
+		return $output;
+	}
 	/**
 	 * @dataProvider data_behat_tags_wp_version_github_token
 	 *
@@ -50,12 +107,10 @@ class TestBehatTags extends TestCase {
 		putenv( 'WP_VERSION' );
 		putenv( 'GITHUB_TOKEN' );
 
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
-
 		$contents = '@require-wp-4.6 @require-wp-4.8 @require-wp-4.9 @less-than-wp-4.6 @less-than-wp-4.8 @less-than-wp-4.9';
-		file_put_contents( $this->temp_dir . '/features/wp_version.feature', $contents );
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'wp_version.feature', $contents );
 
-		$output = exec( "cd {$this->temp_dir}; $env php $behat_tags" );
+		$output = $this->run_behat_tags_script( $env );
 
 		$expected .= '&&~@broken';
 		if ( in_array( $env, array( 'WP_VERSION=trunk', 'WP_VERSION=nightly' ), true ) ) {
@@ -112,8 +167,6 @@ class TestBehatTags extends TestCase {
 
 		putenv( 'GITHUB_TOKEN' );
 
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
-
 		$php_version = substr( PHP_VERSION, 0, 3 );
 		$contents    = '';
 		$expected    = '';
@@ -169,9 +222,9 @@ class TestBehatTags extends TestCase {
 				break;
 		}
 
-		file_put_contents( $this->temp_dir . '/features/php_version.feature', $contents );
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'php_version.feature', $contents );
 
-		$output = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output = $this->run_behat_tags_script();
 		$this->assertSame( '--tags=' . $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
@@ -183,9 +236,7 @@ class TestBehatTags extends TestCase {
 
 		putenv( 'GITHUB_TOKEN' );
 
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
-
-		file_put_contents( $this->temp_dir . '/features/extension.feature', '@require-extension-imagick @require-extension-curl' );
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'extension.feature', '@require-extension-imagick @require-extension-curl' );
 
 		$expecteds = array();
 
@@ -209,15 +260,18 @@ class TestBehatTags extends TestCase {
 				break;
 		}
 
-		if ( ! extension_loaded( 'imagick' ) ) {
+		// Check which extensions are loaded in the clean `php -n` environment to build the correct expectation.
+		$imagick_loaded_in_script = (bool) exec( 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . escapeshellarg( PHP_BINARY ) . ' -n -r "echo (int)extension_loaded(\'imagick\');"' );
+		if ( ! $imagick_loaded_in_script ) {
 			$expecteds[] = '~@require-extension-imagick';
 		}
-		if ( ! extension_loaded( 'curl' ) ) {
+		$curl_loaded_in_script = (bool) exec( 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . escapeshellarg( PHP_BINARY ) . ' -n -r "echo (int)extension_loaded(\'curl\');"' );
+		if ( ! $curl_loaded_in_script ) {
 			$expecteds[] = '~@require-extension-curl';
 		}
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
-		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
@@ -226,8 +280,13 @@ class TestBehatTags extends TestCase {
 	public function test_behat_tags_db_version(): void {
 		$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
 
-		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
+		$behat_tags = dirname( dirname( __DIR__ ) ) . DIRECTORY_SEPARATOR . 'utils' . DIRECTORY_SEPARATOR . 'behat-tags.php';
+
+		// Just to get the get_db_version() function. Prevents unexpected output.
+		ob_start();
 		require $behat_tags;
+		ob_end_clean();
+
 		// @phpstan-ignore-next-line
 		$db_version         = get_db_version();
 		$minimum_db_version = $db_version . '.1';
@@ -261,11 +320,71 @@ class TestBehatTags extends TestCase {
 				break;
 		}
 
-		file_put_contents( $this->temp_dir . '/features/extension.feature', $contents );
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'extension.feature', $contents );
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
-		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
+	}
+
+	public function test_behat_tags_os(): void {
+		$env_github_token = getenv( 'GITHUB_TOKEN' );
+		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
+
+		putenv( 'GITHUB_TOKEN' );
+
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'os.feature', '@require-windows @skip-windows @require-macos @skip-macos @require-linux @skip-linux' );
+
+		$expecteds = array();
+
+		switch ( $db_type ) {
+			case 'mariadb':
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mariadb';
+				break;
+			case 'sqlite':
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-mysql-or-mariadb';
+				$expecteds[] = '~@skip-sqlite';
+				break;
+			case 'mysql':
+			default:
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mysql';
+				break;
+		}
+
+		$is_windows = 'Windows' === PHP_OS_FAMILY;
+		$is_macos   = 'Darwin' === PHP_OS_FAMILY;
+		$is_linux   = 'Linux' === PHP_OS_FAMILY;
+
+		if ( ! $is_windows ) {
+			$expecteds[] = '~@require-windows';
+		}
+		if ( $is_windows ) {
+			$expecteds[] = '~@skip-windows';
+		}
+		if ( ! $is_macos ) {
+			$expecteds[] = '~@require-macos';
+		}
+		if ( $is_macos ) {
+			$expecteds[] = '~@skip-macos';
+		}
+		if ( ! $is_linux ) {
+			$expecteds[] = '~@require-linux';
+		}
+		if ( $is_linux ) {
+			$expecteds[] = '~@skip-linux';
+		}
+
+		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
+		$output   = $this->run_behat_tags_script();
+		$this->assertSame( $expected, $output );
+
+		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
 
 	public function test_behat_tags_skip_db_type(): void {
@@ -301,7 +420,7 @@ class TestBehatTags extends TestCase {
 		}
 
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
-		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
