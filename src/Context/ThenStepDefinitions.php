@@ -4,6 +4,7 @@ namespace WP_CLI\Tests\Context;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
+use WP_CLI\Utils;
 use Exception;
 use Requests;
 use RuntimeException;
@@ -456,8 +457,8 @@ trait ThenStepDefinitions {
 		$path = $this->replace_variables( $path );
 
 		// If it's a relative path, make it relative to the current test dir.
-		if ( '/' !== $path[0] ) {
-			$path = $this->variables['RUN_DIR'] . "/$path";
+		if ( ! Utils\is_path_absolute( $path ) ) {
+			$path = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR . $path;
 		}
 
 		$exists = static function ( $path ) use ( $type ) {
