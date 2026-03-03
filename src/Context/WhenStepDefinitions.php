@@ -24,10 +24,7 @@ trait WhenStepDefinitions {
 		} catch ( \RuntimeException $e ) {
 			if ( 'run' === $mode ) {
 				$message = $e->getMessage();
-				$status  = 'unknown';
-				if ( preg_match( '/exit status: (\d+)$/', $message, $matches ) ) {
-					$status = $matches[1];
-				}
+				$status = preg_match( '/exit status: (\d+)$/', $message, $matches ) ? $matches[1] : 'unknown';
 
 				if ( '0' === $status ) {
 					$message .= "\n\nThe command unexpectedly produced STDERR output. If you expect a non-zero exit status or STDERR output, use `When I try [...]`. Else, this may be a bug in your code or test.";
