@@ -123,6 +123,23 @@ trait Support {
 				$message = $output;
 			}
 
+			$action_message = '';
+			switch ( $action ) {
+				case 'be':
+					$action_message = 'Output does not exactly match expected string:';
+					break;
+				case 'contain':
+					$action_message = 'Output does not contain expected string:';
+					break;
+				case 'not contain':
+					$action_message = 'Output unexpectedly contains string:';
+					break;
+				default:
+					throw new \Behat\Behat\Tester\Exception\PendingException();
+			}
+
+			$message .= "\n\n" . $action_message . "\n" . $expected;
+
 			$diff = $this->generate_diff( $expected, rtrim( $output, "\n" ) );
 			if ( ! empty( $diff ) ) {
 				$message .= "\n\n" . $diff;

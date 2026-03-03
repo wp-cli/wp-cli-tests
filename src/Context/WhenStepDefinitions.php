@@ -19,7 +19,24 @@ trait WhenStepDefinitions {
 		);
 		$method = $map[ $mode ];
 
-		return $proc->$method();
+		try {
+			return $proc->$method();
+		} catch ( \RuntimeException $e ) {
+			if ( 'run' === $mode ) {
+				$message = $e->getMessage();
+				$status  = preg_match( '/exit status: (\d+)$/', $message, $matches ) ? $matches[1] : 'unknown';
+
+				if ( '0' === $status ) {
+					$message .= "\n\nThe command unexpectedly produced STDERR output. If you expect a non-zero exit status or STDERR output, use `When I try [...]`. Else, this may be a bug in your code or test.";
+				} else {
+					$message .= "\n\nThe command unexpectedly exited with status {$status}. If you expect a non-zero exit status, use `When I try [...]`. Else, this may be a bug in your code or test.";
+				}
+
+				throw new \RuntimeException( $message, $e->getCode(), $e );
+			}
+
+			throw $e;
+		}
 	}
 
 	/**
