@@ -134,11 +134,11 @@ trait Support {
 				case 'not contain':
 					$action_message = 'Output unexpectedly contains string:';
 					break;
+				default:
+					throw new \Behat\Behat\Tester\Exception\PendingException();
 			}
 
-			if ( ! empty( $action_message ) ) {
-				$message .= "\n\n" . $action_message . "\n" . $expected;
-			}
+			$message .= "\n\n" . $action_message . "\n" . $expected;
 
 			$diff = $this->generate_diff( $expected, rtrim( $output, "\n" ) );
 			if ( ! empty( $diff ) ) {
