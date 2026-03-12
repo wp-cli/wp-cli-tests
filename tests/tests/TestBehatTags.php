@@ -66,16 +66,19 @@ class TestBehatTags extends TestCase {
 			case 'mariadb':
 				$expected .= '&&~@require-mysql';
 				$expected .= '&&~@require-sqlite';
+				$expected .= '&&~@skip-mariadb';
 				break;
 			case 'sqlite':
 				$expected .= '&&~@require-mariadb';
 				$expected .= '&&~@require-mysql';
 				$expected .= '&&~@require-mysql-or-mariadb';
+				$expected .= '&&~@skip-sqlite';
 				break;
 			case 'mysql':
 			default:
 				$expected .= '&&~@require-mariadb';
 				$expected .= '&&~@require-sqlite';
+				$expected .= '&&~@skip-mysql';
 				break;
 		}
 
@@ -150,16 +153,19 @@ class TestBehatTags extends TestCase {
 			case 'mariadb':
 				$expected .= '&&~@require-mysql';
 				$expected .= '&&~@require-sqlite';
+				$expected .= '&&~@skip-mariadb';
 				break;
 			case 'sqlite':
 				$expected .= '&&~@require-mariadb';
 				$expected .= '&&~@require-mysql';
 				$expected .= '&&~@require-mysql-or-mariadb';
+				$expected .= '&&~@skip-sqlite';
 				break;
 			case 'mysql':
 			default:
 				$expected .= '&&~@require-mariadb';
 				$expected .= '&&~@require-sqlite';
+				$expected .= '&&~@skip-mysql';
 				break;
 		}
 
@@ -187,16 +193,19 @@ class TestBehatTags extends TestCase {
 			case 'mariadb':
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mariadb';
 				break;
 			case 'sqlite':
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-mysql-or-mariadb';
+				$expecteds[] = '~@skip-sqlite';
 				break;
 			case 'mysql':
 			default:
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mysql';
 				break;
 		}
 
@@ -231,6 +240,7 @@ class TestBehatTags extends TestCase {
 				$contents    = "@require-mariadb-$minimum_db_version @less-than-mariadb-$db_version";
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mariadb';
 				$expecteds[] = "~@require-mariadb-$minimum_db_version";
 				$expecteds[] = "~@less-than-mariadb-$db_version";
 				break;
@@ -238,12 +248,14 @@ class TestBehatTags extends TestCase {
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-mysql';
 				$expecteds[] = '~@require-mysql-or-mariadb';
+				$expecteds[] = '~@skip-sqlite';
 				break;
 			case 'mysql':
 			default:
 				$contents    = "@require-mysql-$minimum_db_version @less-than-mysql-$db_version";
 				$expecteds[] = '~@require-mariadb';
 				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mysql';
 				$expecteds[] = "~@require-mysql-$minimum_db_version";
 				$expecteds[] = "~@less-than-mysql-$db_version";
 				break;
@@ -254,5 +266,44 @@ class TestBehatTags extends TestCase {
 		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
 		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
 		$this->assertSame( $expected, $output );
+	}
+
+	public function test_behat_tags_skip_db_type(): void {
+		$env_github_token = getenv( 'GITHUB_TOKEN' );
+		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
+
+		putenv( 'GITHUB_TOKEN' );
+
+		$behat_tags = dirname( dirname( __DIR__ ) ) . '/utils/behat-tags.php';
+
+		file_put_contents( $this->temp_dir . '/features/skip_db.feature', '@skip-mysql @skip-mariadb @skip-sqlite' );
+
+		$expecteds = array();
+
+		switch ( $db_type ) {
+			case 'mariadb':
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mariadb';
+				break;
+			case 'sqlite':
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-mysql';
+				$expecteds[] = '~@require-mysql-or-mariadb';
+				$expecteds[] = '~@skip-sqlite';
+				break;
+			case 'mysql':
+			default:
+				$expecteds[] = '~@require-mariadb';
+				$expecteds[] = '~@require-sqlite';
+				$expecteds[] = '~@skip-mysql';
+				break;
+		}
+
+		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
+		$output   = exec( "cd {$this->temp_dir}; php $behat_tags" );
+		$this->assertSame( $expected, $output );
+
+		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
 }

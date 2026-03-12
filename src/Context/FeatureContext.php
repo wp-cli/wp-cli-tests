@@ -2,7 +2,7 @@
 
 namespace WP_CLI\Tests\Context;
 
-use Behat\Behat\Context\SnippetAcceptingContext;
+use Behat\Behat\Context\Context;
 use Behat\Behat\EventDispatcher\Event\OutlineTested;
 use Behat\Behat\Hook\Scope\AfterScenarioScope;
 use Behat\Behat\Hook\Scope\BeforeScenarioScope;
@@ -13,7 +13,6 @@ use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
 use Behat\Behat\Hook\Scope\AfterFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeStepScope;
-use Behat\Testwork\Hook\Scope\HookScope;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Driver\Xdebug;
@@ -21,7 +20,6 @@ use SebastianBergmann\CodeCoverage\Filter;
 use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
-use WP_CLI;
 use DirectoryIterator;
 use WP_CLI\Process;
 use WP_CLI\ProcessRun;
@@ -30,10 +28,8 @@ use WP_CLI\WpOrgApi;
 
 /**
  * Features context.
- *
- * @phpstan-ignore class.implementsDeprecatedInterface
  */
-class FeatureContext implements SnippetAcceptingContext {
+class FeatureContext implements Context {
 
 	use GivenStepDefinitions;
 	use ThenStepDefinitions;
@@ -293,9 +289,6 @@ class FeatureContext implements SnippetAcceptingContext {
 		return \in_array( $with_xdebug, [ 'true', '1' ], true );
 	}
 
-	/**
-	 * @AfterSuite
-	 */
 	public static function merge_coverage_reports(): void {
 		if ( ! self::running_with_code_coverage() ) {
 			return;
@@ -441,14 +434,14 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		// Ensure we're using the expected `wp` binary.
 		$bin_path = self::get_bin_path();
-		wp_cli_behat_env_debug( "WP-CLI binary path: {$bin_path}" );
+		self::debug( "WP-CLI binary path: {$bin_path}" );
 
 		if ( ! file_exists( "{$bin_path}/wp" ) ) {
-			wp_cli_behat_env_debug( "WARNING: No file named 'wp' found in the provided/detected binary path." );
+			self::debug( "WARNING: No file named 'wp' found in the provided/detected binary path." );
 		}
 
 		if ( ! is_executable( "{$bin_path}/wp" ) ) {
-			wp_cli_behat_env_debug( "WARNING: File named 'wp' found in the provided/detected binary path is not executable." );
+			self::debug( "WARNING: File named 'wp' found in the provided/detected binary path is not executable." );
 		}
 
 		$path_separator = Utils\is_windows() ? ';' : ':';
@@ -519,9 +512,9 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		// Dump environment for debugging purposes, but before adding the GitHub token.
-		wp_cli_behat_env_debug( 'Environment:' );
+		self::debug( 'Environment:' );
 		foreach ( $env as $key => $value ) {
-			wp_cli_behat_env_debug( "   [{$key}] => {$value}" );
+			self::debug( "   [{$key}] => {$value}" );
 		}
 
 		$github_token = getenv( 'GITHUB_TOKEN' );
@@ -638,10 +631,12 @@ class FeatureContext implements SnippetAcceptingContext {
 	/**
 	 * We cache the results of `wp core download` to improve test performance.
 	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
+	 *
+	 * @param string $version
 	 */
-	private static function cache_wp_files(): void {
-		$wp_version             = getenv( 'WP_VERSION' );
-		$wp_version_suffix      = ( false !== $wp_version ) ? "-$wp_version" : '';
+	private static function cache_wp_files( $version = '' ): void {
+		$wp_version             = $version ?: getenv( 'WP_VERSION' );
+		$wp_version_suffix      = $wp_version ? "-$wp_version" : '';
 		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
@@ -666,6 +661,8 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @BeforeSuite
 	 */
 	public static function prepare( BeforeSuiteScope $scope ): void {
+		self::bootstrap_feature_context();
+
 		// Test performance statistics - useful for detecting slow tests.
 		self::$log_run_times = getenv( 'WP_CLI_TEST_LOG_RUN_TIMES' );
 		if ( false !== self::$log_run_times ) {
@@ -702,6 +699,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( self::$log_run_times ) {
 			self::log_run_times_after_suite( $scope );
 		}
+
+		self::merge_coverage_reports();
 	}
 
 	/**
@@ -780,7 +779,7 @@ class FeatureContext implements SnippetAcceptingContext {
 
 		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
-		foreach ( explode( PHP_EOL, $output ) as $line ) {
+		foreach ( explode( PHP_EOL, $output ? $output : '' ) as $line ) {
 			if ( preg_match( '/^\s*(\d+)\s+(\d+)/', $line, $matches ) ) {
 				$parent = $matches[1];
 				$child  = $matches[2];
@@ -852,7 +851,8 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 			$this->variables['DB_TYPE'] = getenv( 'WP_CLI_TEST_DBTYPE' );
 		} else {
-			$this->variables['DB_TYPE'] = 'mysql';
+			// Auto-detect database type if not explicitly set
+			$this->variables['DB_TYPE'] = Utils\get_db_type();
 		}
 
 		if ( getenv( 'MYSQL_TCP_PORT' ) ) {
@@ -882,6 +882,74 @@ class FeatureContext implements SnippetAcceptingContext {
 	}
 
 	/**
+	 * @param string $message
+	 */
+	protected static function debug( $message ): void { // phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
+		if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
+			return;
+		}
+
+		echo "{$message}\n";
+	}
+
+	/**
+	 * Load required support files as needed before heading into the Behat context.
+	 */
+	protected static function bootstrap_feature_context(): void {
+		$vendor_folder = self::get_vendor_dir();
+		self::debug( "Vendor folder location: {$vendor_folder}" );
+
+		// Didn't manage to detect a valid vendor folder.
+		if ( empty( $vendor_folder ) ) {
+			return;
+		}
+
+		// We assume the vendor folder is located in the project root folder.
+		$project_folder = dirname( $vendor_folder );
+
+		$framework_folder = self::get_framework_dir();
+		self::debug( "Framework folder location: {$framework_folder}" );
+
+		// Load helper functionality that is needed for the tests.
+		require_once "{$framework_folder}/php/utils.php";
+		require_once "{$framework_folder}/php/WP_CLI/Process.php";
+		require_once "{$framework_folder}/php/WP_CLI/ProcessRun.php";
+
+		// Manually load Composer file includes by generating a config with require:
+		// statements for each file.
+		$project_composer = "{$project_folder}/composer.json";
+		if ( ! file_exists( $project_composer ) ) {
+			return;
+		}
+
+		$composer = json_decode( file_get_contents( $project_composer ) );
+		if ( empty( $composer->autoload->files ) ) {
+			return;
+		}
+
+		$contents = "require:\n";
+		foreach ( $composer->autoload->files as $file ) {
+			$contents .= "  - {$project_folder}/{$file}\n";
+		}
+
+		$temp_folder = sys_get_temp_dir() . '/wp-cli-package-test';
+		if (
+			! is_dir( $temp_folder )
+			&& ! mkdir( $temp_folder )
+			&& ! is_dir( $temp_folder )
+		) {
+			return;
+		}
+
+		$project_config = "{$temp_folder}/config.yml";
+		file_put_contents( $project_config, $contents );
+		putenv( 'WP_CLI_CONFIG_PATH=' . $project_config );
+
+		self::debug( "Project config file location: {$project_config}" );
+		self::debug( "Project config:\n{$contents}" );
+	}
+
+	/**
 	 * Replace standard {VARIABLE_NAME} variables and the special {INVOKE_WP_CLI_WITH_PHP_ARGS-args} and {WP_VERSION-version-latest} variables.
 	 * Note that standard variable names can only contain uppercase letters, digits and underscores and cannot begin with a digit.
 	 *
@@ -889,10 +957,10 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * @return string
 	 */
 	public function replace_variables( $str ) {
+		$str = preg_replace_callback( '/\{([A-Z_][A-Z_0-9]*)\}/', [ $this, 'replace_var' ], $str );
 		if ( false !== strpos( $str, '{INVOKE_WP_CLI_WITH_PHP_ARGS-' ) ) {
 			$str = $this->replace_invoke_wp_cli_with_php_args( $str );
 		}
-		$str = preg_replace_callback( '/\{([A-Z_][A-Z_0-9]*)\}/', [ $this, 'replace_var' ], $str );
 		if ( false !== strpos( $str, '{WP_VERSION-' ) ) {
 			$str = $this->replace_wp_versions( $str );
 		}
@@ -930,7 +998,7 @@ class FeatureContext implements SnippetAcceptingContext {
 		}
 
 		$str = preg_replace_callback(
-			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-([^}]*)}/',
+			'/{INVOKE_WP_CLI_WITH_PHP_ARGS-(.*)}/',
 			static function ( $matches ) use ( $phar_path, $shell_path ) {
 				return $phar_path ? "php {$matches[1]} {$phar_path}" : ( 'WP_CLI_PHP_ARGS=' . escapeshellarg( $matches[1] ) . ' ' . $shell_path );
 			},
@@ -1119,7 +1187,7 @@ class FeatureContext implements SnippetAcceptingContext {
 	 * Run a MySQL command with `$db_settings`.
 	 *
 	 * @param string                $sql_cmd      Command to run.
-	 * @param array<string, string> $assoc_args   Optional. Associative array of options. Default empty.
+	 * @param array<string, string|bool> $assoc_args   Optional. Associative array of options. Default empty.
 	 * @param bool                  $add_database Optional. Whether to add dbname to the $sql_cmd. Default false.
 	 * @return array{stdout: string, stderr: string, exit_code: int}
 	 */
@@ -1152,8 +1220,9 @@ class FeatureContext implements SnippetAcceptingContext {
 			return;
 		}
 
-		$dbname = self::$db_settings['dbname'];
-		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
+		$dbname   = self::$db_settings['dbname'];
+		$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
 	/**
@@ -1164,8 +1233,9 @@ class FeatureContext implements SnippetAcceptingContext {
 			return;
 		}
 
+		$ssl_flag   = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
 		$sql_result = self::run_sql(
-			self::$mysql_binary . ' --no-defaults',
+			self::$mysql_binary . ' --no-defaults' . $ssl_flag,
 			[
 				'execute'       => 'SELECT 1',
 				'send_to_shell' => false,
@@ -1191,13 +1261,14 @@ class FeatureContext implements SnippetAcceptingContext {
 		if ( 'sqlite' === self::$db_type ) {
 			return;
 		}
-		$dbname = self::$db_settings['dbname'];
-		self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
+		$dbname   = self::$db_settings['dbname'];
+		$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
 	/**
 	 * @param string $command
-	 * @param array<string, string> $assoc_args
+	 * @param array<string, mixed> $assoc_args
 	 * @param string $path
 	 * @return Process
 	 */
@@ -1305,10 +1376,15 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * @param string $subdir
+	 * @param string $version
 	 */
-	public function download_wp( $subdir = '' ): void {
-		if ( ! self::$cache_dir ) {
-			self::cache_wp_files();
+	public function download_wp( $subdir = '', $version = '' ): void {
+		$wp_version         = $version ?: getenv( 'WP_VERSION' );
+		$wp_version_suffix  = $wp_version ? "-$wp_version" : '';
+		$expected_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+
+		if ( ! self::$cache_dir || self::$cache_dir !== $expected_cache_dir ) {
+			self::cache_wp_files( $version );
 
 			$result = Process::create( Utils\esc_cmd( 'wp core version --debug --path=%s', self::$cache_dir ), null, self::get_process_env_variables() )->run_check();
 			echo "[Debug messages]\n";
@@ -1382,10 +1458,11 @@ class FeatureContext implements SnippetAcceptingContext {
 
 	/**
 	 * @param string $subdir
+	 * @param string $version
 	 */
-	public function install_wp( $subdir = '' ): void {
-		$wp_version              = getenv( 'WP_VERSION' );
-		$wp_version_suffix       = ( false !== $wp_version ) ? "-$wp_version" : '';
+	public function install_wp( $subdir = '', $version = '' ): void {
+		$wp_version              = $version ?: getenv( 'WP_VERSION' );
+		$wp_version_suffix       = $wp_version ? "-$wp_version" : '';
 		self::$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
 		if ( ! file_exists( self::$install_cache_dir ) ) {
 			mkdir( self::$install_cache_dir );
@@ -1400,7 +1477,7 @@ class FeatureContext implements SnippetAcceptingContext {
 			$this->create_db();
 		}
 		$this->create_run_dir();
-		$this->download_wp( $subdir );
+		$this->download_wp( $subdir, $version );
 		$this->create_config( $subdir, $config_extra_php );
 
 		$install_args = [
@@ -1423,7 +1500,8 @@ class FeatureContext implements SnippetAcceptingContext {
 			if ( 'sqlite' === self::$db_type ) {
 				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
 			} else {
-				self::run_sql( self::$mysql_binary . ' --no-defaults', [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
+				$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
@@ -1436,7 +1514,8 @@ class FeatureContext implements SnippetAcceptingContext {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
 				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
-				$command                   = "{$mysqldump_binary} --no-defaults --no-tablespaces";
+				$ssl_flag                  = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+				$command                   = "{$mysqldump_binary} --no-defaults{$ssl_flag} --no-tablespaces";
 				if ( $support_column_statistics ) {
 					$command .= ' --skip-column-statistics';
 				}
@@ -1775,74 +1854,3 @@ class FeatureContext implements SnippetAcceptingContext {
 		++self::$proc_method_run_times[ $key ][1];
 	}
 }
-
-
-/**
- * @param string $message
- */
-function wp_cli_behat_env_debug( $message ): void { // phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
-	if ( ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
-		return;
-	}
-
-	echo "{$message}\n";
-}
-
-/**
- * Load required support files as needed before heading into the Behat context.
- */
-function wpcli_bootstrap_behat_feature_context(): void {
-	$vendor_folder = FeatureContext::get_vendor_dir();
-	wp_cli_behat_env_debug( "Vendor folder location: {$vendor_folder}" );
-
-	// Didn't manage to detect a valid vendor folder.
-	if ( empty( $vendor_folder ) ) {
-		return;
-	}
-
-	// We assume the vendor folder is located in the project root folder.
-	$project_folder = dirname( $vendor_folder );
-
-	$framework_folder = FeatureContext::get_framework_dir();
-	wp_cli_behat_env_debug( "Framework folder location: {$framework_folder}" );
-
-	// Load helper functionality that is needed for the tests.
-	require_once "{$framework_folder}/php/utils.php";
-	require_once "{$framework_folder}/php/WP_CLI/Process.php";
-	require_once "{$framework_folder}/php/WP_CLI/ProcessRun.php";
-
-	// Manually load Composer file includes by generating a config with require:
-	// statements for each file.
-	$project_composer = "{$project_folder}/composer.json";
-	if ( ! file_exists( $project_composer ) ) {
-		return;
-	}
-
-	$composer = json_decode( file_get_contents( $project_composer ) );
-	if ( empty( $composer->autoload->files ) ) {
-		return;
-	}
-
-	$contents = "require:\n";
-	foreach ( $composer->autoload->files as $file ) {
-		$contents .= "  - {$project_folder}/{$file}\n";
-	}
-
-	$temp_folder = sys_get_temp_dir() . '/wp-cli-package-test';
-	if (
-		! is_dir( $temp_folder )
-		&& ! mkdir( $temp_folder )
-		&& ! is_dir( $temp_folder )
-	) {
-		return;
-	}
-
-	$project_config = "{$temp_folder}/config.yml";
-	file_put_contents( $project_config, $contents );
-	putenv( 'WP_CLI_CONFIG_PATH=' . $project_config );
-
-	wp_cli_behat_env_debug( "Project config file location: {$project_config}" );
-	wp_cli_behat_env_debug( "Project config:\n{$contents}" );
-}
-
-wpcli_bootstrap_behat_feature_context();
