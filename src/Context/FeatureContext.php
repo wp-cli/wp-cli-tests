@@ -471,9 +471,32 @@ class FeatureContext implements Context {
 		}
 
 		if ( self::running_with_xdebug() ) {
-			$env['XDEBUG_MODE']    = 'debug';
-			$env['XDEBUG_SESSION'] = '1';
-			$env['XDEBUG_CONFIG']  = 'idekey=WP_CLI_TEST_XDEBUG log_level=0';
+			$xdebug_mode = getenv( 'XDEBUG_MODE' );
+			if ( false !== $xdebug_mode && '' !== $xdebug_mode ) {
+				$modes = array_filter(
+					array_map(
+						'trim',
+						explode( ',', $xdebug_mode )
+					),
+					static function ( $mode ) {
+						return '' !== $mode;
+					}
+				);
+				if ( ! in_array( 'debug', $modes, true ) ) {
+					$modes[] = 'debug';
+				}
+				$env['XDEBUG_MODE'] = implode( ',', $modes );
+			} else {
+				$env['XDEBUG_MODE'] = 'debug';
+			}
+
+			if ( false === getenv( 'XDEBUG_SESSION' ) ) {
+				$env['XDEBUG_SESSION'] = '1';
+			}
+
+			if ( false === getenv( 'XDEBUG_CONFIG' ) ) {
+				$env['XDEBUG_CONFIG'] = 'idekey=WP_CLI_TEST_XDEBUG log_level=0';
+			}
 		}
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
