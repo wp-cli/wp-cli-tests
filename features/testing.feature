@@ -11,6 +11,10 @@ Feature: Test that WP-CLI loads.
 
   Scenario: WP Cron is disabled by default
     Given a WP install
+    And the wp-config.php file should contain:
+      """
+      if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }
+      """
     And a test_cron.php file:
       """
       <?php
@@ -53,7 +57,8 @@ Feature: Test that WP-CLI loads.
       sqlite
       """
 
-  @require-sqlite
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-sqlite @skip-windows
   Scenario: Composer installation
     Given a WP install with Composer
 

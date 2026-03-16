@@ -5,7 +5,6 @@ namespace WP_CLI\Tests\Context;
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use RuntimeException;
-use WP_CLI\Process;
 use WP_CLI\Utils;
 
 trait GivenStepDefinitions {
@@ -615,7 +614,10 @@ FILE;
 				continue;
 			}
 
-			Process::create( Utils\esc_cmd( 'curl -sSL %s > %s', $row['url'], $path ) )->run_check();
+			$response = Utils\http_request( 'GET', $row['url'], null, [], [ 'filename' => $path ] );
+			if ( 200 !== $response->status_code ) {
+				throw new RuntimeException( "Could not download file (HTTP code {$response->status_code})" );
+			}
 		}
 	}
 
