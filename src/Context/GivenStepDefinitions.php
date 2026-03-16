@@ -5,7 +5,6 @@ namespace WP_CLI\Tests\Context;
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use RuntimeException;
-use WP_CLI\Process;
 use WP_CLI\Utils;
 
 trait GivenStepDefinitions {
