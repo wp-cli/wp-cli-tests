@@ -81,7 +81,7 @@ final class ParseUrlFunctionDynamicReturnTypeExtension implements \PHPStan\Type\
 			$types = [];
 			foreach ( $urlType->getConstantStrings() as $constantString ) {
 				try {
-                    // phpcs:ignore Generic.PHP.NoSilencedErrors.Discouraged
+					// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 					$result = @parse_url( $constantString->getValue(), $componentType->getValue() );
 				} catch ( \Error $e ) {
 					$types[] = new ConstantBooleanType( false );

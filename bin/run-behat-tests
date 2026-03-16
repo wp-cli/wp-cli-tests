@@ -94,6 +94,20 @@ if [ "${WP_VERSION-latest}" = "latest" ]; then
 	export WP_VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r ".offers[0].current")
 fi
 
+# Normalize WP_VERSION=X.Y.0 to X.Y (WordPress uses X.Y for the initial release, not X.Y.0).
+# If WP_VERSION=X.Y (major.minor only), resolve to the latest available patch release.
+if [[ "${WP_VERSION}" =~ ^([0-9]+\.[0-9]+)\.0$ ]]; then
+	export WP_VERSION="${BASH_REMATCH[1]}"
+elif [[ "${WP_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+	WP_VERSIONS_JSON=$(curl -s https://raw.githubusercontent.com/wp-cli/wp-cli-tests/artifacts/wp-versions.json)
+	if [ -n "${WP_VERSIONS_JSON}" ]; then
+		RESOLVED_VERSION=$(echo "${WP_VERSIONS_JSON}" | jq -r --arg prefix "${WP_VERSION}." 'keys | map(select(startswith($prefix))) | sort_by(split(".") | map(tonumber)) | last // empty')
+		if [ -n "${RESOLVED_VERSION}" ]; then
+			export WP_VERSION="${RESOLVED_VERSION}"
+		fi
+	fi
+fi
+
 # To retrieve the WP-CLI tests package root folder, we start with this scripts
 # location.
 SOURCE="${BASH_SOURCE[0]}"
