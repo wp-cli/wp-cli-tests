@@ -86,6 +86,26 @@
 
 	<!--
 	#############################################################################
+	USE THE SLEVOMATCODINGSTANDARD RULESET
+
+	This checks code for unused `use` statements.
+	See: https://github.com/slevomat/coding-standard
+	#############################################################################
+	-->
+
+	<rule ref="SlevomatCodingStandard.Namespaces.UnusedUses">
+		<properties>
+			<property name="searchAnnotations" value="true"/>
+		</properties>
+		<!-- Exclude case-sensitivity check: PHPUnit's @dataProvider annotation uses a
+			 lowercase method name which can cause false positives with the DataProvider
+			 attribute class import (PHPUnit\Framework\Attributes\DataProvider). -->
+		<exclude name="SlevomatCodingStandard.Namespaces.UnusedUses.MismatchingCaseSensitivity"/>
+	</rule>
+
+
+	<!--
+	#############################################################################
 	SPECIFIC CONFIGURATION FOR SNIFFS
 	#############################################################################
 	-->

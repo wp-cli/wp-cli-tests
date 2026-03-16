@@ -5,7 +5,6 @@
 
 namespace WP_CLI\Tests\Context;
 
-use Behat\Behat\Exception\PendingException;
 use Exception;
 use Mustangostang\Spyc;
 use SebastianBergmann\Diff\Differ;
