@@ -7,8 +7,8 @@
 	To include this ruleset in a WP-CLI project, use `rule ref="WP_CLI_CS"` in brackets.
 	See the instructions in the README/USING for an example.
 
-	For help using PHPCS: https://github.com/squizlabs/PHP_CodeSniffer/wiki/Usage
-	For help understanding this file: https://github.com/squizlabs/PHP_CodeSniffer/wiki/Annotated-ruleset.xml
+	For help using PHPCS: https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Usage
+	For help understanding this file: https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Annotated-ruleset.xml
 	-->
 
 	<!--
@@ -18,7 +18,7 @@
 	-->
 
 	<!-- Ignoring select files/folders for all projects.
-		 https://github.com/squizlabs/PHP_CodeSniffer/wiki/Advanced-Usage#ignoring-files-and-folders -->
+		 https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Advanced-Usage#ignoring-files-and-folders -->
 	<exclude-pattern>*/.git/*</exclude-pattern>
 	<exclude-pattern>*/node_modules/*</exclude-pattern>
 	<exclude-pattern>*/vendor/*</exclude-pattern>

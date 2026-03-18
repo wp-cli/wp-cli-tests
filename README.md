@@ -86,7 +86,7 @@ To make use of the WP-CLI testing framework, you need to complete the following 
     </ruleset>
     ```
 
-    All other [PHPCS configuration options](https://github.com/squizlabs/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
+    All other [PHPCS configuration options](https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
 6. Update your composer dependencies and regenerate your autoloader and binary folders:
     ```bash
     composer update
