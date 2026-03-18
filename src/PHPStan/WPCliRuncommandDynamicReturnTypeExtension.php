@@ -84,7 +84,7 @@ class WPCliRuncommandDynamicReturnTypeExtension implements DynamicStaticMethodRe
 
 								if ( $isExactlyJsonString ) {
 									$parseOption = $valueConstantStrings[0];
-								} elseif ( $$currentOptionValueType->isFalse()->yes() ) {
+								} elseif ( $currentOptionValueType->isFalse()->yes() ) {
 									$parseOption = new ConstantBooleanType( false );
 								} else {
 									// Not a single, clear constant we handle for a "known" path
