@@ -1592,7 +1592,7 @@ class FeatureContext implements Context {
 		$subdir = $this->replace_variables( $subdir );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$config_extra_php = "if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }\n";
+		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
 		if ( 'sqlite' !== self::$db_type ) {
 			$this->create_db();
