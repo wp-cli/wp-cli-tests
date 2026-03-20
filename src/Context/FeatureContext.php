@@ -1654,6 +1654,9 @@ class FeatureContext implements Context {
 				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
 				if ( file_exists( $sqlite_source ) ) {
 					copy( $sqlite_source, "{$install_cache_path}.sqlite" );
+				} elseif ( file_exists( "{$install_cache_path}.sqlite" ) ) {
+					// Ensure we don't keep a stale cached SQLite DB if the source wasn't produced
+					unlink( "{$install_cache_path}.sqlite" );
 				}
 			}
 		}
