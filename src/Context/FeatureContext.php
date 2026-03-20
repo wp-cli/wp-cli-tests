@@ -1614,7 +1614,7 @@ class FeatureContext implements Context {
 
 		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
 
-		$install_cache_is_valid = file_exists( $install_cache_path )
+		$install_cache_is_valid = is_dir( $install_cache_path )
 			&& ( 'sqlite' !== self::$db_type || file_exists( "{$install_cache_path}.sqlite" ) );
 
 		if ( $install_cache_is_valid ) {
