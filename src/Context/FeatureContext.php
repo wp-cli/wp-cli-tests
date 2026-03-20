@@ -1614,7 +1614,38 @@ class FeatureContext implements Context {
 
 		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
 
-		if ( file_exists( $install_cache_path ) ) {
+		$install_cache_is_valid = is_dir( $install_cache_path )
+			&& ( 'sqlite' !== self::$db_type || file_exists( "{$install_cache_path}.sqlite" ) );
+
+		if ( ! $install_cache_is_valid && file_exists( $install_cache_path ) ) {
+			if ( is_dir( $install_cache_path ) ) {
+				$iterator = new \RecursiveIteratorIterator(
+					new \RecursiveDirectoryIterator( $install_cache_path, \FilesystemIterator::SKIP_DOTS ),
+					\RecursiveIteratorIterator::CHILD_FIRST
+				);
+				foreach ( $iterator as $fileinfo ) {
+					if ( $fileinfo->isDir() ) {
+						rmdir( $fileinfo->getPathname() );
+					} else {
+						unlink( $fileinfo->getPathname() );
+					}
+				}
+				rmdir( $install_cache_path );
+			} else {
+				unlink( $install_cache_path );
+			}
+
+			$sqlite_cache = "{$install_cache_path}.sqlite";
+			if ( file_exists( $sqlite_cache ) && is_file( $sqlite_cache ) ) {
+				unlink( $sqlite_cache );
+			}
+
+			$sql_cache = "{$install_cache_path}.sql";
+			if ( file_exists( $sql_cache ) && is_file( $sql_cache ) ) {
+				unlink( $sql_cache );
+			}
+		}
+		if ( $install_cache_is_valid ) {
 			self::copy_dir( $install_cache_path, $run_dir );
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
@@ -1627,7 +1658,9 @@ class FeatureContext implements Context {
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
 
-			mkdir( $install_cache_path );
+			if ( ! is_dir( $install_cache_path ) ) {
+				mkdir( $install_cache_path );
+			}
 
 			self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
@@ -1646,7 +1679,13 @@ class FeatureContext implements Context {
 
 			if ( 'sqlite' === self::$db_type ) {
 				// This is the sqlite equivalent of creating a database dump in MySQL
-				copy( "$run_dir/wp-content/database/.ht.sqlite", "{$install_cache_path}.sqlite" );
+				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
+				if ( file_exists( $sqlite_source ) ) {
+					copy( $sqlite_source, "{$install_cache_path}.sqlite" );
+				} elseif ( file_exists( "{$install_cache_path}.sqlite" ) ) {
+					// Ensure we don't keep a stale cached SQLite DB if the source wasn't produced
+					unlink( "{$install_cache_path}.sqlite" );
+				}
 			}
 		}
 	}
