@@ -1617,6 +1617,34 @@ class FeatureContext implements Context {
 		$install_cache_is_valid = is_dir( $install_cache_path )
 			&& ( 'sqlite' !== self::$db_type || file_exists( "{$install_cache_path}.sqlite" ) );
 
+		if ( ! $install_cache_is_valid && file_exists( $install_cache_path ) ) {
+			if ( is_dir( $install_cache_path ) ) {
+				$iterator = new \RecursiveIteratorIterator(
+					new \RecursiveDirectoryIterator( $install_cache_path, \FilesystemIterator::SKIP_DOTS ),
+					\RecursiveIteratorIterator::CHILD_FIRST
+				);
+				foreach ( $iterator as $fileinfo ) {
+					if ( $fileinfo->isDir() ) {
+						rmdir( $fileinfo->getPathname() );
+					} else {
+						unlink( $fileinfo->getPathname() );
+					}
+				}
+				rmdir( $install_cache_path );
+			} else {
+				unlink( $install_cache_path );
+			}
+
+			$sqlite_cache = "{$install_cache_path}.sqlite";
+			if ( file_exists( $sqlite_cache ) && is_file( $sqlite_cache ) ) {
+				unlink( $sqlite_cache );
+			}
+
+			$sql_cache = "{$install_cache_path}.sql";
+			if ( file_exists( $sql_cache ) && is_file( $sql_cache ) ) {
+				unlink( $sql_cache );
+			}
+		}
 		if ( $install_cache_is_valid ) {
 			self::copy_dir( $install_cache_path, $run_dir );
 
