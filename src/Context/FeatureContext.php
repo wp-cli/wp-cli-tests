@@ -24,6 +24,7 @@ use DirectoryIterator;
 use WP_CLI\Process;
 use WP_CLI\ProcessRun;
 use WP_CLI\Utils;
+use WP_CLI\Path;
 use WP_CLI\WpOrgApi;
 
 /**
@@ -1650,7 +1651,13 @@ class FeatureContext implements Context {
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
 			if ( 'sqlite' === self::$db_type ) {
-				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
+				$sqlite_dest_dir = "$run_dir/wp-content/database";
+				if ( ! is_dir( $sqlite_dest_dir ) ) {
+					mkdir( $sqlite_dest_dir, 0755, true );
+				}
+				if ( file_exists( "{$install_cache_path}.sqlite" ) ) {
+					copy( "{$install_cache_path}.sqlite", "$sqlite_dest_dir/.ht.sqlite.php" );
+				}
 			} else {
 				$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
 				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
@@ -1679,7 +1686,11 @@ class FeatureContext implements Context {
 
 			if ( 'sqlite' === self::$db_type ) {
 				// This is the sqlite equivalent of creating a database dump in MySQL
-				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
+				// Support both the new (.ht.sqlite.php) and legacy (.ht.sqlite) file names.
+				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite.php";
+				if ( ! file_exists( $sqlite_source ) ) {
+					$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
+				}
 				if ( file_exists( $sqlite_source ) ) {
 					copy( $sqlite_source, "{$install_cache_path}.sqlite" );
 				} elseif ( file_exists( "{$install_cache_path}.sqlite" ) ) {
@@ -1901,8 +1912,8 @@ class FeatureContext implements Context {
 		$scenario_key = '';
 		$file         = self::get_event_file( $scope, $line );
 		if ( isset( $file ) ) {
-			$scenario_grandparent = Utils\basename( dirname( $file, 2 ) );
-			$scenario_key         = $scenario_grandparent . ' ' . Utils\basename( $file ) . ':' . $line;
+			$scenario_grandparent = Path::basename( dirname( $file, 2 ) );
+			$scenario_key         = $scenario_grandparent . ' ' . Path::basename( $file ) . ':' . $line;
 		}
 		return $scenario_key;
 	}
@@ -1919,7 +1930,7 @@ class FeatureContext implements Context {
 			$suite = substr( $keys[0], 0, strpos( $keys[0], ' ' ) );
 		}
 
-		$run_from = Utils\basename( dirname( __DIR__, 2 ) );
+		$run_from = Path::basename( dirname( __DIR__, 2 ) );
 
 		// Format same as Behat, if have minutes.
 		$fmt = static function ( $time ) {
