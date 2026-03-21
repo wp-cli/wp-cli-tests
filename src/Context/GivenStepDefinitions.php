@@ -6,6 +6,7 @@ use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use RuntimeException;
 use WP_CLI\Utils;
+use WP_CLI\Path;
 
 trait GivenStepDefinitions {
 
@@ -45,7 +46,7 @@ trait GivenStepDefinitions {
 	 */
 	public function given_a_specific_directory( $empty_or_nonexistent, $dir ): void {
 		$dir = $this->replace_variables( $dir );
-		if ( ! Utils\is_path_absolute( $dir ) ) {
+		if ( ! Path::is_absolute( $dir ) ) {
 			$dir = $this->variables['RUN_DIR'] . "/$dir";
 		}
 
