@@ -4,7 +4,6 @@ namespace WP_CLI\Tests\Context;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
-use WP_CLI\Utils;
 use WP_CLI\Path;
 use Exception;
 use Requests;
