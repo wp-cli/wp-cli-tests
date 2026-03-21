@@ -1650,7 +1650,13 @@ class FeatureContext implements Context {
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
 			if ( 'sqlite' === self::$db_type ) {
-				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
+				$sqlite_dest_dir = "$run_dir/wp-content/database";
+				if ( ! is_dir( $sqlite_dest_dir ) ) {
+					mkdir( $sqlite_dest_dir, 0755, true );
+				}
+				if ( file_exists( "{$install_cache_path}.sqlite" ) ) {
+					copy( "{$install_cache_path}.sqlite", "$sqlite_dest_dir/.ht.sqlite.php" );
+				}
 			} else {
 				$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
 				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
@@ -1679,7 +1685,11 @@ class FeatureContext implements Context {
 
 			if ( 'sqlite' === self::$db_type ) {
 				// This is the sqlite equivalent of creating a database dump in MySQL
-				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
+				// Support both the new (.ht.sqlite.php) and legacy (.ht.sqlite) file names.
+				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite.php";
+				if ( ! file_exists( $sqlite_source ) ) {
+					$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
+				}
 				if ( file_exists( $sqlite_source ) ) {
 					copy( $sqlite_source, "{$install_cache_path}.sqlite" );
 				} elseif ( file_exists( "{$install_cache_path}.sqlite" ) ) {
