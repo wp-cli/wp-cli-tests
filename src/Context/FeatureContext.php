@@ -745,8 +745,10 @@ class FeatureContext implements Context {
 	public function afterScenario( AfterScenarioScope $scope ): void {
 
 		if ( self::$run_dir ) {
-			// Remove altered WP install, unless there's an error.
-			if ( $scope->getTestResult()->getResultCode() <= 10 ) {
+			// Remove altered WP install, unless there's an error (and we are not on CI).
+			$is_ci    = getenv( 'CI' );
+			$is_debug = getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' );
+			if ( $scope->getTestResult()->getResultCode() <= 10 || ( $is_ci && ! $is_debug ) ) {
 				self::remove_dir( self::$run_dir );
 			}
 			self::$run_dir = null;
