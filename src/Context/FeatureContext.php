@@ -1785,7 +1785,8 @@ class FeatureContext implements Context {
 		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';\n";
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
-			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . bin2hex( random_bytes( 16 ) ) . "' );\n";
+			// Use a deterministic salt per install to allow create_config() to reuse cached configs.
+			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . md5( $this->variables['RUN_DIR'] ) . "' );\n";
 		}
 
 		$this->create_config( 'WordPress', $config_extra_php );
