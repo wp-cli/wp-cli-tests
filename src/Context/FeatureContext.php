@@ -1652,7 +1652,9 @@ class FeatureContext implements Context {
 		$config_extra_php = "if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
-			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . bin2hex( random_bytes( 16 ) ) . "' );\n";
+			// Derive a deterministic cache key salt from the install cache directory and subdir
+			$salt = md5( self::$install_cache_dir . '/' . $subdir );
+			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . $salt . "' );\n";
 		}
 
 		if ( 'sqlite' !== self::$db_type ) {
