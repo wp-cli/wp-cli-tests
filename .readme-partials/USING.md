@@ -202,6 +202,7 @@ The following environment variables can be set to override the default database 
   - `WP_CLI_TEST_DBUSER` is the user that the tests run under (defaults to "wp_cli_test").
   - `WP_CLI_TEST_DBPASS` is the password to use for the above user (defaults to "password1").
   - `WP_CLI_TEST_DBTYPE` is the database engine type to use, i.e. "sqlite" for running tests on SQLite instead of MySQL (defaults to "mysql").
+  - `WP_CLI_TEST_OBJECT_CACHE` is the persistent object cache backend to use. Only supports "sqlite".
 
 Environment variables can be set for the whole session via the following syntax: `export WP_CLI_TEST_DBNAME=custom_db`.
 

@@ -1653,7 +1653,7 @@ class FeatureContext implements Context {
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
 			// Derive a deterministic cache key salt from the install cache directory and subdir
-			$salt = md5( self::$install_cache_dir . '/' . $subdir );
+			$salt              = md5( self::$install_cache_dir . '/' . $subdir );
 			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . $salt . "' );\n";
 		}
 
@@ -1969,7 +1969,7 @@ class FeatureContext implements Context {
 					continue; // File vanished before it could be copied.
 				} else {
 					if ( ! is_dir( dirname( $cop_file ) ) ) {
-						@mkdir( dirname( $cop_file ), 0777, true );
+						mkdir( dirname( $cop_file ), 0777, true );
 					}
 					if ( ! copy( $upd_file, $cop_file ) ) {
 						$error = error_get_last();
