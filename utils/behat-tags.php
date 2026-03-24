@@ -168,6 +168,8 @@ $skip_tags[] = '@broken';
 
 if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
 	$skip_tags[] = '@require-object-cache';
+} else {
+	$skip_tags[] = '@skip-object-cache';
 }
 
 if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) ) {
