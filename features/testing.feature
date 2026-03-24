@@ -46,6 +46,15 @@ Feature: Test that WP-CLI loads.
       false
       """
 
+  @require-object-cache
+  Scenario: Uses Object Cache
+    Given a WP install
+    When I run `wp eval 'var_export( wp_using_ext_object_cache() );'`
+    Then STDOUT should be:
+      """
+      true
+      """
+
   @require-sqlite
   Scenario: Custom wp-content directory
     Given a WP install

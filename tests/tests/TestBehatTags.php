@@ -113,6 +113,9 @@ class TestBehatTags extends TestCase {
 		$output = $this->run_behat_tags_script( $env );
 
 		$expected .= '&&~@broken';
+		if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			$expected .= '&&~@require-object-cache';
+		}
 		if ( in_array( $env, array( 'WP_VERSION=trunk', 'WP_VERSION=nightly' ), true ) ) {
 			$expected .= '&&~@broken-trunk';
 		}
@@ -200,6 +203,9 @@ class TestBehatTags extends TestCase {
 		}
 
 		$expected .= '&&~@github-api&&~@broken';
+		if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			$expected .= '&&~@require-object-cache';
+		}
 
 		$db_type = getenv( 'WP_CLI_TEST_DBTYPE' );
 		switch ( $db_type ) {
@@ -270,7 +276,11 @@ class TestBehatTags extends TestCase {
 			$expecteds[] = '~@require-extension-curl';
 		}
 
-		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
+		$base_expecteds = array( '~@github-api', '~@broken' );
+		if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			$base_expecteds[] = '~@require-object-cache';
+		}
+		$expected = '--tags=' . implode( '&&', array_merge( $base_expecteds, $expecteds ) );
 		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 
@@ -322,7 +332,11 @@ class TestBehatTags extends TestCase {
 
 		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'extension.feature', $contents );
 
-		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
+		$base_expecteds = array( '~@github-api', '~@broken' );
+		if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			$base_expecteds[] = '~@require-object-cache';
+		}
+		$expected = '--tags=' . implode( '&&', array_merge( $base_expecteds, $expecteds ) );
 		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 	}
@@ -380,7 +394,11 @@ class TestBehatTags extends TestCase {
 			$expecteds[] = '~@skip-linux';
 		}
 
-		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
+		$base_expecteds = array( '~@github-api', '~@broken' );
+		if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			$base_expecteds[] = '~@require-object-cache';
+		}
+		$expected = '--tags=' . implode( '&&', array_merge( $base_expecteds, $expecteds ) );
 		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 
@@ -419,7 +437,11 @@ class TestBehatTags extends TestCase {
 				break;
 		}
 
-		$expected = '--tags=' . implode( '&&', array_merge( array( '~@github-api', '~@broken' ), $expecteds ) );
+		$base_expecteds = array( '~@github-api', '~@broken' );
+		if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			$base_expecteds[] = '~@require-object-cache';
+		}
+		$expected = '--tags=' . implode( '&&', array_merge( $base_expecteds, $expecteds ) );
 		$output   = $this->run_behat_tags_script();
 		$this->assertSame( $expected, $output );
 
