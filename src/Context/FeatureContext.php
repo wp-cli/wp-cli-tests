@@ -450,11 +450,12 @@ class FeatureContext implements Context {
 		$path_separator  = Utils\is_windows() ? ';' : ':';
 		$php_binary_path = dirname( PHP_BINARY );
 		$env             = [
-			'PATH'          => $php_binary_path . $path_separator . $bin_path . $path_separator . getenv( 'PATH' ),
-			'BEHAT_RUN'     => 1,
-			'HOME'          => sys_get_temp_dir() . '/wp-cli-home',
-			'COMPOSER_HOME' => sys_get_temp_dir() . '/wp-cli-composer-home',
-			'TEST_RUN_DIR'  => self::$behat_run_dir,
+			'PATH'               => $php_binary_path . $path_separator . $bin_path . $path_separator . getenv( 'PATH' ),
+			'BEHAT_RUN'          => 1,
+			'HOME'               => sys_get_temp_dir() . '/wp-cli-home',
+			'COMPOSER_HOME'      => sys_get_temp_dir() . '/wp-cli-composer-home',
+			'TEST_RUN_DIR'       => self::$behat_run_dir,
+			'WP_CLI_SKIP_PROMPT' => 'no',
 		];
 
 		$env = array_merge( $_ENV, $env );
