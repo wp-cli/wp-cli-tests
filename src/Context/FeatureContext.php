@@ -86,6 +86,11 @@ class FeatureContext implements Context {
 	private static $sqlite_cache_dir;
 
 	/**
+	 * @var ?string
+	 */
+	private static $sqlite_object_cache_dir;
+
+	/**
 	 * The directory that the WP-CLI cache (WP_CLI_CACHE_DIR, normally "$HOME/.wp-cli/cache") is set to on a "Given an empty cache" step.
 	 * Variable SUITE_CACHE_DIR. Lives until the end of the scenario (or until another "Given an empty cache" step within the scenario).
 	 *
@@ -600,6 +605,42 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Download the SQLite object cache plugin.
+	 *
+	 * @param string $dir
+	 */
+	private static function download_sqlite_object_cache_plugin( $dir ): void {
+		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-object-cache.zip';
+		$download_location = $dir . '/sqlite-object-cache.zip';
+
+		if ( ! is_dir( $dir ) ) {
+			mkdir( $dir );
+		}
+
+		$response = \WP_CLI\Utils\http_request( 'GET', $download_url, null, [], [ 'filename' => $download_location ] );
+
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download SQLite object cache plugin (HTTP code {$response->status_code})" );
+		}
+
+		$zip          = new \ZipArchive();
+		$new_zip_file = $download_location;
+
+		if ( $zip->open( $new_zip_file ) === true ) {
+			if ( $zip->extractTo( $dir ) ) {
+				$zip->close();
+				unlink( $new_zip_file );
+			} else {
+				$error_message = $zip->getStatusString();
+				throw new RuntimeException( sprintf( 'Failed to extract files from the zip: %s', $error_message ) );
+			}
+		} else {
+			$error_message = $zip->getStatusString();
+			throw new RuntimeException( sprintf( 'Failed to open the zip file: %s', $error_message ) );
+		}
+	}
+
+	/**
 	 * Given a WordPress installation with the sqlite-database-integration plugin,
 	 * configure it to use SQLite as the database by placing the db.php dropin file
 	 *
@@ -648,6 +689,13 @@ class FeatureContext implements Context {
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 			if ( ! is_readable( self::$sqlite_cache_dir . '/sqlite-database-integration/db.copy' ) ) {
 				self::download_sqlite_plugin( self::$sqlite_cache_dir );
+			}
+		}
+
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			self::$sqlite_object_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-object-cache';
+			if ( ! is_dir( self::$sqlite_object_cache_dir . '/sqlite-object-cache' ) ) {
+				self::download_sqlite_object_cache_plugin( self::$sqlite_object_cache_dir );
 			}
 		}
 
@@ -1539,6 +1587,12 @@ class FeatureContext implements Context {
 			self::copy_dir( self::$sqlite_cache_dir, $dest_dir . '/wp-content/mu-plugins' );
 			self::configure_sqlite( $dest_dir );
 		}
+
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			self::copy_dir( self::$sqlite_object_cache_dir, $dest_dir . '/wp-content/mu-plugins' );
+			copy( $dest_dir . '/wp-content/mu-plugins/sqlite-object-cache/assets/drop-in/object-cache.php', $dest_dir . '/wp-content/object-cache.php' );
+			file_put_contents( $dest_dir . '/wp-content/mu-plugins/sqlite-object-cache.php', "<?php\nrequire_once __DIR__ . '/sqlite-object-cache/sqlite-object-cache.php';\n" );
+		}
 	}
 
 	/**
@@ -1597,6 +1651,12 @@ class FeatureContext implements Context {
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			// Derive a deterministic cache key salt from the install cache directory and subdir
+			$salt              = md5( self::$install_cache_dir . '/' . $subdir );
+			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . $salt . "' );\n";
+		}
+
 		if ( 'sqlite' !== self::$db_type ) {
 			$this->create_db();
 		}
@@ -1615,7 +1675,7 @@ class FeatureContext implements Context {
 
 		$run_dir = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 
-		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
+		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir . ':object_cache=' . getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) );
 
 		$install_cache_is_valid = is_dir( $install_cache_path )
 			&& ( 'sqlite' !== self::$db_type || file_exists( "{$install_cache_path}.sqlite" ) );
@@ -1726,6 +1786,11 @@ class FeatureContext implements Context {
 
 		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';\n";
 
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			// Use a deterministic salt per install to allow create_config() to reuse cached configs.
+			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . md5( $this->variables['RUN_DIR'] ) . "' );\n";
+		}
+
 		$this->create_config( 'WordPress', $config_extra_php );
 
 		$install_args = [
@@ -1745,6 +1810,12 @@ class FeatureContext implements Context {
 			mkdir( $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins/sqlite-database-integration' );
 			self::copy_dir( self::$sqlite_cache_dir, $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins' );
 			self::configure_sqlite( $this->variables['RUN_DIR'] . '/WordPress' );
+		}
+
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			self::copy_dir( self::$sqlite_object_cache_dir, $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins' );
+			copy( $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins/sqlite-object-cache/assets/drop-in/object-cache.php', $this->variables['RUN_DIR'] . '/WordPress/wp-content/object-cache.php' );
+			file_put_contents( $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins/sqlite-object-cache.php', "<?php\nrequire_once __DIR__ . '/sqlite-object-cache/sqlite-object-cache.php';\n" );
 		}
 
 		$this->proc( 'wp core install', $install_args )->run_check();
@@ -1894,9 +1965,16 @@ class FeatureContext implements Context {
 						throw new RuntimeException( sprintf( "Failed to create copy directory '%s': %s. " . __FILE__ . ':' . __LINE__, $cop_file, $error['message'] ) );
 					}
 					self::copy_dir( $upd_file, $cop_file );
-				} elseif ( ! copy( $upd_file, $cop_file ) ) {
-					$error = error_get_last();
-					throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
+				} elseif ( ! file_exists( $upd_file ) ) {
+					continue; // File vanished before it could be copied.
+				} else {
+					if ( ! is_dir( dirname( $cop_file ) ) ) {
+						mkdir( dirname( $cop_file ), 0777, true );
+					}
+					if ( ! copy( $upd_file, $cop_file ) ) {
+						$error = error_get_last();
+						throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
+					}
 				}
 			} elseif ( is_dir( $upd_file ) ) {
 				self::dir_diff_copy( $upd_file, $src_file, $cop_file );
