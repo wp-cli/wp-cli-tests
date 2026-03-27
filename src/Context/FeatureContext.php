@@ -462,6 +462,11 @@ class FeatureContext implements Context {
 			'TEST_RUN_DIR'  => self::$behat_run_dir,
 		];
 
+		if ( Utils\is_windows() ) {
+			$env['TMP']  = getenv( 'TMP' ) ?: sys_get_temp_dir();
+			$env['TEMP'] = getenv( 'TEMP' ) ?: sys_get_temp_dir();
+		}
+
 		$env = array_merge( $_ENV, $env );
 
 		if ( self::running_with_code_coverage() ) {
