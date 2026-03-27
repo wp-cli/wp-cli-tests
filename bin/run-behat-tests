@@ -134,7 +134,7 @@ if [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]] && vendor/bin/behat --help 2>/dev/n
 fi
 
 # Run the functional tests.
-FORMAT_ARGS=(--format progress)
+FORMAT_ARGS=(--format pretty)
 for arg in "$@"; do
 	if [[ "$arg" == "--format"* ]]; then
 		FORMAT_ARGS=()

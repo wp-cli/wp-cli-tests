@@ -1299,6 +1299,9 @@ class FeatureContext implements Context {
 		}
 
 		$start_time = microtime( true );
+		if ( Utils\is_windows() ) {
+			fwrite( STDERR, "DEBUG WINDOWS SQL: sql_cmd={$sql_cmd} assoc_args=" . json_encode($assoc_args) . "\n" );
+		}
 		$result     = Utils\run_mysql_command( $sql_cmd, array_merge( $assoc_args, $default_assoc_args ), null, $send_to_shell );
 		if ( self::$log_run_times ) {
 			self::log_proc_method_run_time( 'run_sql ' . $sql_cmd, $start_time );
@@ -1371,6 +1374,10 @@ class FeatureContext implements Context {
 
 		$env = self::get_process_env_variables();
 
+		if ( Utils\is_windows() ) {
+			fwrite( STDERR, "DEBUG WINDOWS PROC: command={$command} path=" . ( $path ?: 'null' ) . "\n" );
+		}
+
 		if ( isset( $this->variables['SUITE_CACHE_DIR'] ) ) {
 			$env['WP_CLI_CACHE_DIR'] = $this->variables['SUITE_CACHE_DIR'];
 		}
@@ -1407,6 +1414,7 @@ class FeatureContext implements Context {
 	 */
 	public function background_proc( $cmd ): void {
 		if ( Utils\is_windows() ) {
+			fwrite( STDERR, "DEBUG WINDOWS BG_PROC: cmd={$cmd}\n" );
 			// On Windows, leaving pipes open can cause hangs.
 			// Redirect output to files and close stdin.
 			$stdout_file = tempnam( sys_get_temp_dir(), 'behat-stdout-' );
