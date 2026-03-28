@@ -1378,6 +1378,10 @@ class FeatureContext implements Context {
 			$command .= Utils\assoc_args_to_str( $assoc_args );
 		}
 
+		if ( Utils\is_windows() ) {
+			$command = str_replace( '%', '%%', $command );
+		}
+
 		$env = self::get_process_env_variables();
 
 		if ( Utils\is_windows() ) {
@@ -1420,6 +1424,7 @@ class FeatureContext implements Context {
 	 */
 	public function background_proc( $cmd ): void {
 		if ( Utils\is_windows() ) {
+			$cmd = str_replace( '%', '%%', $cmd );
 			fwrite( STDERR, "DEBUG WINDOWS BG_PROC: cmd={$cmd}\n" );
 			// On Windows, leaving pipes open can cause hangs.
 			// Redirect output to files and close stdin.
