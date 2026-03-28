@@ -54,6 +54,9 @@ trait GivenStepDefinitions {
 		$dir = preg_replace( '|^/private/var/|', '/var/', $dir );
 
 		$temp_dir = sys_get_temp_dir();
+		if ( Utils\is_windows() ) {
+			$temp_dir = realpath( $temp_dir ) ?: $temp_dir;
+		}
 
 		// Also check for temp dir prefixed with `/private` for Mac OS X.
 		if ( 0 !== strpos( $dir, $temp_dir ) && 0 !== strpos( $dir, "/private{$temp_dir}" ) ) {
