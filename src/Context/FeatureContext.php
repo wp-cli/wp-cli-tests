@@ -1190,7 +1190,7 @@ class FeatureContext implements Context {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
 			$temp_run_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
 			mkdir( $temp_run_dir );
-			self::$run_dir              = realpath( $temp_run_dir );
+			self::$run_dir              = $temp_run_dir;
 			$this->variables['RUN_DIR'] = self::$run_dir;
 		}
 	}
@@ -1375,10 +1375,6 @@ class FeatureContext implements Context {
 			$command .= Utils\assoc_args_to_str( $assoc_args );
 		}
 
-		if ( Utils\is_windows() ) {
-			$command = str_replace( '%', '%%', $command );
-		}
-
 		$env = self::get_process_env_variables();
 
 		if ( isset( $this->variables['SUITE_CACHE_DIR'] ) ) {
@@ -1417,7 +1413,6 @@ class FeatureContext implements Context {
 	 */
 	public function background_proc( $cmd ): void {
 		if ( Utils\is_windows() ) {
-			$cmd = str_replace( '%', '%%', $cmd );
 			// On Windows, leaving pipes open can cause hangs.
 			// Redirect output to files and close stdin.
 			$stdout_file = tempnam( sys_get_temp_dir(), 'behat-stdout-' );
