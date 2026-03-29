@@ -690,7 +690,7 @@ class FeatureContext implements Context {
 	private static function cache_wp_files( $version = '' ): void {
 		$wp_version             = $version ?: getenv( 'WP_VERSION' );
 		$wp_version_suffix      = $wp_version ? "-$wp_version" : '';
-		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+		$cache_dir              = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
@@ -706,15 +706,34 @@ class FeatureContext implements Context {
 			}
 		}
 
-		if ( is_readable( self::$cache_dir . '/wp-config-sample.php' ) ) {
+		if ( is_readable( $cache_dir . '/wp-includes/version.php' ) ) {
+			self::$cache_dir = $cache_dir;
 			return;
 		}
 
-		$cmd = Utils\esc_cmd( 'wp core download --force --path=%s', self::$cache_dir );
+		$cmd = Utils\esc_cmd( 'wp core download --force --path=%s', $cache_dir );
 		if ( $wp_version ) {
 			$cmd .= Utils\esc_cmd( ' --version=%s', $wp_version );
 		}
-		Process::create( $cmd, null, self::get_process_env_variables() )->run_check();
+
+		$max_retries = 3;
+		$retry_count = 0;
+		$completed   = false;
+
+		// This is in addition to the retry logic inside Utils\http_request().
+		while ( $retry_count < $max_retries && ! $completed ) {
+			try {
+				Process::create( $cmd, null, self::get_process_env_variables() )->run_check();
+				$completed = true;
+			} catch ( \Exception $e ) {
+				++$retry_count;
+				if ( $retry_count >= $max_retries ) {
+					throw $e;
+				}
+			}
+		}
+
+		self::$cache_dir = $cache_dir;
 	}
 
 	/**
@@ -1533,7 +1552,7 @@ class FeatureContext implements Context {
 		 * @var \SplFileInfo $item
 		 */
 		foreach ( $iterator as $item ) {
-			$dest_path = $dest_dir . '/' . $iterator->getSubPathname();
+			$dest_path = rtrim( $dest_dir, '/\\' ) . DIRECTORY_SEPARATOR . $iterator->getSubPathname();
 			if ( $item->isDir() ) {
 				if ( ! is_dir( $dest_path ) ) {
 					mkdir( $dest_path, 0777, true );
@@ -1573,7 +1592,7 @@ class FeatureContext implements Context {
 			echo "WordPress {$result->stdout}\n";
 		}
 
-		$dest_dir = $this->variables['RUN_DIR'] . "/$subdir";
+		$dest_dir = rtrim( $this->variables['RUN_DIR'], '/\\' ) . ( $subdir ? DIRECTORY_SEPARATOR . $subdir : '' );
 
 		if ( $subdir ) {
 			mkdir( $dest_dir, 0777, true /*recursive*/ );
