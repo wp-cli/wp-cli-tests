@@ -125,3 +125,11 @@ Feature: Test that WP-CLI loads.
       This should only run on MySQL or MariaDB
       """
 
+  Scenario: Verify sys_get_temp_dir() in sub-process
+    Given a WP install
+    When I run `wp eval 'echo sys_get_temp_dir();'`
+    Then STDOUT should not be:
+    """
+    C:\Windows
+    """
+
