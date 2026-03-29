@@ -464,7 +464,7 @@ class FeatureContext implements Context {
 
 		$env = array_merge( $_ENV, $env );
 
-		foreach ( [ 'TEMP', 'TMP' ] as $key ) {
+		foreach ( [ 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
 			$value = getenv( $key );
 			if ( false !== $value ) {
 				$env[ $key ] = $value;
