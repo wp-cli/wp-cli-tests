@@ -464,6 +464,13 @@ class FeatureContext implements Context {
 
 		$env = array_merge( $_ENV, $env );
 
+		foreach ( [ 'TEMP', 'TMP' ] as $key ) {
+			$value = getenv( $key );
+			if ( false !== $value ) {
+				$env[ $key ] = $value;
+			}
+		}
+
 		if ( self::running_with_code_coverage() ) {
 			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
 
