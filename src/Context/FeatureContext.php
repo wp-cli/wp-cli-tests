@@ -1220,7 +1220,7 @@ class FeatureContext implements Context {
 	 * @param string $version
 	 */
 	public function build_phar( $version = 'same' ): void {
-		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-build-', true ) . '.phar';
+		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-build-', true ) . '.phar';
 
 		$is_bundle = false;
 
@@ -1276,7 +1276,7 @@ class FeatureContext implements Context {
 			$version
 		);
 
-		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/'
+		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR
 			. uniqid( 'wp-cli-download-', true )
 			. '.phar';
 
@@ -1394,6 +1394,11 @@ class FeatureContext implements Context {
 	public function proc( $command, $assoc_args = [], $path = '' ): Process {
 		if ( ! empty( $assoc_args ) ) {
 			$command .= Utils\assoc_args_to_str( $assoc_args );
+		}
+
+		// Prepend 'php ' on Windows if the command starts with the phar path.
+		if ( Utils\is_windows() && isset( $this->variables['PHAR_PATH'] ) && 0 === strpos( $command, $this->variables['PHAR_PATH'] ) ) {
+			$command = 'php ' . $command;
 		}
 
 		$env = self::get_process_env_variables();
@@ -1860,8 +1865,12 @@ class FeatureContext implements Context {
 			self::remove_dir( self::$composer_local_repository . '/.git' );
 			self::remove_dir( self::$composer_local_repository . '/vendor' );
 		}
-		$dest = self::$composer_local_repository . '/';
-		$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
+		if ( Utils\is_windows() ) {
+			$json_config = '{\"type\": \"path\", \"url\": \"' . str_replace( '\\', '/', $dest ) . '\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}';
+			$this->composer_command( "config repositories.wp-cli \"$json_config\"" );
+		} else {
+			$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
+		}
 		$this->variables['COMPOSER_LOCAL_REPOSITORY'] = self::$composer_local_repository;
 	}
 
