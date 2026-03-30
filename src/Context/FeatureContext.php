@@ -1866,10 +1866,10 @@ class FeatureContext implements Context {
 			self::remove_dir( self::$composer_local_repository . '/vendor' );
 		}
 		if ( Utils\is_windows() ) {
-			$json_config = '{\"type\": \"path\", \"url\": \"' . str_replace( '\\', '/', $dest ) . '\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}';
+			$json_config = '{\"type\": \"path\", \"url\": \"' . str_replace( '\\', '/', self::$composer_local_repository ) . '\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}';
 			$this->composer_command( "config repositories.wp-cli \"$json_config\"" );
 		} else {
-			$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
+			$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"" . self::$composer_local_repository . "\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
 		}
 		$this->variables['COMPOSER_LOCAL_REPOSITORY'] = self::$composer_local_repository;
 	}
