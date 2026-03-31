@@ -1514,6 +1514,8 @@ class FeatureContext implements Context {
 	 * @param string $dir
 	 */
 	public static function remove_dir( $dir ): void {
+		$dir = Path::normalize( $dir );
+		$dir = rtrim( $dir, '/\\' );
 		if ( ! is_dir( $dir ) ) {
 			return;
 		}
