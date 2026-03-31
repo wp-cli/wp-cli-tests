@@ -499,7 +499,7 @@ trait ThenStepDefinitions {
 					foreach ( $files as &$file ) {
 						$file = str_replace( $path . '/', '', $file );
 					}
-					$contents = implode( PHP_EOL, $files );
+					$contents = implode( "\n", $files );
 				}
 				$this->check_string( $contents, $expected, $action, false, (bool) $strictly );
 		}

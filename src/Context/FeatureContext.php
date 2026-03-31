@@ -464,6 +464,13 @@ class FeatureContext implements Context {
 
 		$env = array_merge( $_ENV, $env );
 
+		foreach ( [ 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
+			$value = getenv( $key );
+			if ( false !== $value ) {
+				$env[ $key ] = $value;
+			}
+		}
+
 		if ( self::running_with_code_coverage() ) {
 			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
 
@@ -683,7 +690,7 @@ class FeatureContext implements Context {
 	private static function cache_wp_files( $version = '' ): void {
 		$wp_version             = $version ?: getenv( 'WP_VERSION' );
 		$wp_version_suffix      = $wp_version ? "-$wp_version" : '';
-		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+		$cache_dir              = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
@@ -699,15 +706,34 @@ class FeatureContext implements Context {
 			}
 		}
 
-		if ( is_readable( self::$cache_dir . '/wp-config-sample.php' ) ) {
+		if ( is_readable( $cache_dir . '/wp-includes/version.php' ) ) {
+			self::$cache_dir = $cache_dir;
 			return;
 		}
 
-		$cmd = Utils\esc_cmd( 'wp core download --force --path=%s', self::$cache_dir );
+		$cmd = Utils\esc_cmd( 'wp core download --force --path=%s', $cache_dir );
 		if ( $wp_version ) {
 			$cmd .= Utils\esc_cmd( ' --version=%s', $wp_version );
 		}
-		Process::create( $cmd, null, self::get_process_env_variables() )->run_check();
+
+		$max_retries = 3;
+		$retry_count = 0;
+		$completed   = false;
+
+		// This is in addition to the retry logic inside Utils\http_request().
+		while ( $retry_count < $max_retries && ! $completed ) {
+			try {
+				Process::create( $cmd, null, self::get_process_env_variables() )->run_check();
+				$completed = true;
+			} catch ( \Exception $e ) {
+				++$retry_count;
+				if ( $retry_count >= $max_retries ) {
+					throw $e;
+				}
+			}
+		}
+
+		self::$cache_dir = $cache_dir;
 	}
 
 	/**
@@ -1183,9 +1209,10 @@ class FeatureContext implements Context {
 	 */
 	public function create_run_dir(): void {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
-			self::$run_dir              = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
+			$temp_run_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
+			mkdir( $temp_run_dir );
+			self::$run_dir              = $temp_run_dir;
 			$this->variables['RUN_DIR'] = self::$run_dir;
-			mkdir( $this->variables['RUN_DIR'] );
 		}
 	}
 
@@ -1193,7 +1220,7 @@ class FeatureContext implements Context {
 	 * @param string $version
 	 */
 	public function build_phar( $version = 'same' ): void {
-		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-build-', true ) . '.phar';
+		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-build-', true ) . '.phar';
 
 		$is_bundle = false;
 
@@ -1249,7 +1276,7 @@ class FeatureContext implements Context {
 			$version
 		);
 
-		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/'
+		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR
 			. uniqid( 'wp-cli-download-', true )
 			. '.phar';
 
@@ -1369,6 +1396,11 @@ class FeatureContext implements Context {
 			$command .= Utils\assoc_args_to_str( $assoc_args );
 		}
 
+		// Prepend 'php ' on Windows if the command starts with the phar path.
+		if ( Utils\is_windows() && isset( $this->variables['PHAR_PATH'] ) && 0 === strpos( $command, $this->variables['PHAR_PATH'] ) ) {
+			$command = 'php ' . $command;
+		}
+
 		$env = self::get_process_env_variables();
 
 		if ( isset( $this->variables['SUITE_CACHE_DIR'] ) ) {
@@ -1482,6 +1514,8 @@ class FeatureContext implements Context {
 	 * @param string $dir
 	 */
 	public static function remove_dir( $dir ): void {
+		$dir = Path::normalize( $dir );
+		$dir = rtrim( $dir, '/\\' );
 		if ( ! is_dir( $dir ) ) {
 			return;
 		}
@@ -1525,7 +1559,7 @@ class FeatureContext implements Context {
 		 * @var \SplFileInfo $item
 		 */
 		foreach ( $iterator as $item ) {
-			$dest_path = $dest_dir . '/' . $iterator->getSubPathname();
+			$dest_path = rtrim( $dest_dir, '/\\' ) . DIRECTORY_SEPARATOR . $iterator->getSubPathname();
 			if ( $item->isDir() ) {
 				if ( ! is_dir( $dest_path ) ) {
 					mkdir( $dest_path, 0777, true );
@@ -1565,7 +1599,7 @@ class FeatureContext implements Context {
 			echo "WordPress {$result->stdout}\n";
 		}
 
-		$dest_dir = $this->variables['RUN_DIR'] . "/$subdir";
+		$dest_dir = rtrim( $this->variables['RUN_DIR'], '/\\' ) . ( $subdir ? DIRECTORY_SEPARATOR . $subdir : '' );
 
 		if ( $subdir ) {
 			mkdir( $dest_dir, 0777, true /*recursive*/ );
@@ -1833,8 +1867,12 @@ class FeatureContext implements Context {
 			self::remove_dir( self::$composer_local_repository . '/.git' );
 			self::remove_dir( self::$composer_local_repository . '/vendor' );
 		}
-		$dest = self::$composer_local_repository . '/';
-		$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
+		if ( Utils\is_windows() ) {
+			$json_config = '{\"type\": \"path\", \"url\": \"' . str_replace( '\\', '/', self::$composer_local_repository ) . '\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}';
+			$this->composer_command( "config repositories.wp-cli \"$json_config\"" );
+		} else {
+			$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"" . self::$composer_local_repository . "\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
+		}
 		$this->variables['COMPOSER_LOCAL_REPOSITORY'] = self::$composer_local_repository;
 	}
 
