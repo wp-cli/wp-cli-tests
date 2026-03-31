@@ -129,7 +129,7 @@ Feature: Test that WP-CLI loads.
     Given a WP install
     When I run `wp eval 'echo sys_get_temp_dir();'`
     Then STDOUT should not contain:
-    """
-    C:\Windows
-    """
+      """
+      C:\Windows
+      """
 
