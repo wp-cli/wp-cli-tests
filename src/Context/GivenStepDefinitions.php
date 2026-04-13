@@ -53,8 +53,12 @@ trait GivenStepDefinitions {
 		// Mac OS X can prefix the `/var` folder to turn it into `/private/var`.
 		$dir = preg_replace( '|^/private/var/|', '/var/', $dir );
 
-		$temp_dir = Path::normalize( sys_get_temp_dir() );
+		$temp_dir = realpath( sys_get_temp_dir() );
+		$temp_dir = $temp_dir ? Path::normalize( $temp_dir ) : Path::normalize( sys_get_temp_dir() );
 		$dir      = Path::normalize( $dir );
+
+		// Also normalize temp dir for Mac OS X.
+		$temp_dir = preg_replace( '|^/private/var/|', '/var/', $temp_dir );
 
 		// Also check for temp dir prefixed with `/private` for Mac OS X.
 		if ( 0 !== strpos( $dir, $temp_dir ) && 0 !== strpos( $dir, "/private{$temp_dir}" ) ) {
