@@ -62,7 +62,7 @@ trait GivenStepDefinitions {
 		$temp_dir_original = preg_replace( '|^/private/var/|', '/var/', $temp_dir_original );
 		$temp_dir_real     = preg_replace( '|^/private/var/|', '/var/', $temp_dir_real );
 
-		$is_windows = DIRECTORY_SEPARATOR === '\\';
+		$is_windows = Utils\is_windows();
 
 		$in_temp = 0 === ( $is_windows ? stripos( $dir, $temp_dir_original ) : strpos( $dir, $temp_dir_original ) )
 			|| 0 === ( $is_windows ? stripos( $dir, $temp_dir_real ) : strpos( $dir, $temp_dir_real ) )
