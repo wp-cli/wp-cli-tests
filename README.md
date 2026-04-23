@@ -147,6 +147,23 @@ chmod +x ~/wp-cli/wp
 WP_CLI_BIN_DIR=~/wp-cli composer behat
 ```
 
+#### Xdebug Step Debugging
+
+You can enable Xdebug step debugging for Behat tests by setting the `WP_CLI_TEST_XDEBUG` environment variable.
+
+This is useful when you want to debug the actual WP-CLI + WordPress code that is being run during the tests.
+
+```bash
+WP_CLI_TEST_XDEBUG=true composer behat
+```
+
+This will set the following Xdebug environment variables for all WP-CLI processes spawned by the tests:
+- `XDEBUG_MODE=debug`
+- `XDEBUG_SESSION=1`
+- `XDEBUG_CONFIG="idekey=WP_CLI_TEST_XDEBUG log_level=0"`
+
+Note: You need to have Xdebug installed and your IDE configured to listen for debug connections.
+
 ### Setting up the tests in Travis CI
 
 Basic rules for setting up the test framework with Travis CI:
