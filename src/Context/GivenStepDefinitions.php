@@ -53,20 +53,28 @@ trait GivenStepDefinitions {
 		// Mac OS X can prefix the `/var` folder to turn it into `/private/var`.
 		$dir = preg_replace( '|^/private/var/|', '/var/', $dir );
 
-		$temp_dir = realpath( sys_get_temp_dir() );
-		$temp_dir = $temp_dir ? Path::normalize( $temp_dir ) : Path::normalize( sys_get_temp_dir() );
-		$dir      = Path::normalize( $dir );
+		$temp_dir_original = Path::normalize( sys_get_temp_dir() );
+		$temp_dir_real     = realpath( sys_get_temp_dir() );
+		$temp_dir_real     = $temp_dir_real ? Path::normalize( $temp_dir_real ) : $temp_dir_original;
+		$dir               = Path::normalize( $dir );
 
 		// Also normalize temp dir for Mac OS X.
-		$temp_dir = preg_replace( '|^/private/var/|', '/var/', $temp_dir );
+		$temp_dir_original = preg_replace( '|^/private/var/|', '/var/', $temp_dir_original );
+		$temp_dir_real     = preg_replace( '|^/private/var/|', '/var/', $temp_dir_real );
 
-		// Also check for temp dir prefixed with `/private` for Mac OS X.
-		if ( 0 !== strpos( $dir, $temp_dir ) && 0 !== strpos( $dir, "/private{$temp_dir}" ) ) {
+		$is_windows = Utils\is_windows();
+
+		$in_temp = 0 === ( $is_windows ? stripos( $dir, $temp_dir_original ) : strpos( $dir, $temp_dir_original ) )
+			|| 0 === ( $is_windows ? stripos( $dir, $temp_dir_real ) : strpos( $dir, $temp_dir_real ) )
+			|| 0 === ( $is_windows ? stripos( $dir, "/private{$temp_dir_original}" ) : strpos( $dir, "/private{$temp_dir_original}" ) )
+			|| 0 === ( $is_windows ? stripos( $dir, "/private{$temp_dir_real}" ) : strpos( $dir, "/private{$temp_dir_real}" ) );
+
+		if ( ! $in_temp ) {
 			throw new RuntimeException(
 				sprintf(
 					"Attempted to delete directory '%s' that is not in the temp directory '%s'. " . __FILE__ . ':' . __LINE__,
 					$dir,
-					$temp_dir
+					$temp_dir_real
 				)
 			);
 		}
