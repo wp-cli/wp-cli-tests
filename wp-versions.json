@@ -743,7 +743,7 @@
 	"6.0.8" : "insecure",
 	"6.0.9" : "insecure",
 	"6.0.10" : "insecure",
-	"6.0.12" : "insecure",
+	"6.0.11" : "insecure",
 	"6.1" : "insecure",
 	"6.1.1" : "insecure",
 	"6.1.2" : "insecure",
@@ -818,7 +818,7 @@
 	"5.7.15" : "outdated",
 	"5.8.13" : "outdated",
 	"5.9.13" : "outdated",
-	"6.0.11" : "outdated",
+	"6.0.12" : "outdated",
 	"6.1.10" : "outdated",
 	"6.2.9" : "outdated",
 	"6.3.8" : "outdated",
@@ -827,5 +827,6 @@
 	"6.6.5" : "outdated",
 	"6.7.5" : "outdated",
 	"6.8.5" : "outdated",
-	"6.9.4" : "latest"
+	"6.9.4" : "outdated",
+	"7.0" : "latest"
 }
