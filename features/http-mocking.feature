@@ -119,3 +119,20 @@ Feature: HTTP request mocking
     Then STDOUT should be a table containing rows:
       | version | update_type | package_url |
       | 999.9.9 | major       | https://downloads.wordpress.org/release/wordpress-999.9.9.zip |
+
+  Scenario: Mock HTTP request with filename option writes to disk
+    Given an empty directory
+    And that HTTP requests to https://example.com/mocked-file.txt will respond with:
+      """
+      HTTP/1.1 200 OK
+      Content-Type: text/plain
+
+      Mocked file contents on disk!
+      """
+
+    When I try `wp eval 'WP_CLI\Utils\http_request("GET", "https://example.com/mocked-file.txt", null, [], ["filename" => "downloaded.txt"]);' --skip-wordpress`
+    Then the return code should be 0
+    And the downloaded.txt file should contain:
+      """
+      Mocked file contents on disk!
+      """

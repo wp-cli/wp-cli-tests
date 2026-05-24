@@ -228,6 +228,14 @@ trait WP_CLI_Tests_Mock_Requests_Trait {
 				if ( false !== \$pos ) {
 					\$response = substr( \$response, 0, \$pos ) . "\\r\\n\\r\\n" . substr( \$response, \$pos + 2 );
 				}
+				if ( ! empty( \$options['filename'] ) ) {
+					\$body = '';
+					\$body_pos = strpos( \$response, "\\r\\n\\r\\n" );
+					if ( false !== \$body_pos ) {
+						\$body = substr( \$response, \$body_pos + 4 );
+					}
+					file_put_contents( \$options['filename'], \$body );
+				}
 				return \$response;
 			}
 		}
@@ -311,6 +319,10 @@ WP_CLI::add_wp_hook(
 							),
 						)
 					);
+				}
+
+				if ( ! empty( \$parsed_args['filename'] ) ) {
+					file_put_contents( \$parsed_args['filename'], \$response->body );
 				}
 
 				return array(
