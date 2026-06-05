@@ -20,3 +20,5 @@ parameters:
     - WP_DEBUG_DISPLAY
   strictRules:
     strictCalls: true
+  WPCompat:
+      requiresAtLeast: '4.9'
