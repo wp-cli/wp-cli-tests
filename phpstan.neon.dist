@@ -21,4 +21,4 @@ parameters:
   strictRules:
     strictCalls: true
   WPCompat:
-      requiresAtLeast: '4.9'
+    requiresAtLeast: '4.9'
