@@ -95,8 +95,9 @@ trait ThenStepDefinitions {
 	public function then_stdout_stderr_should_be_a_number( $stream ): void {
 
 		$stream = strtolower( $stream );
+		$output = $this->normalize_line_endings( $this->result->$stream );
 
-		$this->assert_numeric( trim( $this->result->$stream, "\n" ) );
+		$this->assert_numeric( trim( $output, "\n" ) );
 	}
 
 	/**
@@ -118,8 +119,9 @@ trait ThenStepDefinitions {
 	public function then_stdout_stderr_should_not_be_a_number( $stream ): void {
 
 		$stream = strtolower( $stream );
+		$output = $this->normalize_line_endings( $this->result->$stream );
 
-		$this->assert_not_numeric( trim( $this->result->$stream, "\n" ) );
+		$this->assert_not_numeric( trim( $output, "\n" ) );
 	}
 
 	/**
@@ -140,7 +142,7 @@ trait ThenStepDefinitions {
 	 * @Then /^STDOUT should be a table containing rows:$/
 	 */
 	public function then_stdout_should_be_a_table_containing_rows( TableNode $expected ): void {
-		$output      = $this->result->stdout;
+		$output      = $this->normalize_line_endings( $this->result->stdout );
 		$actual_rows = explode( "\n", rtrim( $output, "\n" ) );
 
 		$expected_rows = array();
@@ -176,7 +178,7 @@ trait ThenStepDefinitions {
 	 * @Then /^STDOUT should end with a table containing rows:$/
 	 */
 	public function then_stdout_should_end_with_a_table_containing_rows( TableNode $expected ): void {
-		$output      = $this->result->stdout;
+		$output      = $this->normalize_line_endings( $this->result->stdout );
 		$actual_rows = explode( "\n", rtrim( $output, "\n" ) );
 
 		$expected_rows = array();
@@ -212,8 +214,8 @@ trait ThenStepDefinitions {
 	 * @Then /^STDOUT should be JSON containing:$/
 	 */
 	public function then_stdout_should_be_json_containing( PyStringNode $expected ): void {
-		$output   = $this->result->stdout;
-		$expected = $this->replace_variables( (string) $expected );
+		$output   = $this->normalize_line_endings( $this->result->stdout );
+		$expected = $this->normalize_line_endings( $this->replace_variables( (string) $expected ) );
 
 		if ( ! $this->check_that_json_string_contains_json_string( $output, $expected ) ) {
 			$message = (string) $this->result;
@@ -253,11 +255,11 @@ trait ThenStepDefinitions {
 	 * @Then /^STDOUT should be a JSON array containing:$/
 	 */
 	public function then_stdout_should_be_a_json_array_containing( PyStringNode $expected ): void {
-		$output   = $this->result->stdout;
-		$expected = $this->replace_variables( (string) $expected );
+		$output   = $this->normalize_line_endings( $this->result->stdout );
+		$expected = $this->normalize_line_endings( $this->replace_variables( (string) $expected ) );
 
-		$actual_values   = json_decode( $output );
-		$expected_values = json_decode( $expected );
+		$actual_values   = $this->normalize_line_endings_in_data( json_decode( $output ) );
+		$expected_values = $this->normalize_line_endings_in_data( json_decode( $expected ) );
 
 		$missing = array_diff( $expected_values, $actual_values );
 		if ( ! empty( $missing ) ) {
@@ -293,7 +295,7 @@ trait ThenStepDefinitions {
 	 * @Then /^STDOUT should be CSV containing:$/
 	 */
 	public function then_stdout_should_be_csv_containing( TableNode $expected ): void {
-		$output = $this->result->stdout;
+		$output = $this->normalize_line_endings( $this->result->stdout );
 
 		$expected_rows = $expected->getRows();
 		foreach ( $expected_rows as &$row ) {
@@ -336,8 +338,8 @@ trait ThenStepDefinitions {
 	 * @Then /^STDOUT should be YAML containing:$/
 	 */
 	public function then_stdout_should_be_yaml_containing( PyStringNode $expected ): void {
-		$output   = $this->result->stdout;
-		$expected = $this->replace_variables( (string) $expected );
+		$output   = $this->normalize_line_endings( $this->result->stdout );
+		$expected = $this->normalize_line_endings( $this->replace_variables( (string) $expected ) );
 
 		if ( ! $this->check_that_yaml_string_contains_yaml_string( $output, $expected ) ) {
 			$message = (string) $this->result;
@@ -392,8 +394,9 @@ trait ThenStepDefinitions {
 	public function then_stdout_stderr_should_not_be_empty( $stream ): void {
 
 		$stream = strtolower( $stream );
+		$output = $this->normalize_line_endings( $this->result->$stream );
 
-		if ( '' === rtrim( $this->result->$stream, "\n" ) ) {
+		if ( '' === rtrim( $output, "\n" ) ) {
 			throw new Exception( $this->result );
 		}
 	}
@@ -419,7 +422,8 @@ trait ThenStepDefinitions {
 	public function then_stdout_stderr_should_be_a_specific_version_string( $stream, $operator, $goal_ver ): void {
 		$goal_ver = $this->replace_variables( $goal_ver );
 		$stream   = strtolower( $stream );
-		if ( false === version_compare( trim( $this->result->$stream, "\n" ), $goal_ver, $operator ) ) {
+		$output   = $this->normalize_line_endings( $this->result->$stream );
+		if ( false === version_compare( trim( $output, "\n" ), $goal_ver, $operator ) ) {
 			throw new Exception( $this->result );
 		}
 	}
@@ -530,7 +534,7 @@ trait ThenStepDefinitions {
 		if ( '/' !== $path[0] ) {
 			$path = $this->variables['RUN_DIR'] . "/$path";
 		}
-		$contents = file_get_contents( $path );
+		$contents = $this->normalize_line_endings( file_get_contents( $path ) );
 		if ( $not ) {
 			$this->assert_not_regex( $expected, $contents );
 		} else {
@@ -559,10 +563,11 @@ trait ThenStepDefinitions {
 		$expected = $this->replace_variables( $expected );
 
 		$stream = strtolower( $stream );
+		$output = $this->normalize_line_endings( $this->result->$stream );
 		if ( $not ) {
-			$this->assert_not_regex( $expected, $this->result->$stream );
+			$this->assert_not_regex( $expected, $output );
 		} else {
-			$this->assert_regex( $expected, $this->result->$stream );
+			$this->assert_regex( $expected, $output );
 		}
 	}
 

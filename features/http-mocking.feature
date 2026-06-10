@@ -130,7 +130,7 @@ Feature: HTTP request mocking
       Mocked file contents on disk!
       """
 
-    When I try `wp eval 'WP_CLI\Utils\http_request("GET", "https://example.com/mocked-file.txt", null, [], ["filename" => "downloaded.txt"]);' --skip-wordpress`
+    When I try `wp eval "WP_CLI\Utils\http_request('GET', 'https://example.com/mocked-file.txt', null, [], ['filename' => 'downloaded.txt']);" --skip-wordpress`
     Then the return code should be 0
     And the downloaded.txt file should contain:
       """
