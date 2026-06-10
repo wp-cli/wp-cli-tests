@@ -95,6 +95,9 @@ trait Support {
 	 * @throws Exception
 	 */
 	protected function check_string( $output, $expected, $action, $message = false, $strictly = false ): void {
+		$output   = $this->normalize_line_endings( $output );
+		$expected = $this->normalize_line_endings( $expected );
+
 		// Strip ANSI color codes before comparing strings.
 		if ( ! $strictly ) {
 			$output = preg_replace( '/\e[[][A-Za-z0-9];?[0-9]*m?/', '', $output );
@@ -236,8 +239,8 @@ trait Support {
 	 *     the contents of 'array' does not include 3
 	 */
 	protected function check_that_json_string_contains_json_string( $actual_json, $expected_json ) {
-		$actual_value   = json_decode( $actual_json );
-		$expected_value = json_decode( $expected_json );
+		$actual_value   = $this->normalize_line_endings_in_data( json_decode( $actual_json ) );
+		$expected_value = $this->normalize_line_endings_in_data( json_decode( $expected_json ) );
 
 		if ( ! $actual_value ) {
 			return false;
@@ -311,8 +314,8 @@ trait Support {
 	 * @return bool whether or not $actual_yaml contains $expected_json
 	 */
 	protected function check_that_yaml_string_contains_yaml_string( $actual_yaml, $expected_yaml ) {
-		$actual_value   = Spyc::YAMLLoad( $actual_yaml );
-		$expected_value = Spyc::YAMLLoad( $expected_yaml );
+		$actual_value   = $this->normalize_line_endings_in_data( Spyc::YAMLLoad( $actual_yaml ) );
+		$expected_value = $this->normalize_line_endings_in_data( Spyc::YAMLLoad( $expected_yaml ) );
 
 		if ( ! $actual_value ) {
 			return false;
@@ -335,5 +338,41 @@ trait Support {
 		);
 		$differ  = new Differ( $builder );
 		return $differ->diff( $expected, $actual );
+	}
+
+	/**
+	 * Normalize line endings of a string to Unix-style LF (\n).
+	 *
+	 * @param string $str The string to normalize.
+	 * @return string The normalized string.
+	 */
+	protected function normalize_line_endings( string $str ): string {
+		return str_replace( "\r\n", "\n", $str );
+	}
+
+	/**
+	 * Recursively normalize line endings in a data structure (array, object, or string).
+	 *
+	 * @param mixed $data The data structure to normalize.
+	 * @return mixed The normalized data structure.
+	 */
+	protected function normalize_line_endings_in_data( $data ) {
+		if ( is_string( $data ) ) {
+			return $this->normalize_line_endings( $data );
+		}
+
+		if ( is_array( $data ) ) {
+			return array_map( [ $this, 'normalize_line_endings_in_data' ], $data );
+		}
+
+		if ( is_object( $data ) ) {
+			$normalized = new \stdClass();
+			foreach ( get_object_vars( $data ) as $key => $value ) {
+				$normalized->$key = $this->normalize_line_endings_in_data( $value );
+			}
+			return $normalized;
+		}
+
+		return $data;
 	}
 }
