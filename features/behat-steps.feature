@@ -695,3 +695,64 @@ Feature: Test that WP-CLI Behat steps work as expected
       | user_login | user_email        |
       | admin      | admin@example.com |
       | user2      | user2@example.com |
+
+  Scenario: Test line endings normalization for command output and files
+    Given an empty directory
+
+    # 1. Test STDOUT / STDERR assertions with CRLF
+    When I run `php -r "echo 'line1' . \"\r\n\" . 'line2' . \"\r\n\";"`
+    Then STDOUT should be:
+      """
+      line1
+      line2
+      """
+    And STDOUT should contain:
+      """
+      line1
+      line2
+      """
+    And STDOUT should match /line1\nline2/
+
+    # 2. Test JSON assertions with CRLF
+    When I run `php -r "echo json_encode(['foo' => \"bar\r\nbaz\r\n\"]) . PHP_EOL;"`
+    Then STDOUT should be JSON containing:
+      """
+      {"foo":"bar\nbaz\n"}
+      """
+
+    # 3. Test JSON array assertions with CRLF
+    When I run `php -r "echo json_encode([\"foo\r\nbar\", \"baz\r\nqux\"]) . PHP_EOL;"`
+    Then STDOUT should be a JSON array containing:
+      """
+      ["foo\nbar", "baz\nqux"]
+      """
+
+    # 4. Test Table assertions with CRLF
+    When I run `php -r "echo 'name' . \"\t\" . 'value' . \"\r\n\" . 'foo' . \"\t\" . 'bar' . \"\r\n\";"`
+    Then STDOUT should be a table containing rows:
+      | name | value |
+      | foo  | bar   |
+
+    # 5. Test CSV assertions with CRLF
+    When I run `php -r "echo 'name,value' . \"\r\n\" . 'foo,bar' . \"\r\n\";"`
+    Then STDOUT should be CSV containing:
+      | name | value |
+      | foo  | bar   |
+
+    # 6. Test YAML assertions with CRLF
+    When I run `php -r "echo 'foo: bar' . \"\r\n\" . 'baz: qux' . \"\r\n\";"`
+    Then STDOUT should be YAML containing:
+      """
+      foo: bar
+      baz: qux
+      """
+
+    # 7. Test File assertions with CRLF
+    When I run `php -r "file_put_contents('crlf.txt', 'crlf1' . \"\r\n\" . 'crlf2' . \"\r\n\");"`
+    Then the crlf.txt file should contain:
+      """
+      crlf1
+      crlf2
+      """
+    And the contents of the crlf.txt file should match /crlf1\ncrlf2/
+
