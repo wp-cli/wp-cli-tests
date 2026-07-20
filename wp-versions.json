@@ -801,10 +801,14 @@
 	"6.8.2" : "insecure",
 	"6.8.3" : "insecure",
 	"6.8.4" : "insecure",
+	"6.8.5" : "insecure",
 	"6.9" : "insecure",
 	"6.9.1" : "insecure",
 	"6.9.2" : "insecure",
 	"6.9.3" : "insecure",
+	"6.9.4" : "insecure",
+	"7.0" : "insecure",
+	"7.0.1" : "insecure",
 	"4.7.33" : "outdated",
 	"4.8.28" : "outdated",
 	"4.9.29" : "outdated",
@@ -826,8 +830,7 @@
 	"6.5.8" : "outdated",
 	"6.6.5" : "outdated",
 	"6.7.5" : "outdated",
-	"6.8.5" : "outdated",
-	"6.9.4" : "outdated",
-	"7.0" : "outdated",
-	"7.0.1" : "latest"
+	"6.8.6" : "outdated",
+	"6.9.5" : "outdated",
+	"7.0.2" : "latest"
 }
