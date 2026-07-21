@@ -1341,7 +1341,7 @@ class FeatureContext implements Context {
 		}
 
 		$dbname   = self::$db_settings['dbname'];
-		$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
@@ -1353,7 +1353,7 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		$ssl_flag   = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag   = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 		$sql_result = self::run_sql(
 			self::$mysql_binary . ' --no-defaults' . $ssl_flag,
 			[
@@ -1382,7 +1382,7 @@ class FeatureContext implements Context {
 			return;
 		}
 		$dbname   = self::$db_settings['dbname'];
-		$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
@@ -1756,7 +1756,7 @@ class FeatureContext implements Context {
 					copy( "{$install_cache_path}.sqlite", "$sqlite_dest_dir/.ht.sqlite.php" );
 				}
 			} else {
-				$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+				$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
@@ -1773,7 +1773,7 @@ class FeatureContext implements Context {
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
 				$help_output               = shell_exec( "{$mysqldump_binary} --help" );
 				$support_column_statistics = ( null !== $help_output && false !== strpos( $help_output, 'column-statistics' ) );
-				$ssl_flag                  = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+				$ssl_flag                  = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 				$command                   = "{$mysqldump_binary} --no-defaults{$ssl_flag} --no-tablespaces";
 				if ( $support_column_statistics ) {
 					$command .= ' --skip-column-statistics';
