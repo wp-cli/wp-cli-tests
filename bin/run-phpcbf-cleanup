@@ -1,7 +1,30 @@
 #!/bin/sh
 
-# Run the code style check only if a configuration file exists.
+EXIT_CODE=0
+
+# 1. Run standard PHPCBF if configuration file exists.
 if [ -f ".phpcs.xml" ] || [ -f "phpcs.xml" ] || [ -f ".phpcs.xml.dist" ] || [ -f "phpcs.xml.dist" ]
 then
-	vendor/bin/phpcbf "$@"
+	vendor/bin/phpcbf "$@" || EXIT_CODE=$?
 fi
+
+# 2. Run PHPCBF over extracted PHP blocks in .feature files and sync back fixes.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -d "features" ] && [ -f "$DIR/utils/extract-feature-php.php" ]
+then
+	TEMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'feature_phpcbf')
+	trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
+
+	php "$DIR/utils/extract-feature-php.php" extract features "$TEMP_DIR" >/dev/null 2>&1
+
+	if [ -d "$TEMP_DIR" ] && [ "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]
+	then
+		vendor/bin/phpcbf --standard=WP_CLI_CS \
+			--exclude=Generic.Files.InlineHTML,Generic.Files.LineEndings,WordPress.Files.FileName,Squiz.Commenting.FileComment,Universal.WhiteSpace.PrecisionAlignment,PSR2.Files.EndFileNewline,PSR2.Methods.FunctionClosingBrace,Generic.PHP.CharacterBeforePHPOpenTag,Generic.PHP.RequireStrictTypes,Squiz.WhiteSpace.SuperfluousWhitespace,WordPress.NamingConventions.PrefixAllGlobals,Universal.Files.SeparateFunctionsFromOO,Generic.Files.OneObjectStructurePerFile,WordPress.WP.GlobalVariablesOverride,Universal.Namespaces.OneDeclarationPerFile,Universal.Namespaces.DisallowCurlyBraceSyntax,WordPress.PHP.YodaConditions,Universal.Namespaces.DisallowDeclarationWithoutName,PSR12.Files.FileHeader,Generic.CodeAnalysis.EmptyStatement \
+			"$TEMP_DIR" >/dev/null 2>&1
+
+		php "$DIR/utils/extract-feature-php.php" update features "$TEMP_DIR" >/dev/null 2>&1
+	fi
+fi
+
+exit $EXIT_CODE
