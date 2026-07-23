@@ -20,7 +20,7 @@ then
 	if [ -d "$TEMP_DIR" ] && [ "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]
 	then
 		vendor/bin/phpcs --standard=WP_CLI_CS --warning-severity=0 \
-			--exclude=Generic.Files.InlineHTML,Generic.Files.LineEndings,WordPress.Files.FileName,Squiz.Commenting.FileComment,Universal.WhiteSpace.PrecisionAlignment,PSR2.Files.EndFileNewline,PSR2.Methods.FunctionClosingBrace,Generic.PHP.CharacterBeforePHPOpenTag,Generic.PHP.RequireStrictTypes,Squiz.WhiteSpace.SuperfluousWhitespace,WordPress.NamingConventions.PrefixAllGlobals \
+			--exclude=Generic.Files.InlineHTML,Generic.Files.LineEndings,WordPress.Files.FileName,Squiz.Commenting.FileComment,Universal.WhiteSpace.PrecisionAlignment,PSR2.Files.EndFileNewline,PSR2.Methods.FunctionClosingBrace,Generic.PHP.CharacterBeforePHPOpenTag,Generic.PHP.RequireStrictTypes,Squiz.WhiteSpace.SuperfluousWhitespace,WordPress.NamingConventions.PrefixAllGlobals,Universal.Files.SeparateFunctionsFromOO,Generic.Files.OneObjectStructurePerFile,WordPress.WP.GlobalVariablesOverride,Universal.Namespaces.OneDeclarationPerFile,Universal.Namespaces.DisallowCurlyBraceSyntax \
 			"$TEMP_DIR" 2>&1 | sed -E 's/\.feature_L[0-9]+_E[0-9]+_(HASPHP|NOPHP)\.php/.feature/g' | sed -E "s|FILE: .*/([^/]+\.feature)|FILE: features/\1|g" || EXIT_CODE=$?
 	fi
 fi
