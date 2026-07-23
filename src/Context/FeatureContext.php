@@ -291,6 +291,17 @@ class FeatureContext implements Context {
 		return \in_array( $with_code_coverage, [ 'true', '1' ], true );
 	}
 
+	/**
+	 * Whether tests are currently running with Xdebug step debugging enabled.
+	 *
+	 * @return bool
+	 */
+	private static function running_with_xdebug() {
+		$with_xdebug = (string) getenv( 'WP_CLI_TEST_XDEBUG' );
+
+		return \in_array( $with_xdebug, [ 'true', '1' ], true );
+	}
+
 	public static function merge_coverage_reports(): void {
 		if ( ! self::running_with_code_coverage() ) {
 			return;
@@ -487,6 +498,35 @@ class FeatureContext implements Context {
 			$current               = getenv( 'WP_CLI_REQUIRE' );
 			$updated               = $current ? "{$current},{$coverage_require_file}" : $coverage_require_file;
 			$env['WP_CLI_REQUIRE'] = $updated;
+		}
+
+		if ( self::running_with_xdebug() ) {
+			$xdebug_mode = getenv( 'XDEBUG_MODE' );
+			if ( false !== $xdebug_mode && '' !== $xdebug_mode ) {
+				$modes = array_filter(
+					array_map(
+						'trim',
+						explode( ',', $xdebug_mode )
+					),
+					static function ( $mode ) {
+						return '' !== $mode;
+					}
+				);
+				if ( ! in_array( 'debug', $modes, true ) ) {
+					$modes[] = 'debug';
+				}
+				$env['XDEBUG_MODE'] = implode( ',', $modes );
+			} else {
+				$env['XDEBUG_MODE'] = 'debug';
+			}
+
+			if ( false === getenv( 'XDEBUG_SESSION' ) ) {
+				$env['XDEBUG_SESSION'] = '1';
+			}
+
+			if ( false === getenv( 'XDEBUG_CONFIG' ) ) {
+				$env['XDEBUG_CONFIG'] = 'idekey=WP_CLI_TEST_XDEBUG log_level=0';
+			}
 		}
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
