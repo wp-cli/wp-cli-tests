@@ -549,7 +549,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     And a send-email.php file:
       """
       <?php
-      wp_mail('test@example.com', 'Test', 'Body');
+      wp_mail( 'test@example.com', 'Test', 'Body' );
       """
     When I run `wp eval-file send-email.php`
     Then an email should be sent
