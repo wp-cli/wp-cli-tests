@@ -96,7 +96,11 @@ function extract_feature_php( $source_dir, $target_dir ) {
 							}
 
 							foreach ( $docstring_lines as $line_idx => $code_line ) {
-								$out_lines[ $line_idx ] = substr( $code_line, $min_indent );
+								if ( '' === trim( $code_line ) ) {
+									$out_lines[ $line_idx ] = "\n";
+								} else {
+									$out_lines[ $line_idx ] = substr( $code_line, $min_indent );
+								}
 							}
 
 							$end_line    = $index;
