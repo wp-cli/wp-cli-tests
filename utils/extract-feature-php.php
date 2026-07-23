@@ -216,7 +216,7 @@ function update_feature_php( $source_dir, $target_dir ) {
 				if ( '' === trim( $line_content ) ) {
 					$fixed_lines[] = "\n";
 				} else {
-					$fixed_lines[] = $indent . ltrim( $line_content );
+					$fixed_lines[] = $indent . $line_content;
 				}
 			}
 
