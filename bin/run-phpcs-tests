@@ -1,7 +1,28 @@
 #!/bin/sh
 
-# Run the code style check only if a configuration file exists.
+EXIT_CODE=0
+
+# 1. Run standard PHP code style check if a configuration file exists.
 if [ -f ".phpcs.xml" ] || [ -f "phpcs.xml" ] || [ -f ".phpcs.xml.dist" ] || [ -f "phpcs.xml.dist" ]
 then
-	vendor/bin/phpcs "$@"
+	vendor/bin/phpcs "$@" || EXIT_CODE=$?
 fi
+
+# 2. Run PHPCS over extracted PHP blocks in .feature files if features/ directory exists.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -d "features" ] && [ -f "$DIR/utils/extract-feature-php.php" ]
+then
+	TEMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'feature_phpcs')
+	trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
+
+	php "$DIR/utils/extract-feature-php.php" extract features "$TEMP_DIR" >/dev/null 2>&1
+
+	if [ -d "$TEMP_DIR" ] && [ "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]
+	then
+		vendor/bin/phpcs --standard=WP_CLI_CS --warning-severity=0 \
+			--exclude=Generic.Files.InlineHTML,Generic.Files.LineEndings,WordPress.Files.FileName,Squiz.Commenting.FileComment,Generic.WhiteSpace.DisallowSpaceIndent,Universal.WhiteSpace.PrecisionAlignment,PSR2.Files.EndFileNewline,PSR2.Methods.FunctionClosingBrace,Generic.PHP.CharacterBeforePHPOpenTag,Generic.PHP.RequireStrictTypes,Squiz.WhiteSpace.SuperfluousWhitespace \
+			"$TEMP_DIR" 2>&1 | sed -E 's/\.feature_L[0-9]+_E[0-9]+_(HASPHP|NOPHP)\.php/.feature/g' | sed -E "s|FILE: .*/([^/]+\.feature)|FILE: features/\1|g" || EXIT_CODE=$?
+	fi
+fi
+
+exit $EXIT_CODE
