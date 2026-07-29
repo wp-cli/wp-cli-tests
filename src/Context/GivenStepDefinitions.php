@@ -120,14 +120,14 @@ trait GivenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Given /^an? ([^\s]+) (file|cache file):$/
+	 * @Given /^an? ("[^"]+"|[^\s]+) (file|cache file):$/
 	 *
 	 * @param string $path
 	 * @param string $type
 	 * @param PyStringNode $content
 	 */
 	public function given_a_specific_file( $path, $type, PyStringNode $content ): void {
-		$path      = $this->replace_variables( (string) $path );
+		$path      = trim( $this->replace_variables( (string) $path ), '"' );
 		$content   = $this->replace_variables( (string) $content ) . "\n";
 		$full_path = 'cache file' === $type
 			? $this->variables['SUITE_CACHE_DIR'] . "/$path"
