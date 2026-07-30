@@ -19,6 +19,9 @@ services:
     class: SzepeViktor\PHPStan\WordPress\HookDocsVisitor
     tags:
       - phpstan.parser.richParserNodeVisitor
+rules:
+  - WP_CLI\Tests\PHPStan\WPCliAddHookCallbackRule
+
 parameters:
   dynamicConstantNames:
     - FOO
