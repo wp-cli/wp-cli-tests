@@ -72,7 +72,7 @@ final class WPCliAddHookCallbackRule implements Rule {
 							'Parameter #2 $callback of WP_CLI::add_hook() expects a valid callable, %s given.',
 							$callbackType->describe( VerbosityLevel::typeOnly() )
 						)
-					)->build(),
+					)->identifier( 'wpCli.addHookCallback.invalidCallback' )->build(),
 				];
 			}
 			return [];
@@ -114,7 +114,7 @@ final class WPCliAddHookCallbackRule implements Rule {
 						$expectedArgs,
 						1 === $expectedArgs ? 'argument is' : 'arguments are'
 					)
-				)->build(),
+				)->identifier( 'wpCli.addHookCallback.insufficientParameters' )->build(),
 			];
 		}
 
