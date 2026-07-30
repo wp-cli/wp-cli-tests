@@ -11,6 +11,14 @@ services:
     class: WP_CLI\Tests\PHPStan\WPCliRuncommandDynamicReturnTypeExtension
     tags:
       - phpstan.broker.dynamicStaticMethodReturnTypeExtension
+  -
+    class: WP_CLI\Tests\PHPStan\WPCliDoHookDynamicReturnTypeExtension
+    tags:
+      - phpstan.broker.dynamicStaticMethodReturnTypeExtension
+  -
+    class: SzepeViktor\PHPStan\WordPress\HookDocsVisitor
+    tags:
+      - phpstan.parser.richParserNodeVisitor
 parameters:
   dynamicConstantNames:
     - FOO
