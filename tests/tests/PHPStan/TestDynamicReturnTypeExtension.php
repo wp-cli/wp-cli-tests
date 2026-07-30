@@ -17,6 +17,7 @@ class TestDynamicReturnTypeExtension extends \PHPStan\Testing\TypeInferenceTestC
 		yield from self::gatherAssertTypes( dirname( __DIR__, 2 ) . '/data/get_flag_value.php' );
 		yield from self::gatherAssertTypes( dirname( __DIR__, 2 ) . '/data/runcommand.php' );
 		yield from self::gatherAssertTypes( dirname( __DIR__, 2 ) . '/data/do_hook.php' );
+		yield from self::gatherAssertTypes( dirname( __DIR__, 2 ) . '/data/get_config.php' );
 	}
 
 	/**
