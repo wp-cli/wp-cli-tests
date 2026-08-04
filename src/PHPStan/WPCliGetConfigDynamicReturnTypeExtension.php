@@ -21,100 +21,100 @@ use function count;
 final class WPCliGetConfigDynamicReturnTypeExtension implements DynamicStaticMethodReturnTypeExtension {
 
 	/** @var ReflectionProvider */
-	private $reflection_provider;
+	private $reflectionProvider;
 
 	/** @var TypeNodeResolver */
-	private $type_node_resolver;
+	private $typeNodeResolver;
 
 	/** @var ConstantArrayType|null */
-	private $global_config_type = null;
+	private $globalConfigType = null;
 
 	public function __construct(
-		ReflectionProvider $reflection_provider,
-		TypeNodeResolver $type_node_resolver
+		ReflectionProvider $reflectionProvider,
+		TypeNodeResolver $typeNodeResolver
 	) {
-		$this->reflection_provider = $reflection_provider;
-		$this->type_node_resolver  = $type_node_resolver;
+		$this->reflectionProvider = $reflectionProvider;
+		$this->typeNodeResolver   = $typeNodeResolver;
 	}
 
 	public function getClass(): string {
 		return 'WP_CLI';
 	}
 
-	public function isStaticMethodSupported( MethodReflection $method_reflection ): bool {
-		return $method_reflection->getName() === 'get_config';
+	public function isStaticMethodSupported( MethodReflection $methodReflection ): bool {
+		return $methodReflection->getName() === 'get_config';
 	}
 
 	public function getTypeFromStaticMethodCall(
-		MethodReflection $method_reflection,
-		StaticCall $method_call,
+		MethodReflection $methodReflection,
+		StaticCall $methodCall,
 		Scope $scope
 	): Type {
-		$args = $method_call->getArgs();
+		$args = $methodCall->getArgs();
 
 		if ( count( $args ) === 0 ) {
-			return $this->get_global_config_array_type();
+			return $this->getGlobalConfigArrayType();
 		}
 
-		$key_type = $scope->getType( $args[0]->value );
+		$keyType = $scope->getType( $args[0]->value );
 
-		if ( $key_type->isNull()->yes() ) {
-			return $this->get_global_config_array_type();
+		if ( $keyType->isNull()->yes() ) {
+			return $this->getGlobalConfigArrayType();
 		}
 
-		$constant_strings = $key_type->getConstantStrings();
-		if ( count( $constant_strings ) > 0 ) {
-			$types              = [];
-			$global_config_type = $this->get_global_config_array_type();
+		$constantStrings = $keyType->getConstantStrings();
+		if ( count( $constantStrings ) > 0 ) {
+			$types            = [];
+			$globalConfigType = $this->getGlobalConfigArrayType();
 
-			foreach ( $constant_strings as $constant_string ) {
-				$value_type = $global_config_type->getOffsetValueType( $constant_string );
-				if ( $value_type instanceof ErrorType ) {
+			foreach ( $constantStrings as $constantString ) {
+				$valueType = $globalConfigType->getOffsetValueType( $constantString );
+				if ( $valueType instanceof ErrorType ) {
 					$types[] = new NullType();
 				} else {
-					$types[] = $value_type;
+					$types[] = $valueType;
 				}
 			}
 
 			if ( count( $types ) > 0 ) {
-				$return_type = TypeCombinator::union( ...$types );
-				if ( $key_type->isNull()->maybe() ) {
-					$return_type = TypeCombinator::union( $return_type, $global_config_type );
+				$returnType = TypeCombinator::union( ...$types );
+				if ( $keyType->isNull()->maybe() ) {
+					$returnType = TypeCombinator::union( $returnType, $globalConfigType );
 				}
-				return $return_type;
+				return $returnType;
 			}
 		}
 
 		// Fallback for non-constant string or unknown types
-		$fallback = TypeCombinator::addNull( $this->get_global_config_array_type()->getItemType() );
-		if ( $key_type->isNull()->maybe() ) {
-			return TypeCombinator::union( $fallback, $this->get_global_config_array_type() );
+		$fallback = TypeCombinator::addNull( $this->getGlobalConfigArrayType()->getItemType() );
+		if ( $keyType->isNull()->maybe() ) {
+			return TypeCombinator::union( $fallback, $this->getGlobalConfigArrayType() );
 		}
 
 		return $fallback;
 	}
 
-	private function get_global_config_array_type(): ConstantArrayType {
-		if ( null === $this->global_config_type ) {
-			$class_reflection = $this->reflection_provider->getClass( 'WP_CLI' );
-			$type_aliases     = $class_reflection->getTypeAliases();
-			$global_config    = $type_aliases['GlobalConfig'] ?? null;
+	private function getGlobalConfigArrayType(): ConstantArrayType {
+		if ( null === $this->globalConfigType ) {
+			$classReflection = $this->reflectionProvider->getClass( 'WP_CLI' );
+			$typeAliases     = $classReflection->getTypeAliases();
+			$globalConfig    = $typeAliases['GlobalConfig'] ?? null;
 
-			if ( null === $global_config ) {
+			if ( null === $globalConfig ) {
 				throw new \PHPStan\ShouldNotHappenException( 'GlobalConfig type alias not found on WP_CLI class.' );
 			}
 
 			/** @phpstan-ignore phpstanApi.method */
-			$resolved        = $global_config->resolve( $this->type_node_resolver );
-			$constant_arrays = $resolved->getConstantArrays();
+			$resolved       = $globalConfig->resolve( $this->typeNodeResolver );
+			$constantArrays = $resolved->getConstantArrays();
 
-			if ( count( $constant_arrays ) === 0 ) {
+			if ( count( $constantArrays ) === 0 ) {
 				throw new \PHPStan\ShouldNotHappenException( 'GlobalConfig type alias on WP_CLI must resolve to a ConstantArrayType.' );
 			}
 
-			$this->global_config_type = $constant_arrays[0];
+			$this->globalConfigType = $constantArrays[0];
 		}
 
-		return $this->global_config_type;
+		return $this->globalConfigType;
 	}
 }
