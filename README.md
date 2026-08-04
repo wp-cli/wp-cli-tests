@@ -147,6 +147,15 @@ chmod +x ~/wp-cli/wp
 WP_CLI_BIN_DIR=~/wp-cli composer behat
 ```
 
+#### Project configuration trust
+
+WP-CLI asks for confirmation before acting on `require`, `exec`, `env` or `ssh-args` directives found in a project-level `wp-cli.yml` file. Test fixtures create such files all the time and a test run cannot answer an interactive prompt, so the Behat context passes `WP_CLI_TRUST_PROJECT_CONFIG=1` to every command it runs.
+
+Set the `WP_CLI_TRUST_PROJECT_CONFIG` environment variable yourself to override that default for the whole run. Individual scenarios can override it per command:
+```
+When I try `WP_CLI_TRUST_PROJECT_CONFIG=false wp cli version`
+```
+
 ### Setting up the tests in Travis CI
 
 Basic rules for setting up the test framework with Travis CI:
