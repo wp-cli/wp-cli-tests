@@ -119,6 +119,35 @@ Here's how to run your tests against the latest trunk version of WordPress:
 WP_VERSION=trunk composer behat
 ```
 
+#### WordPress Archive
+
+Instead of downloading WordPress from WordPress.org, you can run the tests against an arbitrary
+WordPress ZIP archive by setting the `WP_CLI_TEST_CORE_ZIP` environment variable. It accepts either
+a path to a local archive or an HTTP(S) URL.
+
+This is useful to test against a WordPress build that has not been released, such as the ZIP file
+produced by the WordPress core build process.
+
+```bash
+WP_CLI_TEST_CORE_ZIP=~/Downloads/wordpress.zip composer behat
+```
+
+The archive may contain WordPress at its root, or wrapped in a single folder — both `wordpress/`
+(as used by WordPress.org releases) and `build/` (as used by some WordPress core build artifacts)
+work. Archives are extracted once and then cached, keyed by their contents.
+
+`WP_VERSION` still determines which version-specific tags (`@require-wp-6.4`, `@less-than-wp-6.4`)
+are filtered out, since the version of a development build cannot be compared meaningfully. It
+defaults to `trunk` when an archive is set, which runs every scenario. Set it explicitly when the
+archive holds a specific release:
+
+```bash
+WP_VERSION=6.4.2 WP_CLI_TEST_CORE_ZIP=~/Downloads/wordpress-6.4.2.zip composer behat
+```
+
+Note that steps requesting an explicit version, such as `Given a WP 6.4.2 installation`, keep
+downloading that version from WordPress.org and ignore the archive.
+
 #### WP-CLI Binary
 
 You can run the tests against a specific WP-CLI binary, instead of using the one that has been built in your project's `vendor/bin` folder.
