@@ -44,6 +44,18 @@ Feature: Test that WP-CLI Behat steps work as expected
       Hello World
       """
 
+  Scenario: Test "Given a file" step with quoted path containing spaces
+    Given an empty directory
+    And a "test with spaces.txt" file:
+      """
+      Hello World with Spaces
+      """
+    Then the "test with spaces.txt" file should exist
+    And the "test with spaces.txt" file should contain:
+      """
+      Hello World with Spaces
+      """
+
   Scenario: Test "Given a cache file" step
     Given a WP installation
     And an empty cache
@@ -55,6 +67,19 @@ Feature: Test that WP-CLI Behat steps work as expected
     And the {SUITE_CACHE_DIR}/test-cache.txt file should contain:
       """
       Cached content
+      """
+
+  Scenario: Test "Given a cache file" step with quoted path containing spaces
+    Given a WP installation
+    And an empty cache
+    And a "test cache with spaces.txt" cache file:
+      """
+      Cached Content with Spaces
+      """
+    Then the "{SUITE_CACHE_DIR}/test cache with spaces.txt" file should exist
+    And the "{SUITE_CACHE_DIR}/test cache with spaces.txt" file should contain:
+      """
+      Cached Content with Spaces
       """
 
   Scenario: Test string replacement in file

@@ -458,7 +458,7 @@ trait ThenStepDefinitions {
 	 * @param string $expected Expected content.
 	 */
 	public function then_a_specific_file_folder_should_exist( $path, $type, $strictly, $action, $expected = null ): void {
-		$path = $this->replace_variables( $path );
+		$path = trim( $this->replace_variables( $path ), '"' );
 
 		// If it's a relative path, make it relative to the current test dir.
 		if ( ! Path::is_absolute( $path ) ) {
