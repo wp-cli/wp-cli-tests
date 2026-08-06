@@ -12,15 +12,15 @@ use WP_CLI;
 use function PHPStan\Testing\assertType;
 
 // No arguments
-assertType( 'array{path: string|null, ssh: string|null, ssh-args: array<string>, http: string|null, url: string|null, user: string|null, skip-plugins: array<string>|true, skip-themes: array<string>|true, skip-packages: bool, require: array<string>, exec: array<string>, context: string, debug: string|true, prompt: string|true, quiet: bool, apache_modules: array<string>, assume-https: bool, color: bool|string, disabled_commands: array<string>, locale: string, allow-root: bool, alias: string}', WP_CLI::get_config() );
-assertType( 'array{path: string|null, ssh: string|null, ssh-args: array<string>, http: string|null, url: string|null, user: string|null, skip-plugins: array<string>|true, skip-themes: array<string>|true, skip-packages: bool, require: array<string>, exec: array<string>, context: string, debug: string|true, prompt: string|true, quiet: bool, apache_modules: array<string>, assume-https: bool, color: bool|string, disabled_commands: array<string>, locale: string, allow-root: bool, alias: string}', WP_CLI::get_config( null ) );
+assertType( 'array{path: string|null, ssh: string|null, ssh-args: array<string>, http: string|null, url: string|null, user: string|null, skip-plugins: array<string>|true, skip-themes: array<string>|true, skip-packages: bool, require: array<string>, exec: array<string>, context: string, debug: bool|string, prompt: bool|string, quiet: bool, apache_modules: array<string>, assume-https: bool, color: bool|string, disabled_commands: array<string>, locale: string, allow-root: bool, alias: string}', WP_CLI::get_config() );
+assertType( 'array{path: string|null, ssh: string|null, ssh-args: array<string>, http: string|null, url: string|null, user: string|null, skip-plugins: array<string>|true, skip-themes: array<string>|true, skip-packages: bool, require: array<string>, exec: array<string>, context: string, debug: bool|string, prompt: bool|string, quiet: bool, apache_modules: array<string>, assume-https: bool, color: bool|string, disabled_commands: array<string>, locale: string, allow-root: bool, alias: string}', WP_CLI::get_config( null ) );
 
 // Specific keys
 assertType( 'string|null', WP_CLI::get_config( 'path' ) );
 assertType( 'array<string>', WP_CLI::get_config( 'ssh-args' ) );
 assertType( 'bool', WP_CLI::get_config( 'skip-packages' ) );
 assertType( 'array<string>|true', WP_CLI::get_config( 'skip-plugins' ) );
-assertType( 'string|true', WP_CLI::get_config( 'prompt' ) );
+assertType( 'bool|string', WP_CLI::get_config( 'prompt' ) );
 assertType( 'bool', WP_CLI::get_config( 'quiet' ) );
 assertType( 'bool', WP_CLI::get_config( 'assume-https' ) );
 
