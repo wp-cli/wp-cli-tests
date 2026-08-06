@@ -523,4 +523,50 @@ class TestExtractFeaturePhp extends TestCase {
 		$this->assertSame( 1, $result['exit_code'] );
 		$this->assertSame( $contents, file_get_contents( $feature_file ) );
 	}
+
+	public function test_update_reports_missing_feature_file(): void {
+		$feature_file = $this->create_feature_file(
+			'example.feature',
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n"
+		);
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		unlink( $feature_file );
+
+		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'does not exist', $result['output'] );
+	}
+
+	public function test_update_skips_block_when_source_coordinates_mismatch(): void {
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		// Modify the feature file so the step preceding the docstring no longer creates a PHP file.
+		$modified_contents = str_replace( 'Given a test.php file:', 'Given a non-php step:', $contents );
+		file_put_contents( $feature_file, $modified_contents );
+
+		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'Unexpected content in', $result['output'] );
+		$this->assertSame( $modified_contents, file_get_contents( $feature_file ) );
+	}
 }

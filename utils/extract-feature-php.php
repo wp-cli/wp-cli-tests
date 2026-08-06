@@ -30,8 +30,8 @@ function is_valid_target_dir( $target_dir, $source_dir ) {
 		return false;
 	}
 
-	// A Windows drive root, such as `C:` or `C:\`.
-	if ( preg_match( '/^[a-z]:\\\\?$/i', $target_dir ) ) {
+	// A Windows drive root, such as `C:`, `C:\`, or `C:/`.
+	if ( preg_match( '/^[a-z]:[\\\\\/]?$/i', $target_dir ) ) {
 		return false;
 	}
 
@@ -119,8 +119,8 @@ function is_php_file_step( $line ) {
  * @return bool Whether extraction completed successfully.
  */
 function extract_feature_php( $source_dir, $target_dir ) {
-	$source_dir = rtrim( $source_dir, '/' );
-	$target_dir = rtrim( $target_dir, '/' );
+	$source_dir = rtrim( str_replace( '\\', '/', $source_dir ), '/' );
+	$target_dir = rtrim( str_replace( '\\', '/', $target_dir ), '/' );
 
 	if ( ! is_dir( $source_dir ) ) {
 		fwrite( STDERR, sprintf( 'Source directory "%s" does not exist.', $source_dir ) . PHP_EOL );
@@ -141,7 +141,7 @@ function extract_feature_php( $source_dir, $target_dir ) {
 
 	foreach ( $iterator as $file ) {
 		if ( $file->isFile() && 'feature' === $file->getExtension() ) {
-			$filepath = $file->getPathname();
+			$filepath = str_replace( '\\', '/', $file->getPathname() );
 			$relative = substr( $filepath, strlen( $source_dir ) + 1 );
 			$lines    = file( $filepath );
 
@@ -327,8 +327,8 @@ function strip_extraction_padding( $temp_lines, $code_start, $had_php_tag ) {
  * @return bool Whether all blocks were synced successfully.
  */
 function update_feature_php( $source_dir, $target_dir ) {
-	$source_dir = rtrim( $source_dir, '/' );
-	$target_dir = rtrim( $target_dir, '/' );
+	$source_dir = rtrim( str_replace( '\\', '/', $source_dir ), '/' );
+	$target_dir = rtrim( str_replace( '\\', '/', $target_dir ), '/' );
 
 	if ( ! is_dir( $target_dir ) ) {
 		fwrite( STDERR, sprintf( 'Target directory "%s" does not exist.', $target_dir ) . PHP_EOL );
@@ -342,7 +342,7 @@ function update_feature_php( $source_dir, $target_dir ) {
 
 	foreach ( $iterator as $file ) {
 		if ( $file->isFile() && 'php' === $file->getExtension() ) {
-			$temp_filepath = $file->getPathname();
+			$temp_filepath = str_replace( '\\', '/', $file->getPathname() );
 			$temp_filename = $file->getFilename();
 
 			if ( ! preg_match( EXTRACTED_FILE_PATTERN, $temp_filename, $matches ) ) {
@@ -366,6 +366,8 @@ function update_feature_php( $source_dir, $target_dir ) {
 
 	foreach ( $files_by_feature as $feature_path => $blocks ) {
 		if ( ! file_exists( $feature_path ) ) {
+			fwrite( STDERR, sprintf( 'Feature file "%s" does not exist.', $feature_path ) . PHP_EOL );
+			$success = false;
 			continue;
 		}
 
@@ -385,9 +387,11 @@ function update_feature_php( $source_dir, $target_dir ) {
 		}
 
 		foreach ( $blocks as $block ) {
-			$code_start = $block['docstring_start'] + 1;
-			$code_end   = $block['docstring_end'] - 1;
-			$temp_lines = file( $block['temp_filepath'] );
+			$docstring_start = $block['docstring_start'];
+			$docstring_end   = $block['docstring_end'];
+			$code_start      = $docstring_start + 1;
+			$code_end        = $docstring_end - 1;
+			$temp_lines      = file( $block['temp_filepath'] );
 
 			if ( false === $temp_lines ) {
 				fwrite( STDERR, sprintf( 'Could not read "%s".', $block['temp_filepath'] ) . PHP_EOL );
@@ -395,7 +399,21 @@ function update_feature_php( $source_dir, $target_dir ) {
 				continue;
 			}
 
-			if ( ! isset( $feature_lines[ $code_start ] ) || $code_start > $code_end ) {
+			if (
+				$code_start > $code_end
+				|| ! isset( $feature_lines[ $docstring_start ] )
+				|| ! isset( $feature_lines[ $docstring_end ] )
+				|| ( 0 !== strpos( trim( $feature_lines[ $docstring_start ] ), '"""' ) && 0 !== strpos( trim( $feature_lines[ $docstring_start ] ), "'''" ) )
+				|| ( 0 !== strpos( trim( $feature_lines[ $docstring_end ] ), '"""' ) && 0 !== strpos( trim( $feature_lines[ $docstring_end ] ), "'''" ) )
+				|| 0 === $docstring_start
+				|| ! isset( $feature_lines[ $docstring_start - 1 ] )
+				|| ! is_php_file_step( $feature_lines[ $docstring_start - 1 ] )
+			) {
+				fwrite(
+					STDERR,
+					sprintf( 'Unexpected content in "%s", not syncing this block.', $feature_path ) . PHP_EOL
+				);
+				$success = false;
 				continue;
 			}
 
