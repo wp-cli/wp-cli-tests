@@ -24,6 +24,7 @@ use DirectoryIterator;
 use WP_CLI\Process;
 use WP_CLI\ProcessRun;
 use WP_CLI\Utils;
+use WP_CLI\Path;
 use WP_CLI\WpOrgApi;
 
 /**
@@ -85,6 +86,11 @@ class FeatureContext implements Context {
 	private static $sqlite_cache_dir;
 
 	/**
+	 * @var ?string
+	 */
+	private static $sqlite_object_cache_dir;
+
+	/**
 	 * The directory that the WP-CLI cache (WP_CLI_CACHE_DIR, normally "$HOME/.wp-cli/cache") is set to on a "Given an empty cache" step.
 	 * Variable SUITE_CACHE_DIR. Lives until the end of the scenario (or until another "Given an empty cache" step within the scenario).
 	 *
@@ -132,6 +138,13 @@ class FeatureContext implements Context {
 	 * @var array<resource>
 	 */
 	private $running_procs = [];
+
+	/**
+	 * Array of temporary file paths created for background processes on Windows. Used to clean them up at the end of the scenario.
+	 *
+	 * @var array<string>
+	 */
+	private $temp_files = [];
 
 	/**
 	 * Array of variables available as {VARIABLE_NAME}. Some are always set: CORE_CONFIG_SETTINGS, DB_USER, DB_PASSWORD, DB_HOST, SRC_DIR, CACHE_DIR, WP_VERSION-version-latest.
@@ -328,9 +341,9 @@ class FeatureContext implements Context {
 		// We try to detect the vendor folder in the most probable locations.
 		$vendor_locations = [
 			// wp-cli/wp-cli-tests is a dependency of the current working dir.
-			getcwd() . '/vendor',
+			getcwd() . DIRECTORY_SEPARATOR . 'vendor',
 			// wp-cli/wp-cli-tests is the root project.
-			dirname( __DIR__, 2 ) . '/vendor',
+			dirname( __DIR__, 2 ) . DIRECTORY_SEPARATOR . 'vendor',
 			// wp-cli/wp-cli-tests is a dependency.
 			dirname( __DIR__, 4 ),
 		];
@@ -369,7 +382,7 @@ class FeatureContext implements Context {
 			// wp-cli/wp-cli is the root project.
 			dirname( $vendor_folder ),
 			// wp-cli/wp-cli is a dependency.
-			"{$vendor_folder}/wp-cli/wp-cli",
+			$vendor_folder . DIRECTORY_SEPARATOR . 'wp-cli' . DIRECTORY_SEPARATOR . 'wp-cli',
 		];
 
 		$framework_folder = '';
@@ -406,18 +419,20 @@ class FeatureContext implements Context {
 		}
 
 		$bin_paths = [
-			self::get_vendor_dir() . '/bin',
-			self::get_framework_dir() . '/bin',
+			self::get_vendor_dir() . DIRECTORY_SEPARATOR . 'bin',
+			self::get_framework_dir() . DIRECTORY_SEPARATOR . 'bin',
 		];
 
+		$bin = Utils\is_windows() ? 'wp.bat' : 'wp';
+
 		foreach ( $bin_paths as $path ) {
-			if ( is_file( "{$path}/wp" ) && is_executable( "{$path}/wp" ) ) {
-				$bin_path = $path;
-				break;
+			$full_bin_path = $path . DIRECTORY_SEPARATOR . $bin;
+			if ( is_file( $full_bin_path ) && ( Utils\is_windows() || is_executable( $full_bin_path ) ) ) {
+				return $path;
 			}
 		}
 
-		return $bin_path;
+		return null;
 	}
 
 	/**
@@ -434,23 +449,38 @@ class FeatureContext implements Context {
 
 		// Ensure we're using the expected `wp` binary.
 		$bin_path = self::get_bin_path();
+
+		if ( ! $bin_path ) {
+			throw new RuntimeException( 'Could not find WP-CLI binary path.' );
+		}
+
 		self::debug( "WP-CLI binary path: {$bin_path}" );
 
-		if ( ! file_exists( "{$bin_path}/wp" ) ) {
-			self::debug( "WARNING: No file named 'wp' found in the provided/detected binary path." );
+		$bin           = Utils\is_windows() ? 'wp.bat' : 'wp';
+		$full_bin_path = $bin_path . DIRECTORY_SEPARATOR . $bin;
+
+		if ( ! is_executable( $full_bin_path ) ) {
+			self::debug( "WARNING: File named '{$bin}' found in the provided/detected binary path is not executable." );
 		}
 
-		if ( ! is_executable( "{$bin_path}/wp" ) ) {
-			self::debug( "WARNING: File named 'wp' found in the provided/detected binary path is not executable." );
-		}
-
-		$path_separator = Utils\is_windows() ? ';' : ':';
-		$env            = [
-			'PATH'         => $bin_path . $path_separator . getenv( 'PATH' ),
-			'BEHAT_RUN'    => 1,
-			'HOME'         => sys_get_temp_dir() . '/wp-cli-home',
-			'TEST_RUN_DIR' => self::$behat_run_dir,
+		$path_separator  = Utils\is_windows() ? ';' : ':';
+		$php_binary_path = dirname( PHP_BINARY );
+		$env             = [
+			'PATH'          => $php_binary_path . $path_separator . $bin_path . $path_separator . getenv( 'PATH' ),
+			'BEHAT_RUN'     => 1,
+			'HOME'          => sys_get_temp_dir() . '/wp-cli-home',
+			'COMPOSER_HOME' => sys_get_temp_dir() . '/wp-cli-composer-home',
+			'TEST_RUN_DIR'  => self::$behat_run_dir,
 		];
+
+		$env = array_merge( $_ENV, $env );
+
+		foreach ( [ 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
+			$value = getenv( $key );
+			if ( false !== $value ) {
+				$env[ $key ] = $value;
+			}
+		}
 
 		if ( self::running_with_code_coverage() ) {
 			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
@@ -598,13 +628,47 @@ class FeatureContext implements Context {
 			mkdir( $dir );
 		}
 
-		Process::create(
-			Utils\esc_cmd(
-				'curl -sSfL %1$s > %2$s',
-				$download_url,
-				$download_location
-			)
-		)->run_check();
+		$response = Utils\http_request( 'GET', $download_url, null, [], [ 'filename' => $download_location ] );
+
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download SQLite plugin (HTTP code {$response->status_code})" );
+		}
+
+		$zip          = new \ZipArchive();
+		$new_zip_file = $download_location;
+
+		if ( $zip->open( $new_zip_file ) === true ) {
+			if ( $zip->extractTo( $dir ) ) {
+				$zip->close();
+				unlink( $new_zip_file );
+			} else {
+				$error_message = $zip->getStatusString();
+				throw new RuntimeException( sprintf( 'Failed to extract files from the zip: %s', $error_message ) );
+			}
+		} else {
+			$error_message = $zip->getStatusString();
+			throw new RuntimeException( sprintf( 'Failed to open the zip file: %s', $error_message ) );
+		}
+	}
+
+	/**
+	 * Download the SQLite object cache plugin.
+	 *
+	 * @param string $dir
+	 */
+	private static function download_sqlite_object_cache_plugin( $dir ): void {
+		$download_url      = 'https://downloads.wordpress.org/plugin/sqlite-object-cache.zip';
+		$download_location = $dir . '/sqlite-object-cache.zip';
+
+		if ( ! is_dir( $dir ) ) {
+			mkdir( $dir );
+		}
+
+		$response = \WP_CLI\Utils\http_request( 'GET', $download_url, null, [], [ 'filename' => $download_location ] );
+
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download SQLite object cache plugin (HTTP code {$response->status_code})" );
+		}
 
 		$zip          = new \ZipArchive();
 		$new_zip_file = $download_location;
@@ -633,6 +697,12 @@ class FeatureContext implements Context {
 		$db_copy   = $dir . '/wp-content/mu-plugins/sqlite-database-integration/db.copy';
 		$db_dropin = $dir . '/wp-content/db.php';
 
+		$db_copy_contents = file_get_contents( $db_copy );
+
+		if ( false === $db_copy_contents ) {
+			throw new RuntimeException( "Could not read db.copy file at: {$db_copy}" );
+		}
+
 		/* similar to https://github.com/WordPress/sqlite-database-integration/blob/3306576c9b606bc23bbb26c15383fef08e03ab11/activate.php#L95 */
 		$file_contents = str_replace(
 			array(
@@ -645,7 +715,7 @@ class FeatureContext implements Context {
 				'sqlite-database-integration/load.php',
 				'/mu-plugins/',
 			),
-			file_get_contents( $db_copy )
+			$db_copy_contents
 		);
 
 		file_put_contents( $db_dropin, $file_contents );
@@ -660,7 +730,7 @@ class FeatureContext implements Context {
 	private static function cache_wp_files( $version = '' ): void {
 		$wp_version             = $version ?: getenv( 'WP_VERSION' );
 		$wp_version_suffix      = $wp_version ? "-$wp_version" : '';
-		self::$cache_dir        = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+		$cache_dir              = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
@@ -669,15 +739,41 @@ class FeatureContext implements Context {
 			}
 		}
 
-		if ( is_readable( self::$cache_dir . '/wp-config-sample.php' ) ) {
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			self::$sqlite_object_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-object-cache';
+			if ( ! is_dir( self::$sqlite_object_cache_dir . '/sqlite-object-cache' ) ) {
+				self::download_sqlite_object_cache_plugin( self::$sqlite_object_cache_dir );
+			}
+		}
+
+		if ( is_readable( $cache_dir . '/wp-includes/version.php' ) ) {
+			self::$cache_dir = $cache_dir;
 			return;
 		}
 
-		$cmd = Utils\esc_cmd( 'wp core download --force --path=%s', self::$cache_dir );
+		$cmd = Utils\esc_cmd( 'wp core download --force --path=%s', $cache_dir );
 		if ( $wp_version ) {
 			$cmd .= Utils\esc_cmd( ' --version=%s', $wp_version );
 		}
-		Process::create( $cmd, null, self::get_process_env_variables() )->run_check();
+
+		$max_retries = 3;
+		$retry_count = 0;
+		$completed   = false;
+
+		// This is in addition to the retry logic inside Utils\http_request().
+		while ( $retry_count < $max_retries && ! $completed ) {
+			try {
+				Process::create( $cmd, null, self::get_process_env_variables() )->run_check();
+				$completed = true;
+			} catch ( \Exception $e ) {
+				++$retry_count;
+				if ( $retry_count >= $max_retries ) {
+					throw $e;
+				}
+			}
+		}
+
+		self::$cache_dir = $cache_dir;
 	}
 
 	/**
@@ -692,7 +788,13 @@ class FeatureContext implements Context {
 			self::log_run_times_before_suite( $scope );
 		}
 		self::$behat_run_dir = getcwd();
-		self::$mysql_binary  = Utils\get_mysql_binary_path();
+
+		// TODO: Improve Windows support upstream in Utils\get_mysql_binary_path().
+		if ( Utils\is_windows() ) {
+			self::$mysql_binary = 'mysql.exe';
+		} else {
+			self::$mysql_binary = Utils\get_mysql_binary_path();
+		}
 
 		$result = Process::create( 'wp cli info', null, self::get_process_env_variables() )->run_check();
 		echo "{$result->stdout}\n";
@@ -738,10 +840,9 @@ class FeatureContext implements Context {
 			self::get_behat_internal_variables()
 		);
 
-		$mysql_binary     = Utils\get_mysql_binary_path();
 		$sql_dump_command = Utils\get_sql_dump_command();
 
-		$this->variables['MYSQL_BINARY']     = $mysql_binary;
+		$this->variables['MYSQL_BINARY']     = self::$mysql_binary;
 		$this->variables['SQL_DUMP_COMMAND'] = $sql_dump_command;
 
 		// Used in the names of the RUN_DIR and SUITE_CACHE_DIR directories.
@@ -758,8 +859,10 @@ class FeatureContext implements Context {
 	public function afterScenario( AfterScenarioScope $scope ): void {
 
 		if ( self::$run_dir ) {
-			// Remove altered WP install, unless there's an error.
-			if ( $scope->getTestResult()->getResultCode() <= 10 ) {
+			// Remove altered WP install, unless there's an error (and we are not on CI).
+			$is_ci    = getenv( 'CI' );
+			$is_debug = getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' );
+			if ( $scope->getTestResult()->getResultCode() <= 10 || ( $is_ci && ! $is_debug ) ) {
 				self::remove_dir( self::$run_dir );
 			}
 			self::$run_dir = null;
@@ -788,6 +891,10 @@ class FeatureContext implements Context {
 			self::terminate_proc( $status['pid'] );
 		}
 
+		// Clean up temporary files created for background processes on Windows.
+		$this->cleanup_temp_files( ...$this->temp_files );
+		$this->temp_files = [];
+
 		if ( self::$log_run_times ) {
 			self::log_run_times_after_scenario( $scope );
 		}
@@ -799,6 +906,12 @@ class FeatureContext implements Context {
 	 * @param int $master_pid
 	 */
 	private static function terminate_proc( $master_pid ): void {
+		$master_pid = (int) $master_pid;
+
+		if ( Utils\is_windows() ) {
+			shell_exec( "taskkill /F /T /PID $master_pid > NUL 2>&1" );
+			return;
+		}
 
 		$output = shell_exec( "ps -o ppid,pid,command | grep $master_pid" );
 
@@ -807,13 +920,17 @@ class FeatureContext implements Context {
 				$parent = $matches[1];
 				$child  = $matches[2];
 
-				if ( (int) $parent === (int) $master_pid ) {
+				if ( (int) $parent === $master_pid ) {
 					self::terminate_proc( (int) $child );
 				}
 			}
 		}
 
-		if ( ! posix_kill( (int) $master_pid, 9 ) ) {
+		if ( ! function_exists( 'posix_kill' ) ) {
+			return;
+		}
+
+		if ( ! posix_kill( $master_pid, 9 ) ) {
 			$errno = posix_get_last_error();
 			// Ignore "No such process" error as that's what we want.
 			if ( 3 /*ESRCH*/ !== $errno ) {
@@ -945,7 +1062,12 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		$composer = json_decode( file_get_contents( $project_composer ) );
+		$composer_contents = file_get_contents( $project_composer );
+		if ( false === $composer_contents ) {
+			return;
+		}
+
+		$composer = json_decode( $composer_contents );
 		if ( empty( $composer->autoload->files ) ) {
 			return;
 		}
@@ -1004,18 +1126,25 @@ class FeatureContext implements Context {
 			$phar_begin     = '#!/usr/bin/env php';
 			$phar_begin_len = strlen( $phar_begin );
 			$bin_dir        = getenv( 'WP_CLI_BIN_DIR' );
-			if ( false !== $bin_dir && file_exists( $bin_dir . '/wp' ) && file_get_contents( $bin_dir . '/wp', false, null, 0, $phar_begin_len ) === $phar_begin ) {
-				$phar_path = $bin_dir . '/wp';
+			$bin            = Utils\is_windows() ? 'wp.bat' : 'wp';
+			if (
+				false !== $bin_dir &&
+				// A .bat file will never start with a shebang.
+				! Utils\is_windows() &&
+				file_exists( $bin_dir . DIRECTORY_SEPARATOR . $bin ) &&
+				(string) file_get_contents( $bin_dir . DIRECTORY_SEPARATOR . $bin, false, null, 0, $phar_begin_len ) === $phar_begin
+			) {
+				$phar_path = $bin_dir . DIRECTORY_SEPARATOR . $bin;
 			} else {
 				$src_dir         = dirname( __DIR__, 2 );
-				$bin_path        = $src_dir . '/bin/wp';
-				$vendor_bin_path = $src_dir . '/vendor/bin/wp';
+				$bin_path        = $src_dir . '/bin/' . $bin;
+				$vendor_bin_path = $src_dir . '/vendor/bin/' . $bin;
 				if ( file_exists( $bin_path ) && is_executable( $bin_path ) ) {
 					$shell_path = $bin_path;
 				} elseif ( file_exists( $vendor_bin_path ) && is_executable( $vendor_bin_path ) ) {
 					$shell_path = $vendor_bin_path;
 				} else {
-					$shell_path = 'wp';
+					$shell_path = $bin;
 				}
 			}
 		}
@@ -1120,9 +1249,11 @@ class FeatureContext implements Context {
 	 */
 	public function create_run_dir(): void {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
-			self::$run_dir              = sys_get_temp_dir() . '/' . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
+			$temp_run_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-test-run-' . self::$temp_dir_infix . '-', true );
+			mkdir( $temp_run_dir );
+			$temp_run_dir               = realpath( $temp_run_dir ) ?: $temp_run_dir;
+			self::$run_dir              = $temp_run_dir;
 			$this->variables['RUN_DIR'] = self::$run_dir;
-			mkdir( $this->variables['RUN_DIR'] );
 		}
 	}
 
@@ -1130,7 +1261,7 @@ class FeatureContext implements Context {
 	 * @param string $version
 	 */
 	public function build_phar( $version = 'same' ): void {
-		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-build-', true ) . '.phar';
+		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR . uniqid( 'wp-cli-build-', true ) . '.phar';
 
 		$is_bundle = false;
 
@@ -1153,14 +1284,18 @@ class FeatureContext implements Context {
 			$this->composer_command( 'dump-autoload --working-dir=' . dirname( self::get_vendor_dir() ) );
 		}
 
-		$this->proc(
-			Utils\esc_cmd(
-				'php -dphar.readonly=0 %1$s %2$s --version=%3$s && chmod +x %2$s',
-				$make_phar_path,
-				$this->variables['PHAR_PATH'],
-				$version
-			)
-		)->run_check();
+		$command = Utils\esc_cmd(
+			'php -dphar.readonly=0 %1$s %2$s --version=%3$s',
+			$make_phar_path,
+			$this->variables['PHAR_PATH'],
+			$version
+		);
+
+		if ( ! Utils\is_windows() ) {
+			$command .= Utils\esc_cmd( ' && chmod +x %s', $this->variables['PHAR_PATH'] );
+		}
+
+		$this->proc( $command )->run_check();
 
 		// Revert the suffix change again
 		if ( $is_bundle && self::running_with_code_coverage() ) {
@@ -1182,17 +1317,19 @@ class FeatureContext implements Context {
 			$version
 		);
 
-		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . '/'
+		$this->variables['PHAR_PATH'] = $this->variables['RUN_DIR'] . DIRECTORY_SEPARATOR
 			. uniqid( 'wp-cli-download-', true )
 			. '.phar';
 
-		Process::create(
-			Utils\esc_cmd(
-				'curl -sSfL %1$s > %2$s && chmod +x %2$s',
-				$download_url,
-				$this->variables['PHAR_PATH']
-			)
-		)->run_check();
+		$response = Utils\http_request( 'GET', $download_url, null, [], [ 'filename' => $this->variables['PHAR_PATH'] ] );
+
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download WP-CLI PHAR (HTTP code {$response->status_code})" );
+		}
+
+		if ( ! Utils\is_windows() ) {
+			chmod( $this->variables['PHAR_PATH'], 0755 );
+		}
 	}
 
 	/**
@@ -1244,7 +1381,7 @@ class FeatureContext implements Context {
 		}
 
 		$dbname   = self::$db_settings['dbname'];
-		$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
 
@@ -1256,7 +1393,7 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		$ssl_flag   = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag   = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 		$sql_result = self::run_sql(
 			self::$mysql_binary . ' --no-defaults' . $ssl_flag,
 			[
@@ -1285,7 +1422,7 @@ class FeatureContext implements Context {
 			return;
 		}
 		$dbname   = self::$db_settings['dbname'];
-		$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+		$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
 	}
 
@@ -1298,6 +1435,11 @@ class FeatureContext implements Context {
 	public function proc( $command, $assoc_args = [], $path = '' ): Process {
 		if ( ! empty( $assoc_args ) ) {
 			$command .= Utils\assoc_args_to_str( $assoc_args );
+		}
+
+		// Prepend 'php ' on Windows if the command starts with the phar path.
+		if ( Utils\is_windows() && isset( $this->variables['PHAR_PATH'] ) && 0 === strpos( $command, $this->variables['PHAR_PATH'] ) ) {
+			$command = 'php ' . $command;
 		}
 
 		$env = self::get_process_env_variables();
@@ -1318,7 +1460,7 @@ class FeatureContext implements Context {
 			$env['BEHAT_SCENARIO_TITLE'] = $this->scenario->getTitle();
 		}
 
-		$env['BEHAT_STEP_LINE'] = $this->step_line;
+		$env['BEHAT_STEP_LINE'] = (string) $this->step_line;
 
 		$env['WP_CLI_TEST_DBTYPE'] = self::$db_type;
 
@@ -1337,24 +1479,66 @@ class FeatureContext implements Context {
 	 * @param string $cmd
 	 */
 	public function background_proc( $cmd ): void {
-		$descriptors = [
-			0 => STDIN,
-			1 => [ 'pipe', 'w' ],
-			2 => [ 'pipe', 'w' ],
-		];
+		if ( Utils\is_windows() ) {
+			// On Windows, leaving pipes open can cause hangs.
+			// Redirect output to files and close stdin.
+			$stdout_file = tempnam( sys_get_temp_dir(), 'behat-stdout-' );
+			$stderr_file = tempnam( sys_get_temp_dir(), 'behat-stderr-' );
+			$descriptors = [
+				0 => [ 'pipe', 'r' ],
+				1 => [ 'file', $stdout_file, 'a' ],
+				2 => [ 'file', $stderr_file, 'a' ],
+			];
+		} else {
+			$descriptors = [
+				0 => STDIN,
+				1 => [ 'pipe', 'w' ],
+				2 => [ 'pipe', 'w' ],
+			];
+		}
 
 		$proc = proc_open( $cmd, $descriptors, $pipes, $this->variables['RUN_DIR'], self::get_process_env_variables() );
+
+		if ( Utils\is_windows() ) {
+			fclose( $pipes[0] );
+		}
 
 		sleep( 1 );
 
 		$status = proc_get_status( $proc );
 
 		if ( ! $status['running'] ) {
-			$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
+			if ( Utils\is_windows() ) {
+				$stderr = (string) file_get_contents( $stderr_file );
+				$stderr = $stderr ? ': ' . $stderr : '';
+				// Clean up temporary files.
+				$this->cleanup_temp_files( $stdout_file, $stderr_file );
+			} else {
+				$stderr = is_resource( $pipes[2] ) ? ( ': ' . stream_get_contents( $pipes[2] ) ) : '';
+			}
 			throw new RuntimeException( sprintf( "Failed to start background process '%s'%s.", $cmd, $stderr ) );
 		}
 
 		$this->running_procs[] = $proc;
+
+		// Track temporary files for cleanup at the end of the scenario.
+		if ( Utils\is_windows() ) {
+			$this->temp_files[] = $stdout_file;
+			$this->temp_files[] = $stderr_file;
+		}
+	}
+
+	/**
+	 * Clean up temporary files safely.
+	 *
+	 * @param string ...$files File paths to clean up.
+	 */
+	private function cleanup_temp_files( ...$files ): void {
+		foreach ( $files as $file ) {
+			if ( file_exists( $file ) ) {
+				unlink( $file );
+			}
+		}
 	}
 
 	/**
@@ -1371,7 +1555,33 @@ class FeatureContext implements Context {
 	 * @param string $dir
 	 */
 	public static function remove_dir( $dir ): void {
-		Process::create( Utils\esc_cmd( 'rm -rf %s', $dir ) )->run_check();
+		$dir = Path::normalize( $dir );
+		$dir = rtrim( $dir, '/\\' );
+		if ( ! is_dir( $dir ) ) {
+			return;
+		}
+
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::CHILD_FIRST
+		);
+
+		# Suppress warnings for instance when deleting SQLite database files,
+		# which appears to emit a warning on Windows.
+		# See https://bugs.php.net/bug.php?id=78930.
+
+		/**
+		 * @var \SplFileInfo $file
+		 */
+		foreach ( $iterator as $file ) {
+			if ( $file->isDir() ) {
+				@rmdir( $file->getPathname() );
+			} else {
+				@unlink( $file->getPathname() );
+			}
+		}
+
+		@rmdir( $dir );
 	}
 
 	/**
@@ -1381,10 +1591,24 @@ class FeatureContext implements Context {
 	 * @param string $dest_dir
 	 */
 	public static function copy_dir( $src_dir, $dest_dir ): void {
-		$shell_command = ( 'Darwin' === PHP_OS )
-			? Utils\esc_cmd( 'cp -R %s/* %s', $src_dir, $dest_dir )
-			: Utils\esc_cmd( 'cp -r %s/* %s', $src_dir, $dest_dir );
-		Process::create( $shell_command )->run_check();
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $src_dir, \RecursiveDirectoryIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::SELF_FIRST
+		);
+
+		/**
+		 * @var \SplFileInfo $item
+		 */
+		foreach ( $iterator as $item ) {
+			$dest_path = rtrim( $dest_dir, '/\\' ) . DIRECTORY_SEPARATOR . $iterator->getSubPathname();
+			if ( $item->isDir() ) {
+				if ( ! is_dir( $dest_path ) ) {
+					mkdir( $dest_path, 0777, true );
+				}
+			} else {
+				copy( $item->getPathname(), $dest_path );
+			}
+		}
 	}
 
 	/**
@@ -1416,16 +1640,16 @@ class FeatureContext implements Context {
 			echo "WordPress {$result->stdout}\n";
 		}
 
-		$dest_dir = $this->variables['RUN_DIR'] . "/$subdir";
+		$dest_dir = rtrim( $this->variables['RUN_DIR'], '/\\' ) . ( $subdir ? DIRECTORY_SEPARATOR . $subdir : '' );
 
 		if ( $subdir ) {
-			mkdir( $dest_dir );
+			mkdir( $dest_dir, 0777, true /*recursive*/ );
 		}
 
 		self::copy_dir( self::$cache_dir, $dest_dir );
 
 		if ( ! is_dir( $dest_dir . '/wp-content/mu-plugins' ) ) {
-			mkdir( $dest_dir . '/wp-content/mu-plugins' );
+			mkdir( $dest_dir . '/wp-content/mu-plugins', 0777, true /*recursive*/ );
 		}
 
 		// Disable emailing.
@@ -1437,6 +1661,12 @@ class FeatureContext implements Context {
 		if ( 'sqlite' === self::$db_type ) {
 			self::copy_dir( self::$sqlite_cache_dir, $dest_dir . '/wp-content/mu-plugins' );
 			self::configure_sqlite( $dest_dir );
+		}
+
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			self::copy_dir( self::$sqlite_object_cache_dir, $dest_dir . '/wp-content/mu-plugins' );
+			copy( $dest_dir . '/wp-content/mu-plugins/sqlite-object-cache/assets/drop-in/object-cache.php', $dest_dir . '/wp-content/object-cache.php' );
+			file_put_contents( $dest_dir . '/wp-content/mu-plugins/sqlite-object-cache.php', "<?php\nrequire_once __DIR__ . '/sqlite-object-cache/sqlite-object-cache.php';\n" );
 		}
 	}
 
@@ -1494,7 +1724,13 @@ class FeatureContext implements Context {
 		$subdir = $this->replace_variables( $subdir );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
+		$config_extra_php = "if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }\n";
+
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			// Derive a deterministic cache key salt from the install cache directory and subdir
+			$salt              = md5( self::$install_cache_dir . '/' . $subdir );
+			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . $salt . "' );\n";
+		}
 
 		if ( 'sqlite' !== self::$db_type ) {
 			$this->create_db();
@@ -1514,30 +1750,70 @@ class FeatureContext implements Context {
 
 		$run_dir = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 
-		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir );
+		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir . ':object_cache=' . getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) );
 
-		if ( file_exists( $install_cache_path ) ) {
+		$install_cache_is_valid = is_dir( $install_cache_path )
+			&& ( 'sqlite' !== self::$db_type || file_exists( "{$install_cache_path}.sqlite" ) );
+
+		if ( ! $install_cache_is_valid && file_exists( $install_cache_path ) ) {
+			if ( is_dir( $install_cache_path ) ) {
+				$iterator = new \RecursiveIteratorIterator(
+					new \RecursiveDirectoryIterator( $install_cache_path, \FilesystemIterator::SKIP_DOTS ),
+					\RecursiveIteratorIterator::CHILD_FIRST
+				);
+				foreach ( $iterator as $fileinfo ) {
+					if ( $fileinfo->isDir() ) {
+						rmdir( $fileinfo->getPathname() );
+					} else {
+						unlink( $fileinfo->getPathname() );
+					}
+				}
+				rmdir( $install_cache_path );
+			} else {
+				unlink( $install_cache_path );
+			}
+
+			$sqlite_cache = "{$install_cache_path}.sqlite";
+			if ( file_exists( $sqlite_cache ) && is_file( $sqlite_cache ) ) {
+				unlink( $sqlite_cache );
+			}
+
+			$sql_cache = "{$install_cache_path}.sql";
+			if ( file_exists( $sql_cache ) && is_file( $sql_cache ) ) {
+				unlink( $sql_cache );
+			}
+		}
+		if ( $install_cache_is_valid ) {
 			self::copy_dir( $install_cache_path, $run_dir );
 
 			// This is the sqlite equivalent of restoring a database dump in MySQL
 			if ( 'sqlite' === self::$db_type ) {
-				copy( "{$install_cache_path}.sqlite", "$run_dir/wp-content/database/.ht.sqlite" );
+				$sqlite_dest_dir = "$run_dir/wp-content/database";
+				if ( ! is_dir( $sqlite_dest_dir ) ) {
+					mkdir( $sqlite_dest_dir, 0755, true );
+				}
+				if ( file_exists( "{$install_cache_path}.sqlite" ) ) {
+					copy( "{$install_cache_path}.sqlite", "$sqlite_dest_dir/.ht.sqlite.php" );
+				}
 			} else {
-				$ssl_flag = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+				$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
 
-			mkdir( $install_cache_path );
+			if ( ! is_dir( $install_cache_path ) ) {
+				mkdir( $install_cache_path );
+			}
 
 			self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
 
 			if ( 'sqlite' !== self::$db_type ) {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
 				$mysqldump_binary          = Utils\force_env_on_nix_systems( $mysqldump_binary );
-				$support_column_statistics = exec( "{$mysqldump_binary} --help | grep 'column-statistics'" );
-				$ssl_flag                  = 'mariadb' === self::$db_type ? ' --ssl-verify-server-cert' : '';
+				$help_output               = shell_exec( "{$mysqldump_binary} --help" );
+				$support_column_statistics = ( null !== $help_output && false !== strpos( $help_output, 'column-statistics' ) );
+				$ssl_flag                  = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 				$command                   = "{$mysqldump_binary} --no-defaults{$ssl_flag} --no-tablespaces";
 				if ( $support_column_statistics ) {
 					$command .= ' --skip-column-statistics';
@@ -1547,7 +1823,17 @@ class FeatureContext implements Context {
 
 			if ( 'sqlite' === self::$db_type ) {
 				// This is the sqlite equivalent of creating a database dump in MySQL
-				copy( "$run_dir/wp-content/database/.ht.sqlite", "{$install_cache_path}.sqlite" );
+				// Support both the new (.ht.sqlite.php) and legacy (.ht.sqlite) file names.
+				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite.php";
+				if ( ! file_exists( $sqlite_source ) ) {
+					$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
+				}
+				if ( file_exists( $sqlite_source ) ) {
+					copy( $sqlite_source, "{$install_cache_path}.sqlite" );
+				} elseif ( file_exists( "{$install_cache_path}.sqlite" ) ) {
+					// Ensure we don't keep a stale cached SQLite DB if the source wasn't produced
+					unlink( "{$install_cache_path}.sqlite" );
+				}
 			}
 		}
 	}
@@ -1571,9 +1857,14 @@ class FeatureContext implements Context {
 		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
-		$config_extra_php = "if ( ! defined( 'DISABLE_WP_CRON' ) ) { define( 'DISABLE_WP_CRON', true ); }\n";
+		$config_extra_php = "if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }\n";
 
 		$config_extra_php .= "require_once dirname(__DIR__) . '/" . $vendor_directory . "/autoload.php';\n";
+
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			// Use a deterministic salt per install to allow create_config() to reuse cached configs.
+			$config_extra_php .= "define( 'WP_CACHE_KEY_SALT', '" . md5( $this->variables['RUN_DIR'] ) . "' );\n";
+		}
 
 		$this->create_config( 'WordPress', $config_extra_php );
 
@@ -1596,6 +1887,12 @@ class FeatureContext implements Context {
 			self::configure_sqlite( $this->variables['RUN_DIR'] . '/WordPress' );
 		}
 
+		if ( 'sqlite' === getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			self::copy_dir( self::$sqlite_object_cache_dir, $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins' );
+			copy( $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins/sqlite-object-cache/assets/drop-in/object-cache.php', $this->variables['RUN_DIR'] . '/WordPress/wp-content/object-cache.php' );
+			file_put_contents( $this->variables['RUN_DIR'] . '/WordPress/wp-content/mu-plugins/sqlite-object-cache.php', "<?php\nrequire_once __DIR__ . '/sqlite-object-cache/sqlite-object-cache.php';\n" );
+		}
+
 		$this->proc( 'wp core install', $install_args )->run_check();
 	}
 
@@ -1611,8 +1908,12 @@ class FeatureContext implements Context {
 			self::remove_dir( self::$composer_local_repository . '/.git' );
 			self::remove_dir( self::$composer_local_repository . '/vendor' );
 		}
-		$dest = self::$composer_local_repository . '/';
-		$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"$dest\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
+		if ( Utils\is_windows() ) {
+			$json_config = '{\"type\": \"path\", \"url\": \"' . str_replace( '\\', '/', self::$composer_local_repository ) . '\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}';
+			$this->composer_command( "config repositories.wp-cli \"$json_config\"" );
+		} else {
+			$this->composer_command( "config repositories.wp-cli '{\"type\": \"path\", \"url\": \"" . self::$composer_local_repository . "\", \"options\": {\"symlink\": false, \"versions\": { \"wp-cli/wp-cli\": \"dev-main\"}}}'" );
+		}
 		$this->variables['COMPOSER_LOCAL_REPOSITORY'] = self::$composer_local_repository;
 	}
 
@@ -1646,7 +1947,14 @@ class FeatureContext implements Context {
 	 */
 	private function composer_command( $cmd ): void {
 		if ( ! isset( $this->variables['COMPOSER_PATH'] ) ) {
-			$this->variables['COMPOSER_PATH'] = exec( 'which composer' );
+			$command = Utils\is_windows() ? 'where composer' : 'which composer';
+			$path    = exec( $command );
+			if ( false === $path || empty( $path ) ) {
+				throw new RuntimeException( 'Could not find composer.' );
+			}
+			// In case of multiple paths, pick the first one.
+			$path                             = strtok( $path, PHP_EOL );
+			$this->variables['COMPOSER_PATH'] = $path;
 		}
 		$this->proc( $this->variables['COMPOSER_PATH'] . ' --no-interaction ' . $cmd )->run_check();
 	}
@@ -1736,9 +2044,16 @@ class FeatureContext implements Context {
 						throw new RuntimeException( sprintf( "Failed to create copy directory '%s': %s. " . __FILE__ . ':' . __LINE__, $cop_file, $error['message'] ) );
 					}
 					self::copy_dir( $upd_file, $cop_file );
-				} elseif ( ! copy( $upd_file, $cop_file ) ) {
-					$error = error_get_last();
-					throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
+				} elseif ( ! file_exists( $upd_file ) ) {
+					continue; // File vanished before it could be copied.
+				} else {
+					if ( ! is_dir( dirname( $cop_file ) ) ) {
+						mkdir( dirname( $cop_file ), 0777, true );
+					}
+					if ( ! copy( $upd_file, $cop_file ) ) {
+						$error = error_get_last();
+						throw new RuntimeException( sprintf( "Failed to copy '%s' to '%s': %s. " . __FILE__ . ':' . __LINE__, $upd_file, $cop_file, $error['message'] ) );
+					}
 				}
 			} elseif ( is_dir( $upd_file ) ) {
 				self::dir_diff_copy( $upd_file, $src_file, $cop_file );
@@ -1756,8 +2071,8 @@ class FeatureContext implements Context {
 		$scenario_key = '';
 		$file         = self::get_event_file( $scope, $line );
 		if ( isset( $file ) ) {
-			$scenario_grandparent = Utils\basename( dirname( $file, 2 ) );
-			$scenario_key         = $scenario_grandparent . ' ' . Utils\basename( $file ) . ':' . $line;
+			$scenario_grandparent = Path::basename( dirname( $file, 2 ) );
+			$scenario_key         = $scenario_grandparent . ' ' . Path::basename( $file ) . ':' . $line;
 		}
 		return $scenario_key;
 	}
@@ -1774,7 +2089,7 @@ class FeatureContext implements Context {
 			$suite = substr( $keys[0], 0, strpos( $keys[0], ' ' ) );
 		}
 
-		$run_from = Utils\basename( dirname( __DIR__, 2 ) );
+		$run_from = Path::basename( dirname( __DIR__, 2 ) );
 
 		// Format same as Behat, if have minutes.
 		$fmt = static function ( $time ) {

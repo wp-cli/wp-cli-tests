@@ -86,7 +86,7 @@ To make use of the WP-CLI testing framework, you need to complete the following 
     </ruleset>
     ```
 
-    All other [PHPCS configuration options](https://github.com/squizlabs/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
+    All other [PHPCS configuration options](https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
 6. Update your composer dependencies and regenerate your autoloader and binary folders:
     ```bash
     composer update
@@ -230,6 +230,7 @@ The following environment variables can be set to override the default database 
   - `WP_CLI_TEST_DBUSER` is the user that the tests run under (defaults to "wp_cli_test").
   - `WP_CLI_TEST_DBPASS` is the password to use for the above user (defaults to "password1").
   - `WP_CLI_TEST_DBTYPE` is the database engine type to use, i.e. "sqlite" for running tests on SQLite instead of MySQL (defaults to "mysql").
+  - `WP_CLI_TEST_OBJECT_CACHE` is the persistent object cache backend to use. Only supports "sqlite".
 
 Environment variables can be set for the whole session via the following syntax: `export WP_CLI_TEST_DBNAME=custom_db`.
 
@@ -257,8 +258,12 @@ Want to contribute a new feature? Please first [open a new issue](https://github
 
 Once you've decided to commit the time to seeing your pull request through, [please follow our guidelines for creating a pull request](https://make.wordpress.org/cli/handbook/pull-requests/) to make sure it's a pleasant experience. See "[Setting up](https://make.wordpress.org/cli/handbook/pull-requests/#setting-up)" for details specific to working on this package locally.
 
+### License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
 ## Support
 
-GitHub issues aren't for general support questions, but there are other venues you can try: https://wp-cli.org/#support
+GitHub issues aren't for general support questions. For support resources and next steps, see the WP-CLI Support page: https://make.wordpress.org/cli/handbook/support/
 
 

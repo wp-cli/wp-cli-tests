@@ -65,3 +65,14 @@ $value = WP_CLI::runcommand(
 	]
 );
 assertType( 'string', $value );
+
+$value = WP_CLI::runcommand( 'plugin list' );
+assertType( 'null', $value );
+
+$value = WP_CLI::runcommand(
+	'plugin list',
+	[
+		'exit_error' => false,
+	]
+);
+assertType( 'null', $value );

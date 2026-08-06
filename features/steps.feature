@@ -61,13 +61,14 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
   Scenario: Special variables
 
     When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS-} cli info`
-    Then STDOUT should match /wp cli info/
+    Then STDOUT should match /(wp|wp\.bat) cli info/
     And STDERR should be empty
 
     When I run `echo {WP_VERSION-latest}`
     Then STDOUT should match /\d\.\d/
     And STDERR should be empty
 
+  @skip-windows
   Scenario: Nested special variables
     Given an empty directory
     When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS--dopen_basedir={RUN_DIR}} cli info`
@@ -76,6 +77,16 @@ Feature: Make sure "Given", "When", "Then" steps work as expected
 
     When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS--dopen_basedir={RUN_DIR}} eval 'echo "{RUN_DIR}";'`
     Then STDOUT should match /^WP_CLI_PHP_ARGS=-dopen_basedir=(.*)(.*) ?wp eval echo "\1";/
+
+  @require-windows
+  Scenario: Nested special variables
+    Given an empty directory
+    When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS--dopen_basedir={RUN_DIR}} cli info`
+    Then STDOUT should match /^WP_CLI_PHP_ARGS="?-dopen_basedir=.*"? ?wp\.bat? cli info/
+    And STDERR should be empty
+
+    When I run `echo {INVOKE_WP_CLI_WITH_PHP_ARGS--dopen_basedir={RUN_DIR}} eval 'echo "{RUN_DIR}";'`
+    Then STDOUT should match /^WP_CLI_PHP_ARGS="?-dopen_basedir=(.*)(.*)"? ?wp\.bat? eval 'echo "\1";'/
 
   @require-mysql-or-mariadb
   Scenario: SQL related variables

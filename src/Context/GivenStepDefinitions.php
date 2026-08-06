@@ -5,8 +5,8 @@ namespace WP_CLI\Tests\Context;
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use RuntimeException;
-use WP_CLI\Process;
 use WP_CLI\Utils;
+use WP_CLI\Path;
 
 trait GivenStepDefinitions {
 
@@ -46,22 +46,35 @@ trait GivenStepDefinitions {
 	 */
 	public function given_a_specific_directory( $empty_or_nonexistent, $dir ): void {
 		$dir = $this->replace_variables( $dir );
-		if ( ! Utils\is_path_absolute( $dir ) ) {
+		if ( ! Path::is_absolute( $dir ) ) {
 			$dir = $this->variables['RUN_DIR'] . "/$dir";
 		}
 
 		// Mac OS X can prefix the `/var` folder to turn it into `/private/var`.
 		$dir = preg_replace( '|^/private/var/|', '/var/', $dir );
 
-		$temp_dir = sys_get_temp_dir();
+		$temp_dir_original = Path::normalize( sys_get_temp_dir() );
+		$temp_dir_real     = realpath( sys_get_temp_dir() );
+		$temp_dir_real     = $temp_dir_real ? Path::normalize( $temp_dir_real ) : $temp_dir_original;
+		$dir               = Path::normalize( $dir );
 
-		// Also check for temp dir prefixed with `/private` for Mac OS X.
-		if ( 0 !== strpos( $dir, $temp_dir ) && 0 !== strpos( $dir, "/private{$temp_dir}" ) ) {
+		// Also normalize temp dir for Mac OS X.
+		$temp_dir_original = preg_replace( '|^/private/var/|', '/var/', $temp_dir_original );
+		$temp_dir_real     = preg_replace( '|^/private/var/|', '/var/', $temp_dir_real );
+
+		$is_windows = Utils\is_windows();
+
+		$in_temp = 0 === ( $is_windows ? stripos( $dir, $temp_dir_original ) : strpos( $dir, $temp_dir_original ) )
+			|| 0 === ( $is_windows ? stripos( $dir, $temp_dir_real ) : strpos( $dir, $temp_dir_real ) )
+			|| 0 === ( $is_windows ? stripos( $dir, "/private{$temp_dir_original}" ) : strpos( $dir, "/private{$temp_dir_original}" ) )
+			|| 0 === ( $is_windows ? stripos( $dir, "/private{$temp_dir_real}" ) : strpos( $dir, "/private{$temp_dir_real}" ) );
+
+		if ( ! $in_temp ) {
 			throw new RuntimeException(
 				sprintf(
 					"Attempted to delete directory '%s' that is not in the temp directory '%s'. " . __FILE__ . ':' . __LINE__,
 					$dir,
-					$temp_dir
+					$temp_dir_real
 				)
 			);
 		}
@@ -107,14 +120,14 @@ trait GivenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Given /^an? ([^\s]+) (file|cache file):$/
+	 * @Given /^an? ("[^"]+"|[^\s]+) (file|cache file):$/
 	 *
 	 * @param string $path
 	 * @param string $type
 	 * @param PyStringNode $content
 	 */
 	public function given_a_specific_file( $path, $type, PyStringNode $content ): void {
-		$path      = $this->replace_variables( (string) $path );
+		$path      = trim( $this->replace_variables( (string) $path ), '"' );
 		$content   = $this->replace_variables( (string) $content ) . "\n";
 		$full_path = 'cache file' === $type
 			? $this->variables['SUITE_CACHE_DIR'] . "/$path"
@@ -215,6 +228,14 @@ trait WP_CLI_Tests_Mock_Requests_Trait {
 				if ( false !== \$pos ) {
 					\$response = substr( \$response, 0, \$pos ) . "\\r\\n\\r\\n" . substr( \$response, \$pos + 2 );
 				}
+				if ( ! empty( \$options['filename'] ) ) {
+					\$body = '';
+					\$body_pos = strpos( \$response, "\\r\\n\\r\\n" );
+					if ( false !== \$body_pos ) {
+						\$body = substr( \$response, \$body_pos + 4 );
+					}
+					file_put_contents( \$options['filename'], \$body );
+				}
 				return \$response;
 			}
 		}
@@ -298,6 +319,10 @@ WP_CLI::add_wp_hook(
 							),
 						)
 					);
+				}
+
+				if ( ! empty( \$parsed_args['filename'] ) ) {
+					file_put_contents( \$parsed_args['filename'], \$response->body );
 				}
 
 				return array(
@@ -615,7 +640,10 @@ FILE;
 				continue;
 			}
 
-			Process::create( Utils\esc_cmd( 'curl -sSL %s > %s', $row['url'], $path ) )->run_check();
+			$response = Utils\http_request( 'GET', $row['url'], null, [], [ 'filename' => $path ] );
+			if ( 200 !== $response->status_code ) {
+				throw new RuntimeException( "Could not download file (HTTP code {$response->status_code})" );
+			}
 		}
 	}
 

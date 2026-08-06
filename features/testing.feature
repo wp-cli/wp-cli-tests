@@ -11,6 +11,10 @@ Feature: Test that WP-CLI loads.
 
   Scenario: WP Cron is disabled by default
     Given a WP install
+    And the wp-config.php file should contain:
+      """
+      if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }
+      """
     And a test_cron.php file:
       """
       <?php
@@ -42,6 +46,15 @@ Feature: Test that WP-CLI loads.
       false
       """
 
+  @require-object-cache
+  Scenario: Uses Object Cache
+    Given a WP install
+    When I run `wp eval 'var_export( wp_using_ext_object_cache() );'`
+    Then STDOUT should be:
+      """
+      true
+      """
+
   @require-sqlite
   Scenario: Custom wp-content directory
     Given a WP install
@@ -53,7 +66,8 @@ Feature: Test that WP-CLI loads.
       sqlite
       """
 
-  @require-sqlite
+  # Skipped on Windows because of curl getaddrinfo() errors.
+  @require-sqlite @skip-windows
   Scenario: Composer installation
     Given a WP install with Composer
 
@@ -109,5 +123,13 @@ Feature: Test that WP-CLI loads.
     Then STDOUT should contain:
       """
       This should only run on MySQL or MariaDB
+      """
+
+  Scenario: Verify sys_get_temp_dir() in sub-process
+    Given a WP install
+    When I run `wp eval 'echo sys_get_temp_dir();'`
+    Then STDOUT should not contain:
+      """
+      C:\Windows
       """
 

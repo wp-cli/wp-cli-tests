@@ -16,8 +16,8 @@ is_numeric() {
     esac
 }
 # Prompt color vars.
-C_RED="\033[31m"
-C_BLUE="\033[34m"
+C_RED="\033[0;31m"
+C_BLUE="\033[0;34m"
 NO_FORMAT="\033[0m"
 
 HOST=localhost
