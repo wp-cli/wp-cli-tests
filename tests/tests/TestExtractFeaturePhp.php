@@ -84,7 +84,8 @@ class TestExtractFeaturePhp extends TestCase {
 			$command .= ' ' . escapeshellarg( $arg );
 		}
 
-		$command = 'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . $command . ' 2>&1';
+		$cd_command = Utils\is_windows() ? 'cd /d ' : 'cd ';
+		$command    = $cd_command . escapeshellarg( $this->temp_dir ) . ' && ' . $command . ' 2>&1';
 
 		$output    = array();
 		$exit_code = 0;
@@ -235,6 +236,14 @@ class TestExtractFeaturePhp extends TestCase {
 			),
 			$this->get_extracted_files()
 		);
+		$this->assertSame(
+			"\n\n\n\n\n<?php\n\$foo = 'bar';\n",
+			$this->get_extracted_contents( 'example.feature_L5_E8_HASPHP.php' )
+		);
+		$this->assertSame(
+			"\n\n\n\n\n\n\n\n\n\n<?php\n\$baz = 'qux';\n",
+			$this->get_extracted_contents( 'example.feature_L10_E13_HASPHP.php' )
+		);
 	}
 
 	public function test_extracts_from_nested_directories(): void {
@@ -366,21 +375,50 @@ class TestExtractFeaturePhp extends TestCase {
 	}
 
 	public function test_extraction_refuses_to_use_the_current_directory_as_target(): void {
-		$this->create_feature_file(
-			'example.feature',
-			"Feature: Example\n"
+		$contents = "Feature: Example\n"
 			. "  Scenario: A PHP block\n"
 			. "    Given a test.php file:\n"
 			. "      \"\"\"\n"
 			. "      <?php\n"
 			. "      \$foo = 'bar';\n"
-			. "      \"\"\"\n"
-		);
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
 
 		$result = $this->run_script( array( 'extract', 'features', '.' ) );
 
 		$this->assertSame( 1, $result['exit_code'] );
 		$this->assertDirectoryExists( $this->features_dir );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+
+		$extracted_files = array();
+		$iterator        = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $this->temp_dir, \FilesystemIterator::SKIP_DOTS )
+		);
+		foreach ( $iterator as $file ) {
+			if ( $file->isFile() && 'php' === $file->getExtension() ) {
+				$extracted_files[] = $file->getPathname();
+			}
+		}
+		$this->assertSame( array(), $extracted_files );
+	}
+
+	public function test_extraction_reports_unterminated_docstring(): void {
+		$this->create_feature_file(
+			'unterminated.feature',
+			"Feature: Unterminated\n"
+			. "  Scenario: Unterminated docstring\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+		);
+
+		$result = $this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'Unterminated docstring', $result['output'] );
+		$this->assertSame( array(), $this->get_extracted_files() );
 	}
 
 	public function test_directories_are_not_mistaken_for_an_action(): void {

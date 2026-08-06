@@ -248,6 +248,11 @@ function extract_feature_php( $source_dir, $target_dir ) {
 					$docstring_lines[ $index ] = $line;
 				}
 			}
+
+			if ( $in_docstring ) {
+				fwrite( STDERR, sprintf( 'Unterminated docstring in "%s".', $filepath ) . PHP_EOL );
+				$success = false;
+			}
 		}
 	}
 
