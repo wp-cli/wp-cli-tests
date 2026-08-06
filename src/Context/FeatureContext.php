@@ -1420,7 +1420,7 @@ class FeatureContext implements Context {
 			$env['BEHAT_SCENARIO_TITLE'] = $this->scenario->getTitle();
 		}
 
-		$env['BEHAT_STEP_LINE'] = $this->step_line;
+		$env['BEHAT_STEP_LINE'] = (string) $this->step_line;
 
 		$env['WP_CLI_TEST_DBTYPE'] = self::$db_type;
 
