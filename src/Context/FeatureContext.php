@@ -21,6 +21,7 @@ use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
 use DirectoryIterator;
+use WP_CLI\Extractor;
 use WP_CLI\Process;
 use WP_CLI\ProcessRun;
 use WP_CLI\Utils;
@@ -78,6 +79,14 @@ class FeatureContext implements Context {
 	 * @var string|false|null
 	 */
 	private static $core_zip = null;
+
+	/**
+	 * The raw WP_CLI_TEST_CORE_ZIP value that self::$core_zip was resolved from, so that a
+	 * change of the environment variable is picked up instead of served from the memoized value.
+	 *
+	 * @var ?string
+	 */
+	private static $core_zip_source = null;
 
 	/**
 	 * The directory that holds the install cache, and which is copied to RUN_DIR during a "Given a WP installation" step. Recreated on each suite run.
@@ -699,15 +708,19 @@ class FeatureContext implements Context {
 	 * @return ?string Path to a local ZIP file, or null if the variable is not set.
 	 */
 	private static function get_core_zip(): ?string {
+		$source   = getenv( 'WP_CLI_TEST_CORE_ZIP' );
+		$source   = false === $source ? '' : $source;
 		$resolved = self::$core_zip;
 
-		if ( null !== $resolved ) {
+		if ( null !== $resolved && self::$core_zip_source === $source ) {
 			return false === $resolved ? null : $resolved;
 		}
 
-		$core_zip = getenv( 'WP_CLI_TEST_CORE_ZIP' );
+		self::$core_zip_source = $source;
 
-		if ( false === $core_zip || '' === $core_zip ) {
+		$core_zip = $source;
+
+		if ( '' === $core_zip ) {
 			self::$core_zip = false;
 			return null;
 		}
@@ -758,10 +771,13 @@ class FeatureContext implements Context {
 	/**
 	 * Get the directory that a given WordPress version is cached in.
 	 *
+	 * Without an explicit version, this is derived from the contents of the archive configured
+	 * through `WP_CLI_TEST_CORE_ZIP`, if any, and from `WP_VERSION` otherwise.
+	 *
 	 * @param string $version
 	 * @return string
 	 */
-	private static function get_core_cache_dir( $version = '' ): string {
+	public static function get_core_cache_dir( $version = '' ): string {
 		// An explicit version always takes precedence over a configured archive.
 		$core_zip = $version ? null : self::get_core_zip();
 
@@ -797,17 +813,20 @@ class FeatureContext implements Context {
 		$opened = $zip->open( $zip_file );
 
 		if ( true !== $opened ) {
-			throw new RuntimeException( sprintf( 'Failed to open the zip file %s: %s', $zip_file, $zip->getStatusString() ) );
+			// Note that ZipArchive::getStatusString() cannot be used to describe this failure,
+			// as it errors out on an archive that failed to open on PHP < 8.0.
+			throw new RuntimeException( sprintf( 'Failed to open the zip file %s: %s', $zip_file, Extractor::zip_error_msg( (int) $opened ) ) );
 		}
 
-		if ( ! $zip->extractTo( $temp_dir ) ) {
-			$error_message = $zip->getStatusString();
+		try {
+			self::validate_zip_entries( $zip, $zip_file );
+
+			if ( ! $zip->extractTo( $temp_dir ) ) {
+				throw new RuntimeException( sprintf( 'Failed to extract files from the zip %s: %s', $zip_file, $zip->getStatusString() ) );
+			}
+		} finally {
 			$zip->close();
-			self::remove_dir( $temp_dir );
-			throw new RuntimeException( sprintf( 'Failed to extract files from the zip %s: %s', $zip_file, $error_message ) );
 		}
-
-		$zip->close();
 
 		try {
 			$source_dir = self::find_wp_root( $temp_dir );
@@ -821,10 +840,44 @@ class FeatureContext implements Context {
 			// Both directories live in the system temp folder, so a rename is
 			// normally possible and avoids copying thousands of files.
 			if ( ! @rename( $source_dir, $dest_dir ) ) {
+				// copy_dir() copies into an existing directory, so create it first.
+				if ( ! is_dir( $dest_dir ) && ! mkdir( $dest_dir, 0777, true ) && ! is_dir( $dest_dir ) ) {
+					throw new RuntimeException( "Could not create the WordPress destination directory: {$dest_dir}" );
+				}
+
 				self::copy_dir( $source_dir, $dest_dir );
 			}
 		} finally {
 			self::remove_dir( $temp_dir );
+		}
+	}
+
+	/**
+	 * Reject archives holding entries that point outside of the directory they are extracted into.
+	 *
+	 * ZipArchive::extractTo() normalizes such entries rather than following them, but an archive
+	 * containing them is malformed for our purposes on any PHP version.
+	 *
+	 * @param \ZipArchive $zip
+	 * @param string      $zip_file
+	 */
+	private static function validate_zip_entries( \ZipArchive $zip, $zip_file ): void {
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Property of the PHP ZipArchive class.
+		$num_files = $zip->numFiles;
+
+		for ( $i = 0; $i < $num_files; $i++ ) {
+			$name = $zip->getNameIndex( $i );
+
+			if ( false === $name ) {
+				continue;
+			}
+
+			$segments = explode( '/', str_replace( '\\', '/', $name ) );
+
+			// An empty first segment means the entry is an absolute path.
+			if ( in_array( '..', $segments, true ) || '' === $segments[0] || preg_match( '#^[a-zA-Z]:$#', $segments[0] ) ) {
+				throw new RuntimeException( "The archive {$zip_file} contains an entry that would be extracted outside of its destination: {$name}" );
+			}
 		}
 	}
 

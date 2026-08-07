@@ -2,6 +2,7 @@
 
 namespace WP_CLI\Tests\Tests;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use WP_CLI\Tests\Context\FeatureContext;
 use WP_CLI\Tests\TestCase;
@@ -15,14 +16,32 @@ class TestCoreZip extends TestCase {
 	 */
 	public $temp_dir;
 
+	/**
+	 * The WP_CLI_TEST_CORE_ZIP value the test process started with, if any.
+	 *
+	 * @var ?string
+	 */
+	private $original_core_zip;
+
 	protected function set_up(): void {
 		parent::set_up();
+
+		$original                = getenv( 'WP_CLI_TEST_CORE_ZIP' );
+		$this->original_core_zip = false === $original ? null : $original;
 
 		$this->temp_dir = Utils\get_temp_dir() . uniqid( 'wp-cli-test-core-zip-', true );
 		mkdir( $this->temp_dir );
 	}
 
 	protected function tear_down(): void {
+		// FeatureContext re-resolves the archive when the environment variable changes,
+		// so restoring it is enough to leave the configuration as it was found.
+		if ( null === $this->original_core_zip ) {
+			putenv( 'WP_CLI_TEST_CORE_ZIP' );
+		} else {
+			putenv( 'WP_CLI_TEST_CORE_ZIP=' . $this->original_core_zip );
+		}
+
 		if ( $this->temp_dir && file_exists( $this->temp_dir ) ) {
 			FeatureContext::remove_dir( $this->temp_dir );
 		}
@@ -163,48 +182,73 @@ class TestCoreZip extends TestCase {
 	}
 
 	/**
-	 * Both `cache_wp_files()` and `download_wp()` need to agree on the cache directory,
-	 * so it is worth pinning down how it is derived. These are internals, hence reflection.
+	 * An archive that escapes its destination must be rejected rather than extracted.
 	 *
-	 * @param string $version
-	 * @return string
+	 * @dataProvider data_unsafe_entries
+	 *
+	 * @param string $entry
 	 */
-	private function get_core_cache_dir( $version = '' ): string {
-		$method = new \ReflectionMethod( FeatureContext::class, 'get_core_cache_dir' );
-		$method->setAccessible( true );
+	#[DataProvider( 'data_unsafe_entries' )] // phpcs:ignore PHPCompatibility.Attributes.NewAttributes.PHPUnitAttributeFound
+	public function testThrowsOnArchiveEscapingItsDestination( $entry ): void {
+		$entries           = $this->wp_entries( 'wordpress/' );
+		$entries[ $entry ] = 'escaped';
 
-		/** @var string $cache_dir */
-		$cache_dir = $method->invoke( null, $version );
+		$zip_file = $this->create_zip( 'unsafe.zip', $entries );
 
-		return $cache_dir;
+		$this->expectException( RuntimeException::class );
+		$this->expectExceptionMessage( 'would be extracted outside of its destination' );
+
+		FeatureContext::extract_wp_zip( $zip_file, $this->temp_dir . DIRECTORY_SEPARATOR . 'dest' );
 	}
 
-	private function reset_core_zip(): void {
-		$property = new \ReflectionProperty( FeatureContext::class, 'core_zip' );
-		$property->setAccessible( true );
-		$property->setValue( null, null );
+	/**
+	 * @return array<string, array<string>>
+	 */
+	public static function data_unsafe_entries(): array {
+		return [
+			'parent directory'        => [ '../escaped.txt' ],
+			'nested parent directory' => [ 'wordpress/../../escaped.txt' ],
+			'absolute path'           => [ '/etc/escaped.txt' ],
+			'windows separator'       => [ '..\\escaped.txt' ],
+			'windows drive letter'    => [ 'C:/escaped.txt' ],
+		];
 	}
 
+	/**
+	 * Both `cache_wp_files()` and `download_wp()` need to agree on the cache directory,
+	 * so it is worth pinning down how it is derived.
+	 */
 	public function testCacheDirIsDerivedFromWpVersionWithoutArchive(): void {
 		putenv( 'WP_CLI_TEST_CORE_ZIP' );
-		$this->reset_core_zip();
 
-		$this->assertStringEndsWith( 'wp-cli-test-core-download-cache-6.4.2', $this->get_core_cache_dir( '6.4.2' ) );
+		$this->assertStringEndsWith( 'wp-cli-test-core-download-cache-6.4.2', FeatureContext::get_core_cache_dir( '6.4.2' ) );
 	}
 
 	public function testCacheDirIsDerivedFromArchiveContents(): void {
 		$zip_file = $this->create_zip( 'release.zip', $this->wp_entries( 'wordpress/' ) );
 
 		putenv( "WP_CLI_TEST_CORE_ZIP={$zip_file}" );
-		$this->reset_core_zip();
 
-		try {
-			$expected = substr( (string) md5_file( $zip_file ), 0, 12 );
-			$this->assertStringEndsWith( 'wp-cli-test-core-download-cache-zip-' . $expected, $this->get_core_cache_dir() );
-		} finally {
-			putenv( 'WP_CLI_TEST_CORE_ZIP' );
-			$this->reset_core_zip();
-		}
+		$expected = substr( (string) md5_file( $zip_file ), 0, 12 );
+
+		$this->assertStringEndsWith( 'wp-cli-test-core-download-cache-zip-' . $expected, FeatureContext::get_core_cache_dir() );
+	}
+
+	/**
+	 * A change of the environment variable must not be served from the memoized value.
+	 */
+	public function testCacheDirFollowsAChangedArchive(): void {
+		$first  = $this->create_zip( 'first.zip', $this->wp_entries( 'wordpress/' ) );
+		$second = $this->create_zip( 'second.zip', $this->wp_entries( 'build/' ) );
+
+		putenv( "WP_CLI_TEST_CORE_ZIP={$first}" );
+		$first_cache_dir = FeatureContext::get_core_cache_dir();
+
+		putenv( "WP_CLI_TEST_CORE_ZIP={$second}" );
+		$second_cache_dir = FeatureContext::get_core_cache_dir();
+
+		$this->assertNotSame( $first_cache_dir, $second_cache_dir );
+		$this->assertStringEndsWith( substr( (string) md5_file( $second ), 0, 12 ), $second_cache_dir );
 	}
 
 	/**
@@ -214,28 +258,16 @@ class TestCoreZip extends TestCase {
 		$zip_file = $this->create_zip( 'release.zip', $this->wp_entries( 'wordpress/' ) );
 
 		putenv( "WP_CLI_TEST_CORE_ZIP={$zip_file}" );
-		$this->reset_core_zip();
 
-		try {
-			$this->assertStringEndsWith( 'wp-cli-test-core-download-cache-6.4.2', $this->get_core_cache_dir( '6.4.2' ) );
-		} finally {
-			putenv( 'WP_CLI_TEST_CORE_ZIP' );
-			$this->reset_core_zip();
-		}
+		$this->assertStringEndsWith( 'wp-cli-test-core-download-cache-6.4.2', FeatureContext::get_core_cache_dir( '6.4.2' ) );
 	}
 
 	public function testThrowsOnMissingConfiguredArchive(): void {
 		putenv( 'WP_CLI_TEST_CORE_ZIP=' . $this->temp_dir . DIRECTORY_SEPARATOR . 'missing.zip' );
-		$this->reset_core_zip();
 
-		try {
-			$this->expectException( RuntimeException::class );
-			$this->expectExceptionMessage( 'Could not read the WP_CLI_TEST_CORE_ZIP archive' );
+		$this->expectException( RuntimeException::class );
+		$this->expectExceptionMessage( 'Could not read the WP_CLI_TEST_CORE_ZIP archive' );
 
-			$this->get_core_cache_dir();
-		} finally {
-			putenv( 'WP_CLI_TEST_CORE_ZIP' );
-			$this->reset_core_zip();
-		}
+		FeatureContext::get_core_cache_dir();
 	}
 }
