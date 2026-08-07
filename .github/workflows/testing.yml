@@ -67,9 +67,10 @@ jobs:
   unit:
     needs: prepare
     if: ${{ needs.prepare.outputs.unit != '' }}
-    # Deliberately not "Unit | PHP ${{ matrix.php }}": there is only one unit leg
-    # per PHP version, so that would produce nine groups of one job each.
-    name: Unit
+    # Must vary by the dimension being grouped on and collide across every other.
+    # A name that does not vary with the matrix gets the matrix combination
+    # appended by GitHub, giving one group per leg.
+    name: Unit | PHP ${{ matrix.php }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.unit) }}
