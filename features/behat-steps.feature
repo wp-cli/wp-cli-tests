@@ -389,6 +389,19 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
     Then the wp-cli.yml file should exist
     And the mock-requests.php file should exist
+    And the mock-requests-data.php file should exist
+
+    When I run `php -l mock-requests.php`
+    Then STDOUT should contain:
+      """
+      No syntax errors detected
+      """
+
+    When I run `php -l mock-requests-data.php`
+    Then STDOUT should contain:
+      """
+      No syntax errors detected
+      """
 
   @require-wp
   Scenario: Test background process launch
