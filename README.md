@@ -24,11 +24,13 @@ To make use of the WP-CLI testing framework, you need to complete the following 
         "lint": "run-linter-tests",
         "phpcs": "run-phpcs-tests",
         "phpcbf": "run-phpcbf-cleanup",
+        "phpstan": "run-phpstan-tests",
         "phpunit": "run-php-unit-tests",
         "prepare-tests": "install-package-tests",
         "test": [
             "@lint",
             "@phpcs",
+            "@phpstan",
             "@phpunit",
             "@behat"
         ]
@@ -87,7 +89,9 @@ To make use of the WP-CLI testing framework, you need to complete the following 
     ```
 
     All other [PHPCS configuration options](https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
-6. Update your composer dependencies and regenerate your autoloader and binary folders:
+6. Optionally add a `phpstan-feature-files.neon.dist` file to the package root to also run PHPStan over the PHP snippets embedded in your feature files. See [Analysing the PHP blocks in feature files](#analysing-the-php-blocks-in-feature-files) below.
+
+7. Update your composer dependencies and regenerate your autoloader and binary folders:
     ```bash
     composer update
     ```
@@ -103,8 +107,65 @@ You can use the following commands to control the tests:
 * `composer lint` - Run only the linting test suite.
 * `composer phpcs` - Run only the code sniffer test suite.
 * `composer phpcbf` - Run only the code sniffer cleanup.
+* `composer phpstan` - Run only the static analysis.
 * `composer phpunit` - Run only the unit test suite.
 * `composer behat` - Run only the functional test suite.
+
+### Analysing the PHP blocks in feature files
+
+Feature files embed PHP snippets in docstrings, which none of the static analysis tools normally
+look at:
+
+```gherkin
+Given a wp-content/mu-plugins/test-harness.php file:
+  """
+  <?php
+  WP_CLI::add_command( 'test-harness', 'Test_Harness' );
+  """
+```
+
+Adding a `phpstan-feature-files.neon.dist` file to the package root makes `composer phpstan` analyse
+those snippets as well. The blocks are extracted into standalone PHP files that are padded so their
+line numbers match the feature file, which is what allows errors to be reported against the feature
+file itself:
+
+```
+ features/command.feature
+  438    Parameter #1 $message of static method WP_CLI::log() expects string, int<0, max> given.
+         🪪  argument.type
+```
+
+The defaults in `phpstan/feature-files.neon` are applied first, so the file only needs to hold what
+it wants to change. An empty set of parameters is enough to run with the defaults:
+
+```yaml
+parameters:
+	level: 5
+```
+
+Do note that snippets in feature files are fixtures, not production code, and that they run inside a
+WordPress installation the analysis knows nothing about. Expect to have to ignore errors that are
+not actually wrong, such as functions a scenario deliberately leaves undefined:
+
+```yaml
+parameters:
+	level: 5
+	ignoreErrors:
+		-
+			identifier: function.notFound
+			path: features/shutdown-handler.feature
+```
+
+Two kinds of blocks are left out of the analysis, and are listed at the end of the run:
+
+* Blocks that are not standalone PHP, such as snippets holding a placeholder that Behat substitutes
+  (`get_the_title( {POST_ID} )`) or code that is deliberately broken to test error handling. PHPStan
+  stops analysing altogether when a single file fails to parse, so these have to be skipped.
+* Docstrings that do not belong to a step creating a `.php` file, since those are not necessarily
+  PHP at all.
+
+Blocks that declare the same class or function as another block are analysed separately from each
+other, so that PHPStan does not resolve a name to the wrong block's declaration.
 
 ### Controlling what to test
 
