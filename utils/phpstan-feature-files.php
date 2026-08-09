@@ -244,7 +244,7 @@ function render_block( array $block ) {
 /**
  * Determine whether a block can be parsed as standalone PHP.
  *
- * A single unparseable file makes PHPStan abort the whole run, and feature files
+ * A single unparsable file makes PHPStan abort the whole run, and feature files
  * legitimately contain snippets that are not standalone PHP: deliberate syntax
  * errors, or Behat placeholders such as `{USER_ID}` that are substituted before
  * the snippet is ever written to disk.
