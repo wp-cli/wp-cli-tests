@@ -633,6 +633,119 @@ class TestPhpStanFeatureFiles extends TestCase {
 		$this->assertStringContainsString( 'Found 1 error(s)', $result['output'] );
 	}
 
+	/**
+	 * The path PHPStan reports is not necessarily spelled the way the extraction
+	 * wrote it: macOS resolves `/var` to `/private/var`, Windows has a short and
+	 * a long form of a directory name.
+	 */
+	public function test_report_maps_errors_from_a_differently_spelled_path(): void {
+		$this->create_feature_file(
+			'example.feature',
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      echo \$undefined;\n"
+			. "      \"\"\"\n"
+		);
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		$resolved = realpath( $this->target_dir );
+
+		$this->assertNotFalse( $resolved );
+
+		// Report the file through a spelling that differs from the one the
+		// extraction was given, the way the platforms above do it. The `/./`
+		// segment reproduces that on every platform.
+		file_put_contents(
+			$this->temp_dir . '/batch0.json',
+			(string) json_encode(
+				array(
+					'totals' => array(
+						'errors'      => 0,
+						'file_errors' => 1,
+					),
+					'files'  => array(
+						str_replace( '\\', '/', $resolved ) . '/./batch0/example.feature_L4_E7.php' => array(
+							'errors'   => 1,
+							'messages' => array(
+								array(
+									'message'    => 'Variable $undefined might not be defined.',
+									'line'       => 6,
+									'ignorable'  => true,
+									'identifier' => 'variable.undefined',
+								),
+							),
+						),
+					),
+					'errors' => array(),
+				)
+			)
+		);
+
+		$result = $this->run_script( array( 'report', 'extracted', 'batch0.json' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringNotContainsString( 'Unexpected file', $result['output'] );
+		$this->assertStringContainsString( 'features/example.feature', str_replace( '\\', '/', $result['output'] ) );
+	}
+
+	public function test_report_tolerates_results_without_messages(): void {
+		$this->create_feature_file(
+			'example.feature',
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n"
+		);
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		file_put_contents(
+			$this->temp_dir . '/batch0.json',
+			(string) json_encode(
+				array(
+					'files' => array(
+						$this->target_dir . '/batch0/example.feature_L4_E7.php' => array( 'errors' => 1 ),
+					),
+				)
+			)
+		);
+
+		$result = $this->run_script( array( 'report', 'extracted', 'batch0.json' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertStringNotContainsString( 'Warning', $result['output'] );
+	}
+
+	public function test_report_without_results_lists_skipped_blocks(): void {
+		$this->create_feature_file(
+			'example.feature',
+			"Feature: Example\n"
+			. "  Scenario: A block holding a Behat placeholder\n"
+			. "    Given a placeholder.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      var_export( get_the_title( {POST_ID} ) );\n"
+			. "      \"\"\"\n"
+		);
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		// A package whose feature files hold no analysable block produces no
+		// PHPStan results at all, which must not be reported as a failure.
+		$result = $this->run_script( array( 'report', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertStringContainsString( 'Skipped 1 PHP block(s)', $result['output'] );
+		$this->assertStringContainsString( 'No errors', $result['output'] );
+	}
+
 	public function test_report_succeeds_without_errors(): void {
 		$this->create_feature_file(
 			'example.feature',

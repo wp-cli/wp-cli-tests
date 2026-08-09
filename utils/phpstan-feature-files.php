@@ -28,6 +28,19 @@ const EXTRACTED_FILE_PATTERN = '/^(.*\.feature)_L(\d+)_E(\d+)\.php$/';
 const MANIFEST_FILE = 'manifest.json';
 
 /**
+ * Bring a path into the form used to compare it against another path.
+ *
+ * @param string $path Path to normalize.
+ * @return string Normalized path.
+ */
+function normalize_path( $path ) {
+	$path = rtrim( str_replace( '\\', '/', $path ), '/' );
+
+	// Windows paths are not case sensitive.
+	return DIRECTORY_SEPARATOR === '\\' ? strtolower( $path ) : $path;
+}
+
+/**
  * Determine whether a directory can be used as extraction target.
  *
  * Extraction removes previously extracted files from the target directory,
@@ -119,7 +132,8 @@ function remove_extracted_files( $target_dir ) {
  *
  * The docstring following such a step holds the contents of a PHP file, while
  * docstrings following other steps -- an expectation about the contents of a
- * file, for example -- are not necessarily PHP code and must not be touched.
+ * file, for example -- are not necessarily PHP code. A docstring that opens
+ * with `<?php` counts as PHP either way, see collect_blocks().
  *
  * @param string $line Line preceding a docstring.
  * @return bool Whether the line is a step creating a PHP file.
@@ -167,6 +181,9 @@ function collect_blocks( array $lines ) {
 		}
 
 		if ( $in_docstring ) {
+			// A block opening with `<?php` is PHP no matter which step precedes
+			// it, which covers PHP files that are not named `*.php`, such as the
+			// `.maintenance` file of a WordPress installation.
 			if ( ! $has_content && 0 === strpos( $trimmed, '<?php' ) ) {
 				$is_php_block = true;
 			}
@@ -417,7 +434,9 @@ function extract_feature_php( $source_dir, $target_dir ) {
 	$blocks  = [];
 	$skipped = [];
 
-	$iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $source_dir ) );
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $source_dir, FilesystemIterator::SKIP_DOTS )
+	);
 
 	$feature_files = [];
 	foreach ( $iterator as $file ) {
@@ -551,9 +570,23 @@ function read_manifest( $target_dir ) {
  * @return array{errors: array<string, array<int, array{line: int, message: string, identifier: string}>>, generic: string[]} Errors per feature file, plus errors not tied to a file.
  */
 function map_errors( array $blocks, $target_dir, array $results ) {
-	$target_real = realpath( $target_dir );
-	$target_real = false === $target_real ? $target_dir : str_replace( '\\', '/', $target_real );
-	$target_dir  = rtrim( str_replace( '\\', '/', $target_dir ), '/' );
+	$target_dir = rtrim( str_replace( '\\', '/', $target_dir ), '/' );
+
+	// The path PHPStan reports and the path the extraction wrote are not
+	// necessarily spelled the same: macOS resolves `/var` to `/private/var` and
+	// Windows has both a short and a long form of a directory name. Both
+	// spellings of every extracted file are therefore looked up.
+	$lookup = [];
+	foreach ( $blocks as $relative_target => $feature ) {
+		$path = $target_dir . '/' . $relative_target;
+		$real = realpath( $path );
+
+		$lookup[ normalize_path( $path ) ] = $feature;
+
+		if ( false !== $real ) {
+			$lookup[ normalize_path( $real ) ] = $feature;
+		}
+	}
 
 	$errors  = [];
 	$generic = [];
@@ -570,31 +603,38 @@ function map_errors( array $blocks, $target_dir, array $results ) {
 		}
 
 		foreach ( $result['files'] as $path => $file ) {
-			$path     = str_replace( '\\', '/', (string) $path );
-			$relative = null;
+			$path    = (string) $path;
+			$real    = realpath( $path );
+			$feature = null;
 
-			foreach ( [ $target_real, $target_dir ] as $prefix ) {
-				if ( '' !== $prefix && 0 === strpos( $path, $prefix . '/' ) ) {
-					$relative = substr( $path, strlen( $prefix ) + 1 );
+			foreach ( [ $path, false === $real ? null : $real ] as $candidate ) {
+				if ( null !== $candidate && isset( $lookup[ normalize_path( $candidate ) ] ) ) {
+					$feature = $lookup[ normalize_path( $candidate ) ];
 					break;
 				}
 			}
 
-			if ( null === $relative || ! isset( $blocks[ $relative ] ) ) {
-				$generic[] = sprintf( 'Unexpected file "%s" in the PHPStan results.', $path );
+			if ( null === $feature ) {
+				$generic[] = sprintf( 'Unexpected file "%s" in the PHPStan results.', str_replace( '\\', '/', $path ) );
 				continue;
 			}
-
-			$feature = $blocks[ $relative ];
 
 			if ( ! isset( $errors[ $feature ] ) ) {
 				$errors[ $feature ] = [];
 			}
 
+			if ( ! isset( $file['messages'] ) || ! is_array( $file['messages'] ) ) {
+				continue;
+			}
+
 			foreach ( $file['messages'] as $message ) {
+				if ( ! is_array( $message ) ) {
+					continue;
+				}
+
 				$errors[ $feature ][] = [
-					'line'       => (int) $message['line'],
-					'message'    => (string) $message['message'],
+					'line'       => isset( $message['line'] ) ? (int) $message['line'] : 0,
+					'message'    => isset( $message['message'] ) ? (string) $message['message'] : '',
 					'identifier' => isset( $message['identifier'] ) ? (string) $message['identifier'] : '',
 				];
 			}

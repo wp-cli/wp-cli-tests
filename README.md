@@ -129,40 +129,49 @@ those snippets as well. The blocks are extracted into standalone PHP files that 
 line numbers match the feature file, which is what allows errors to be reported against the feature
 file itself:
 
-```
+```text
  features/command.feature
   438    Parameter #1 $message of static method WP_CLI::log() expects string, int<0, max> given.
          🪪  argument.type
 ```
 
 The defaults in `phpstan/feature-files.neon` are applied first, so the file only needs to hold what
-it wants to change. An empty set of parameters is enough to run with the defaults:
+it wants to change. An empty file is enough to run with the defaults, and a level of its own looks
+like this:
 
-```yaml
+```neon
 parameters:
-	level: 5
+	level: 4
 ```
 
 Do note that snippets in feature files are fixtures, not production code, and that they run inside a
 WordPress installation the analysis knows nothing about. Expect to have to ignore errors that are
-not actually wrong, such as functions a scenario deliberately leaves undefined:
+not actually wrong, such as functions a scenario deliberately leaves undefined.
 
-```yaml
+An ignore matches against the extracted file rather than the feature file it came from. Those files
+are named `<feature file>_L<first line>_E<last line>.php`, with the feature file relative to the
+`features` directory, so ignoring an error for a whole feature file takes a pattern:
+
+```neon
 parameters:
-	level: 5
 	ignoreErrors:
 		-
 			identifier: function.notFound
-			path: features/shutdown-handler.feature
+			path: */shutdown-handler.feature_L*.php
 ```
+
+Since the blocks are analysed in more than one run (see below), an ignore that no run matches is not
+reported. A pattern that matches nothing at all therefore goes unnoticed, so it is worth checking
+that the error it targets is really gone.
 
 Two kinds of blocks are left out of the analysis, and are listed at the end of the run:
 
 * Blocks that are not standalone PHP, such as snippets holding a placeholder that Behat substitutes
   (`get_the_title( {POST_ID} )`) or code that is deliberately broken to test error handling. PHPStan
   stops analysing altogether when a single file fails to parse, so these have to be skipped.
-* Docstrings that do not belong to a step creating a `.php` file, since those are not necessarily
-  PHP at all.
+* Docstrings that neither belong to a step creating a `.php` file nor open with `<?php`, since those
+  are not necessarily PHP at all. The second rule covers PHP files that are not named `*.php`, such
+  as the `.maintenance` file of a WordPress installation.
 
 Blocks that declare the same class or function as another block are analysed separately from each
 other, so that PHPStan does not resolve a name to the wrong block's declaration.
