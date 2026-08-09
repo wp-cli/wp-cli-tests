@@ -21,6 +21,7 @@ use SebastianBergmann\CodeCoverage\CodeCoverage;
 use SebastianBergmann\Environment\Runtime;
 use RuntimeException;
 use DirectoryIterator;
+use WP_CLI\Extractor;
 use WP_CLI\Process;
 use WP_CLI\ProcessRun;
 use WP_CLI\Utils;
@@ -70,6 +71,22 @@ class FeatureContext implements Context {
 	 * @var string
 	 */
 	private static $cache_dir;
+
+	/**
+	 * Path to the local WordPress ZIP archive configured via WP_CLI_TEST_CORE_ZIP. Resolved once per suite.
+	 * Null while unresolved, false when no archive is configured.
+	 *
+	 * @var string|false|null
+	 */
+	private static $core_zip = null;
+
+	/**
+	 * The raw WP_CLI_TEST_CORE_ZIP value that self::$core_zip was resolved from, so that a
+	 * change of the environment variable is picked up instead of served from the memoized value.
+	 *
+	 * @var ?string
+	 */
+	private static $core_zip_source = null;
 
 	/**
 	 * The directory that holds the install cache, and which is copied to RUN_DIR during a "Given a WP installation" step. Recreated on each suite run.
@@ -722,15 +739,224 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Resolve the WordPress archive to install from, as configured through the
+	 * `WP_CLI_TEST_CORE_ZIP` environment variable.
+	 *
+	 * The variable accepts either a path to a local ZIP file or an HTTP(S) URL.
+	 * Remote archives are downloaded once per suite run.
+	 *
+	 * @return ?string Path to a local ZIP file, or null if the variable is not set.
+	 */
+	private static function get_core_zip(): ?string {
+		$source   = getenv( 'WP_CLI_TEST_CORE_ZIP' );
+		$source   = false === $source ? '' : $source;
+		$resolved = self::$core_zip;
+
+		if ( null !== $resolved && self::$core_zip_source === $source ) {
+			return false === $resolved ? null : $resolved;
+		}
+
+		self::$core_zip_source = $source;
+
+		$core_zip = $source;
+
+		if ( '' === $core_zip ) {
+			self::$core_zip = false;
+			return null;
+		}
+
+		if ( preg_match( '#^https?://#i', $core_zip ) ) {
+			$core_zip = self::download_core_zip( $core_zip );
+		}
+
+		if ( ! is_file( $core_zip ) || ! is_readable( $core_zip ) ) {
+			throw new RuntimeException( "Could not read the WP_CLI_TEST_CORE_ZIP archive: {$core_zip}" );
+		}
+
+		$realpath = realpath( $core_zip );
+		$resolved = false !== $realpath ? $realpath : $core_zip;
+
+		self::$core_zip = $resolved;
+
+		return $resolved;
+	}
+
+	/**
+	 * Download a remote WordPress archive to a local file.
+	 *
+	 * @param string $url
+	 * @return string Path to the downloaded file.
+	 */
+	private static function download_core_zip( $url ): string {
+		$download_location = sys_get_temp_dir() . '/wp-cli-test-core-zip-' . substr( md5( $url ), 0, 12 ) . '.zip';
+
+		$response = Utils\http_request(
+			'GET',
+			$url,
+			null,
+			[],
+			[
+				'filename' => $download_location,
+				'timeout'  => 600,
+			]
+		);
+
+		if ( 200 !== $response->status_code ) {
+			throw new RuntimeException( "Could not download WordPress archive from {$url} (HTTP code {$response->status_code})" );
+		}
+
+		return $download_location;
+	}
+
+	/**
+	 * Get the directory that a given WordPress version is cached in.
+	 *
+	 * Without an explicit version, this is derived from the contents of the archive configured
+	 * through `WP_CLI_TEST_CORE_ZIP`, if any, and from `WP_VERSION` otherwise.
+	 *
+	 * @param string $version
+	 * @return string
+	 */
+	public static function get_core_cache_dir( $version = '' ): string {
+		// An explicit version always takes precedence over a configured archive.
+		$core_zip = $version ? null : self::get_core_zip();
+
+		if ( $core_zip ) {
+			$hash = md5_file( $core_zip );
+
+			if ( false === $hash ) {
+				throw new RuntimeException( "Could not hash the WP_CLI_TEST_CORE_ZIP archive: {$core_zip}" );
+			}
+
+			return sys_get_temp_dir() . '/wp-cli-test-core-download-cache-zip-' . substr( $hash, 0, 12 );
+		}
+
+		$wp_version = $version ?: getenv( 'WP_VERSION' );
+
+		return sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . ( $wp_version ? "-$wp_version" : '' );
+	}
+
+	/**
+	 * Extract a WordPress ZIP archive into a destination directory.
+	 *
+	 * Supports archives that wrap WordPress in a single top-level directory --
+	 * `wordpress/` for wordpress.org releases, `build/` for some WordPress core
+	 * build artifacts -- as well as archives that contain WordPress at the root.
+	 *
+	 * @param string $zip_file
+	 * @param string $dest_dir
+	 */
+	public static function extract_wp_zip( $zip_file, $dest_dir ): void {
+		$temp_dir = sys_get_temp_dir() . '/wp-cli-test-core-zip-extract-' . uniqid( '', true );
+
+		$zip    = new \ZipArchive();
+		$opened = $zip->open( $zip_file );
+
+		if ( true !== $opened ) {
+			// Note that ZipArchive::getStatusString() cannot be used to describe this failure,
+			// as it errors out on an archive that failed to open on PHP < 8.0.
+			throw new RuntimeException( sprintf( 'Failed to open the zip file %s: %s', $zip_file, Extractor::zip_error_msg( (int) $opened ) ) );
+		}
+
+		try {
+			self::validate_zip_entries( $zip, $zip_file );
+
+			if ( ! $zip->extractTo( $temp_dir ) ) {
+				throw new RuntimeException( sprintf( 'Failed to extract files from the zip %s: %s', $zip_file, $zip->getStatusString() ) );
+			}
+		} finally {
+			$zip->close();
+		}
+
+		try {
+			$source_dir = self::find_wp_root( $temp_dir );
+
+			if ( null === $source_dir ) {
+				throw new RuntimeException( "The archive {$zip_file} does not look like a WordPress archive: no wp-includes/version.php found at its root or one level below." );
+			}
+
+			self::remove_dir( $dest_dir );
+
+			// Both directories live in the system temp folder, so a rename is
+			// normally possible and avoids copying thousands of files.
+			if ( ! @rename( $source_dir, $dest_dir ) ) {
+				// copy_dir() copies into an existing directory, so create it first.
+				if ( ! is_dir( $dest_dir ) && ! mkdir( $dest_dir, 0777, true ) && ! is_dir( $dest_dir ) ) {
+					throw new RuntimeException( "Could not create the WordPress destination directory: {$dest_dir}" );
+				}
+
+				self::copy_dir( $source_dir, $dest_dir );
+			}
+		} finally {
+			self::remove_dir( $temp_dir );
+		}
+	}
+
+	/**
+	 * Reject archives holding entries that point outside of the directory they are extracted into.
+	 *
+	 * ZipArchive::extractTo() normalizes such entries rather than following them, but an archive
+	 * containing them is malformed for our purposes on any PHP version.
+	 *
+	 * @param \ZipArchive $zip
+	 * @param string      $zip_file
+	 */
+	private static function validate_zip_entries( \ZipArchive $zip, $zip_file ): void {
+		// phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Property of the PHP ZipArchive class.
+		$num_files = $zip->numFiles;
+
+		for ( $i = 0; $i < $num_files; $i++ ) {
+			$name = $zip->getNameIndex( $i );
+
+			if ( false === $name ) {
+				continue;
+			}
+
+			$segments = explode( '/', str_replace( '\\', '/', $name ) );
+
+			// An empty first segment means the entry is an absolute path.
+			if ( in_array( '..', $segments, true ) || '' === $segments[0] || preg_match( '#^[a-zA-Z]:$#', $segments[0] ) ) {
+				throw new RuntimeException( "The archive {$zip_file} contains an entry that would be extracted outside of its destination: {$name}" );
+			}
+		}
+	}
+
+	/**
+	 * Find the WordPress root within an extracted archive.
+	 *
+	 * @param string $dir
+	 * @return ?string The directory holding wp-includes/version.php, or null if there is none.
+	 */
+	private static function find_wp_root( $dir ): ?string {
+		if ( is_readable( $dir . '/wp-includes/version.php' ) ) {
+			return $dir;
+		}
+
+		foreach ( new DirectoryIterator( $dir ) as $item ) {
+			if ( ! $item->isDir() || $item->isDot() ) {
+				continue;
+			}
+
+			$candidate = $item->getPathname();
+
+			if ( is_readable( $candidate . '/wp-includes/version.php' ) ) {
+				return $candidate;
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * We cache the results of `wp core download` to improve test performance.
 	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
 	 *
 	 * @param string $version
 	 */
 	private static function cache_wp_files( $version = '' ): void {
+		$core_zip               = $version ? null : self::get_core_zip();
 		$wp_version             = $version ?: getenv( 'WP_VERSION' );
-		$wp_version_suffix      = $wp_version ? "-$wp_version" : '';
-		$cache_dir              = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+		$cache_dir              = self::get_core_cache_dir( $version );
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
@@ -747,6 +973,12 @@ class FeatureContext implements Context {
 		}
 
 		if ( is_readable( $cache_dir . '/wp-includes/version.php' ) ) {
+			self::$cache_dir = $cache_dir;
+			return;
+		}
+
+		if ( $core_zip ) {
+			self::extract_wp_zip( $core_zip, $cache_dir );
 			self::$cache_dir = $cache_dir;
 			return;
 		}
@@ -1626,9 +1858,7 @@ class FeatureContext implements Context {
 	 * @param string $version
 	 */
 	public function download_wp( $subdir = '', $version = '' ): void {
-		$wp_version         = $version ?: getenv( 'WP_VERSION' );
-		$wp_version_suffix  = $wp_version ? "-$wp_version" : '';
-		$expected_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-download-cache' . $wp_version_suffix;
+		$expected_cache_dir = self::get_core_cache_dir( $version );
 
 		if ( ! self::$cache_dir || self::$cache_dir !== $expected_cache_dir ) {
 			self::cache_wp_files( $version );

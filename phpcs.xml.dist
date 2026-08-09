@@ -98,4 +98,19 @@
 	<rule ref="WordPress.WP.GlobalVariablesOverride">
 		<exclude-pattern>*/generate-coverage\.php$</exclude-pattern>
 	</rule>
+
+	<!-- These are stand-alone files that are copied into the test run directory and
+		 executed by the child WP-CLI process, not loaded as part of this package.
+		 They declare a class once per supported Requests major version, and their
+		 method signatures are dictated by the transport interface they implement,
+		 so unused parameters cannot be dropped. -->
+	<rule ref="Generic.Files.OneObjectStructurePerFile">
+		<exclude-pattern>*/src/Context/templates/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Classes.DuplicateClassName">
+		<exclude-pattern>*/src/Context/templates/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
+		<exclude-pattern>*/src/Context/templates/*</exclude-pattern>
+	</rule>
 </ruleset>

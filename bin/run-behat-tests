@@ -89,6 +89,14 @@ else
 	fi
 fi
 
+# When installing from an arbitrary archive, there is no version to resolve against
+# WordPress.org. Default to "trunk" so that no @require-wp tags are filtered out, as
+# such an archive is usually a development build. Set WP_VERSION explicitly alongside
+# WP_CLI_TEST_CORE_ZIP when the archive holds a specific release.
+if [ -n "${WP_CLI_TEST_CORE_ZIP-}" ] && [ -z "${WP_VERSION-}" ]; then
+	export WP_VERSION=trunk
+fi
+
 # Turn WP_VERSION into an actual number to make sure our tags work correctly.
 if [ "${WP_VERSION-latest}" = "latest" ]; then
 	export WP_VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r ".offers[0].current")
