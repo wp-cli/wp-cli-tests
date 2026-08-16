@@ -163,6 +163,12 @@ Here's how to run your tests against the latest trunk version of WordPress:
 WP_VERSION=trunk composer behat
 ```
 
+Resolving `latest`, or a `X.Y` version without a patch number, needs a network
+request. The answer is cached in the system temp directory for a day, so that
+repeated runs do not repeat the lookup, and so that a run without connectivity
+falls back to the last known answer. `WP_CLI_TEST_WP_VERSION_CACHE_TTL` sets the
+lifetime of that cache in seconds; `0` looks the version up every time.
+
 #### WordPress Archive
 
 Instead of downloading WordPress from WordPress.org, you can run the tests against an arbitrary
