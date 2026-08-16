@@ -22,12 +22,14 @@ To make use of the WP-CLI testing framework, you need to complete the following 
         "behat": "run-behat-tests",
         "behat-rerun": "rerun-behat-tests",
         "lint": "run-linter-tests",
+        "lint-gherkin": "run-gherkin-lint-tests",
         "phpcs": "run-phpcs-tests",
         "phpcbf": "run-phpcbf-cleanup",
         "phpunit": "run-php-unit-tests",
         "prepare-tests": "install-package-tests",
         "test": [
             "@lint",
+            "@lint-gherkin",
             "@phpcs",
             "@phpunit",
             "@behat"
@@ -148,7 +150,7 @@ this package's `package.json`, which exists only to hold that pin.
 Two environment variables make the test tools less chatty. Both are unset by default, which leaves the output exactly as it has always been.
 
   - `NO_COLOR` (the [no-color.org](https://no-color.org/) convention) stops the runners from forcing ANSI color codes on, and leaves the decision to each tool's own terminal detection. Set this when capturing output to a file or a pipe, where the escape sequences are noise.
-  - `WP_CLI_TEST_QUIET` switches the reporters to their most compact form: PHP_CodeSniffer reports one `file:line:col` line per violation with no progress ticker, PHPStan reports one `file:line:message` line per error with no progress bar and no result table, and Behat stops printing step definition snippets for undefined steps.
+  - `WP_CLI_TEST_QUIET` switches the reporters to their most compact form: PHP_CodeSniffer reports one `file:line:col` line per violation with no progress ticker, PHPStan reports one `file:line:message` line per error with no progress bar and no result table. Behat's own output is already minimal, so it is unaffected.
 
 `NO_COLOR` also covers the Gherkin linter, which colors its report unconditionally and has no plain output format of its own.
 
@@ -178,11 +180,12 @@ Here's how to run your tests against the latest trunk version of WordPress:
 WP_VERSION=trunk composer behat
 ```
 
-Resolving `latest`, or a `X.Y` version without a patch number, needs a network
-request. The answer is cached in the system temp directory for a day, so that
-repeated runs do not repeat the lookup, and so that a run without connectivity
-falls back to the last known answer. `WP_CLI_TEST_WP_VERSION_CACHE_TTL` sets the
-lifetime of that cache in seconds; `0` looks the version up every time.
+Resolving `latest`, or a `X.Y` version without a patch number, needs the
+WordPress versions data, which is fetched once and cached in the system temp
+directory for a day. Repeated runs do not repeat the request, and a run without
+connectivity falls back to the last known copy.
+`WP_CLI_TEST_WP_VERSION_CACHE_TTL` sets the lifetime of that cache in seconds;
+`0` fetches it every time.
 
 #### WordPress Archive
 
