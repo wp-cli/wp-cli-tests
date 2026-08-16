@@ -148,6 +148,20 @@ WP_VERSION=6.4.2 WP_CLI_TEST_CORE_ZIP=~/Downloads/wordpress-6.4.2.zip composer b
 Note that steps requesting an explicit version, such as `Given a WP 6.4.2 installation`, keep
 downloading that version from WordPress.org and ignore the archive.
 
+#### Environment-specific scenarios
+
+Some scenarios can only run in certain environments. Tagging them makes the test framework
+filter them out everywhere else, rather than having them fail for reasons unrelated to what
+they test.
+
+* `@require-wp-stable` — the scenario needs a version of WordPress that WordPress.org knows
+  about, such as one verifying an installation against the published checksums. It is
+  skipped when `WP_CLI_TEST_CORE_ZIP` is set, and when `WP_VERSION` is `trunk` or `nightly`.
+* `@require-mysql-socket` — the scenario connects to the database through a socket. It is
+  skipped when there is none, which is the case when the database server runs in a
+  container and is only reachable over TCP. Set `WP_CLI_TEST_DBSOCKET` to point at the
+  socket if it lives somewhere unusual.
+
 #### WP-CLI Binary
 
 You can run the tests against a specific WP-CLI binary, instead of using the one that has been built in your project's `vendor/bin` folder.
