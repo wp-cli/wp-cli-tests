@@ -141,6 +141,19 @@ if [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]] && vendor/bin/behat --help 2>/dev/n
 	BEHAT_EXTRA_ARGS+=('--xdebug')
 fi
 
+# Honor the NO_COLOR convention (https://no-color.org/).
+if [ -n "${NO_COLOR}" ]; then
+	BEHAT_EXTRA_ARGS+=('--no-colors')
+fi
+
+# Drop the step definition snippets that Behat prints for undefined steps. They
+# are long, and they are only actionable when you are writing new step
+# definitions in this package. Useful for CI logs and for AI coding agents,
+# which pay for every token of the report they read back.
+if [ -n "${WP_CLI_TEST_QUIET}" ]; then
+	BEHAT_EXTRA_ARGS+=('--no-snippets')
+fi
+
 # Run the functional tests.
 FORMAT_ARGS=(--format progress)
 for arg in "$@"; do

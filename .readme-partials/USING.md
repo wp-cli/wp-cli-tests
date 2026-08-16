@@ -104,6 +104,39 @@ composer behat -- features/cli-info.feature
 
 Prepending with the double dash is needed because the arguments would otherwise be sent to Composer itself, not the tool that Composer executes.
 
+The same mechanism works for narrowing a run down further, or for bailing out early:
+```bash
+# A single scenario, identified by the line it starts on.
+composer behat -- features/cli-info.feature:12
+
+# Every scenario carrying a given tag.
+composer behat -- --tags=@require-wp-5.0
+
+# Stop at the first failing scenario instead of running the whole suite.
+composer behat -- --stop-on-failure
+
+# Re-run only the scenarios that failed the last time.
+composer behat-rerun
+```
+
+### Controlling the amount of output
+
+Two environment variables make the test tools less chatty. Both are unset by default, which leaves the output exactly as it has always been.
+
+  - `NO_COLOR` (the [no-color.org](https://no-color.org/) convention) stops the runners from forcing ANSI color codes on, and leaves the decision to each tool's own terminal detection. Set this when capturing output to a file or a pipe, where the escape sequences are noise.
+  - `WP_CLI_TEST_QUIET` switches the reporters to their most compact form: PHP_CodeSniffer reports one `file:line:col` line per violation with no progress ticker, PHPStan reports one `file:line:message` line per error with no progress bar and no result table, and Behat stops printing step definition snippets for undefined steps.
+
+```bash
+NO_COLOR=1 WP_CLI_TEST_QUIET=1 composer phpstan
+```
+
+This is worth setting permanently in environments that read the output back rather than display it, such as an AI coding agent's shell:
+
+```bash
+export NO_COLOR=1
+export WP_CLI_TEST_QUIET=1
+```
+
 ### Controlling the test environment
 
 #### WordPress Version
