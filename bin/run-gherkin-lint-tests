@@ -42,9 +42,17 @@ then
 	CONFIG_FILE="${WP_CLI_TESTS_ROOT}/.gherkin-lintrc"
 fi
 
-# Pinned so that a new release of the linter cannot turn a green build red
-# without a commit in this repository.
-GHERKIN_LINT_VERSION="${WP_CLI_TEST_GHERKIN_LINT_VERSION:-1.0.2}"
+# The linter is pinned so that one of its releases cannot turn a green build red
+# without a commit here. The pin lives in package.json rather than in this file,
+# because a version string inside a shell script is invisible to Dependabot.
+PACKAGE_JSON="${WP_CLI_TESTS_ROOT}/package.json"
+GHERKIN_LINT_VERSION=$( php -r '$package = json_decode( (string) file_get_contents( $argv[1] ), true ); echo isset( $package["devDependencies"]["gherkin-lint-plus"] ) ? $package["devDependencies"]["gherkin-lint-plus"] : "";' "${PACKAGE_JSON}" 2> /dev/null )
+
+if [ -z "${GHERKIN_LINT_VERSION}" ]
+then
+	echo "Could not read the pinned gherkin-lint-plus version from ${PACKAGE_JSON}."
+	exit 1;
+fi
 
 # Without an explicit path the linter walks the whole working directory, vendor
 # included. The feature files are the target.

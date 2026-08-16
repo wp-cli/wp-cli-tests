@@ -129,8 +129,8 @@ different rules can override it by committing its own `.gherkin-lintrc`.
 
 The linter is a Node package, so it is run through `npx` and needs Node.js 20 or
 later. Where `npx` is not available the check reports that it is skipping, rather
-than failing a suite that is otherwise entirely PHP. Pin a different release of
-the linter with `WP_CLI_TEST_GHERKIN_LINT_VERSION`.
+than failing a suite that is otherwise entirely PHP. Its version is pinned in
+this package's `package.json`, which exists only to hold that pin.
 
 ### Controlling the amount of output
 
