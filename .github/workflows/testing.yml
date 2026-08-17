@@ -10,9 +10,28 @@ on:
   schedule:
     - cron:  '17 1 * * *' # Run every day on a seemly random time.
 
+permissions:
+  contents: read
+
+# Previously inherited from reusable-testing.yml. The fan-out below is owned by
+# this file now, so the concurrency group has to live here too.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Trial of the fanned-out shape from wp-cli/.github#277. A matrix only becomes a
+# collapsible group in the Actions run view when it sits on a job declared in the
+# workflow the run belongs to, so the legs are started from here rather than from
+# inside reusable-testing.yml.
+#
+# TODO: the three refs below point at the pull request branch because
+# reusable-prepare-matrix.yml does not exist on main yet. Switch them to @main
+# once wp-cli/.github#277 is merged.
 jobs:
-  test:
-    uses: wp-cli/.github/.github/workflows/reusable-testing.yml@main
+  prepare:
+    name: Prepare test matrices
+    uses: wp-cli/.github/.github/workflows/reusable-prepare-matrix.yml@claude/wp-cli-actions-optimization-mozclo
+    # Carried over unchanged from the previous `test` job.
     with:
       matrix: |
         {
@@ -44,3 +63,42 @@ jobs:
           ],
           "exclude": []
         }
+
+  unit:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.unit != '' }}
+    # Must vary by the dimension being grouped on and collide across every other.
+    # A name that does not vary with the matrix gets the matrix combination
+    # appended by GitHub, giving one group per leg.
+    name: Unit | PHP ${{ matrix.php }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.unit) }}
+    uses: wp-cli/.github/.github/workflows/reusable-unit.yml@claude/wp-cli-actions-optimization-mozclo
+    secrets: inherit
+    with:
+      php: ${{ matrix.php }}
+      coverage: ${{ matrix.coverage == true }}
+      os: ${{ matrix.os || '' }}
+      # The job name above already states the suite and PHP version.
+      grouped: true
+
+  functional:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.functional != '' }}
+    name: Behat | PHP ${{ matrix.php }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.functional) }}
+    uses: wp-cli/.github/.github/workflows/reusable-functional.yml@claude/wp-cli-actions-optimization-mozclo
+    secrets: inherit
+    with:
+      php: ${{ matrix.php }}
+      wp: ${{ matrix.wp }}
+      dbtype: ${{ matrix.dbtype || 'mysql' }}
+      mysql: ${{ matrix.mysql || '' }}
+      object_cache: ${{ matrix.object_cache }}
+      coverage: ${{ matrix.coverage == true }}
+      os: ${{ matrix.os || '' }}
+      # The job name above already states the suite and PHP version.
+      grouped: true
