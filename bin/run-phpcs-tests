@@ -1,7 +1,43 @@
 #!/bin/sh
 
-# Run the code style check only if a configuration file exists.
+EXIT_CODE=0
+
+# 1. Run standard PHP code style check if a configuration file exists.
 if [ -f ".phpcs.xml" ] || [ -f "phpcs.xml" ] || [ -f ".phpcs.xml.dist" ] || [ -f "phpcs.xml.dist" ]
 then
-	vendor/bin/phpcs "$@"
+	vendor/bin/phpcs "$@" || EXIT_CODE=$?
 fi
+
+# 2. Run PHPCS over extracted PHP blocks in .feature files if features/ directory exists.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -d "features" ] && [ -f "$DIR/utils/extract-feature-php.php" ]
+then
+	TEMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'feature_phpcs')
+	PHPCS_OUTPUT=$(mktemp 2>/dev/null || mktemp -t 'feature_phpcs_output')
+	trap 'rm -rf "$TEMP_DIR" "$PHPCS_OUTPUT"' EXIT HUP INT TERM
+
+	if php "$DIR/utils/extract-feature-php.php" extract features "$TEMP_DIR" >/dev/null
+	then
+		if [ -d "$TEMP_DIR" ] && [ "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]
+		then
+			# The report is written to a file so that the status of PHPCS itself
+			# is preserved instead of the status of the commands rewriting it.
+			vendor/bin/phpcs --standard=WP_CLI_CS --warning-severity=0 \
+				--exclude=Generic.Files.InlineHTML,Generic.Files.LineEndings,WordPress.Files.FileName,Squiz.Commenting.FileComment,Universal.WhiteSpace.PrecisionAlignment,PSR2.Files.EndFileNewline,PSR2.Methods.FunctionClosingBrace,Generic.PHP.CharacterBeforePHPOpenTag,Generic.PHP.RequireStrictTypes,Squiz.WhiteSpace.SuperfluousWhitespace,WordPress.NamingConventions.PrefixAllGlobals,Universal.Files.SeparateFunctionsFromOO,Generic.Files.OneObjectStructurePerFile,WordPress.WP.GlobalVariablesOverride,Universal.Namespaces.OneDeclarationPerFile,Universal.Namespaces.DisallowCurlyBraceSyntax,WordPress.PHP.YodaConditions,Universal.Namespaces.DisallowDeclarationWithoutName,PSR12.Files.FileHeader,Generic.CodeAnalysis.EmptyStatement \
+				"$TEMP_DIR" >"$PHPCS_OUTPUT" 2>&1 || EXIT_CODE=$?
+
+			# The temporary directory is reported through its resolved path.
+			TEMP_DIR_REAL=$(cd "$TEMP_DIR" && pwd -P)
+
+			sed -E \
+				-e 's/\.feature_L[0-9]+_E[0-9]+_(HASPHP|NOPHP)\.php/.feature/g' \
+				-e "s|$TEMP_DIR_REAL/|features/|g" \
+				-e "s|$TEMP_DIR/|features/|g" \
+				"$PHPCS_OUTPUT"
+		fi
+	else
+		EXIT_CODE=1
+	fi
+fi
+
+exit $EXIT_CODE
