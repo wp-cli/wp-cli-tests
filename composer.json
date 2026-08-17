@@ -79,6 +79,7 @@
         "bin/install-package-tests",
         "bin/rerun-behat-tests",
         "bin/run-behat-tests",
+        "bin/run-gherkin-lint-tests",
         "bin/run-linter-tests",
         "bin/run-php-unit-tests",
         "bin/run-phpcs-tests",
@@ -89,6 +90,7 @@
         "behat": "run-behat-tests",
         "behat-rerun": "rerun-behat-tests",
         "lint": "run-linter-tests",
+        "lint-gherkin": "run-gherkin-lint-tests",
         "phpcs": "run-phpcs-tests",
         "phpcbf": "run-phpcbf-cleanup",
         "phpstan": "run-phpstan-tests",
@@ -96,6 +98,7 @@
         "prepare-tests": "install-package-tests",
         "test": [
             "@lint",
+            "@lint-gherkin",
             "@phpcs",
             "@phpstan",
             "@phpunit",

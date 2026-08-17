@@ -1,0 +1,90 @@
+#!/bin/sh
+
+# Run the Gherkin linter only if there are feature files to lint.
+if [ ! -d "features" ]
+then
+	exit 0;
+fi
+
+# The linter is a Node package, which a PHP project cannot assume is present.
+# Skip rather than fail, the same way the Behat runner skips a package without a
+# behat.yml. The check still runs in CI, where Node is always available.
+if ! command -v npx > /dev/null 2>&1
+then
+	echo 'Did not detect the "npx" command, skipping the Gherkin linting.'
+	echo "It is part of Node.js 20 or later, see https://nodejs.org/ for installation instructions."
+	exit 0;
+fi
+
+# To retrieve the WP-CLI tests package root folder, we start with this scripts
+# location.
+SOURCE="$0"
+
+# Resolve $SOURCE until the file is no longer a symlink.
+while [ -h "$SOURCE" ]; do
+	DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+	SOURCE="$( readlink "$SOURCE" )"
+	# If $SOURCE was a relative symlink, we need to resolve it relative to the
+	# path where the symlink file was located.
+	case $SOURCE in
+		/*) ;;
+		*) SOURCE="$DIR/$SOURCE";;
+	esac
+done
+
+# Fetch the root folder of the WP-CLI tests package.
+WP_CLI_TESTS_ROOT="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
+
+# A project can override the shared ruleset by committing its own .gherkin-lintrc.
+CONFIG_FILE=".gherkin-lintrc"
+if [ ! -f "${CONFIG_FILE}" ]
+then
+	CONFIG_FILE="${WP_CLI_TESTS_ROOT}/.gherkin-lintrc"
+fi
+
+# The linter is pinned so that one of its releases cannot turn a green build red
+# without a commit here. The pin lives in package.json rather than in this file,
+# because a version string inside a shell script is invisible to Dependabot.
+PACKAGE_JSON="${WP_CLI_TESTS_ROOT}/package.json"
+GHERKIN_LINT_VERSION=$( php -r '$package = json_decode( (string) file_get_contents( $argv[1] ), true ); echo isset( $package["devDependencies"]["gherkin-lint-plus"] ) ? $package["devDependencies"]["gherkin-lint-plus"] : "";' "${PACKAGE_JSON}" 2> /dev/null )
+
+if [ -z "${GHERKIN_LINT_VERSION}" ]
+then
+	echo "Could not read the pinned gherkin-lint-plus version from ${PACKAGE_JSON}."
+	exit 1;
+fi
+
+# Without an explicit path the linter walks the whole working directory, vendor
+# included. The feature files are the target.
+if [ $# -eq 0 ]
+then
+	set -- features
+fi
+
+run_linter() {
+	npx --yes "gherkin-lint-plus@${GHERKIN_LINT_VERSION}" --config "${CONFIG_FILE}" "$@"
+}
+
+if [ -n "${NO_COLOR}" ]
+then
+	# The linter colors its report unconditionally: it honors neither NO_COLOR
+	# nor the absence of a terminal, and "stylish" is its only output format.
+	# It writes the report to STDERR, so strip the escape sequences from that
+	# stream while leaving STDOUT and the exit code alone.
+	STDERR_FILE=$( mktemp )
+
+	run_linter "$@" 2> "${STDERR_FILE}"
+	STATUS=$?
+
+	if [ -s "${STDERR_FILE}" ]
+	then
+		ESC=$( printf '\033' )
+		sed "s/${ESC}\[[0-9;]*m//g" "${STDERR_FILE}" >&2
+	fi
+
+	rm -f "${STDERR_FILE}"
+
+	exit ${STATUS};
+fi
+
+run_linter "$@"

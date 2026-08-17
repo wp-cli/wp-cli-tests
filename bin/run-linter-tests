@@ -1,3 +1,11 @@
 #!/bin/sh
 
-vendor/bin/parallel-lint -j 10 --colors --exclude vendor . "$@"
+# Honor the NO_COLOR convention (https://no-color.org/) by leaving the color
+# decision to the tool's own TTY detection instead of forcing it.
+COLOR_ARGS="--colors"
+if [ -n "${NO_COLOR}" ]; then
+	COLOR_ARGS=""
+fi
+
+# shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.
+vendor/bin/parallel-lint -j 10 $COLOR_ARGS --exclude vendor . "$@"
