@@ -3,7 +3,7 @@ wp-cli/wp-cli-tests
 
 WP-CLI testing framework
 
-[![Testing](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml/badge.svg)](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml)
+[![Testing](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml/badge.svg)](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml) [![Code Coverage](https://codecov.io/gh/wp-cli/wp-cli-tests/branch/main/graph/badge.svg)](https://codecov.io/gh/wp-cli/wp-cli-tests/tree/main)
 
 Quick links: [Using](#using) | [Contributing](#contributing) | [Support](#support)
 
