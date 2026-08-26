@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# Run the static analysis only if a configuration file exists.
+EXIT_CODE=0
+
+# 1. Run the static analysis only if a configuration file exists.
 if [ -f "phpstan.dist.neon" ] || [ -f "phpstan.neon.dist" ] || [ -f "phpstan.neon" ]
 then
 	EXTRA_ARGS=""
@@ -18,5 +20,92 @@ then
 	fi
 
 	# shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.
-	vendor/bin/phpstan --memory-limit=2048M analyse $EXTRA_ARGS "$@"
+	vendor/bin/phpstan --memory-limit=2048M analyse $EXTRA_ARGS "$@" || EXIT_CODE=$?
 fi
+
+# 2. Run PHPStan over the PHP blocks in .feature files if the package opted in.
+# Composer installs this script as a symlink in the vendor binary directory, so
+# it has to be resolved before the root of this package can be derived from it.
+SOURCE="$0"
+while [ -h "$SOURCE" ]
+do
+	SOURCE_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+	SOURCE="$(readlink "$SOURCE")"
+	# A relative symlink is resolved against the directory holding the symlink.
+	case "$SOURCE" in
+		/*) ;;
+		*) SOURCE="$SOURCE_DIR/$SOURCE" ;;
+	esac
+done
+DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+FEATURE_CONFIG=""
+for CANDIDATE in "phpstan-feature-files.neon" "phpstan-feature-files.neon.dist"
+do
+	if [ -f "$CANDIDATE" ]
+	then
+		FEATURE_CONFIG="$(pwd)/$CANDIDATE"
+		break
+	fi
+done
+
+if [ -d "features" ] && [ -n "$FEATURE_CONFIG" ] && [ -f "$DIR/utils/phpstan-feature-files.php" ]
+then
+	TEMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'feature_phpstan')
+	trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
+
+	# Results are only reported when the extraction they are based on succeeded.
+	if php "$DIR/utils/phpstan-feature-files.php" extract features "$TEMP_DIR/blocks"
+	then
+		{
+			echo "includes:"
+			echo "	- $DIR/phpstan/feature-files.neon"
+			echo "	- $FEATURE_CONFIG"
+
+			# The functions in the `WP_CLI\Utils` namespace are pulled in through the
+			# `files` autoloader, which does not make them known to PHPStan.
+			if [ -d "vendor/wp-cli/wp-cli" ]
+			then
+				echo "parameters:"
+				echo "	scanDirectories:"
+				echo "		- $(pwd)/vendor/wp-cli/wp-cli"
+			fi
+		} > "$TEMP_DIR/phpstan-feature-files.neon"
+
+		# Blocks are spread over batches that do not declare the same symbol twice,
+		# so that PHPStan does not resolve a name to another block's declaration.
+		for BATCH in "$TEMP_DIR"/blocks/batch*
+		do
+			[ -d "$BATCH" ] || continue
+
+			NAME="$(basename "$BATCH")"
+
+			vendor/bin/phpstan --memory-limit=2048M analyse \
+				--configuration="$TEMP_DIR/phpstan-feature-files.neon" \
+				--error-format=json \
+				--no-progress \
+				"$BATCH" > "$TEMP_DIR/$NAME.json" 2>"$TEMP_DIR/$NAME.stderr"
+
+			# The findings are reported against the feature files they came from,
+			# so PHPStan's own output is only of interest when it produced none.
+			if [ ! -s "$TEMP_DIR/$NAME.json" ] && [ -s "$TEMP_DIR/$NAME.stderr" ]
+			then
+				cat "$TEMP_DIR/$NAME.stderr" >&2
+			fi
+		done
+
+		# The glob stays unexpanded when no batch produced results, which is the
+		# case for a package whose feature files hold no PHP block at all. The
+		# report is still worth running, as it lists the blocks that were skipped.
+		set -- "$TEMP_DIR"/batch*.json
+		if [ -f "$1" ]
+		then
+			php "$DIR/utils/phpstan-feature-files.php" report "$TEMP_DIR/blocks" "$@" || EXIT_CODE=$?
+		else
+			php "$DIR/utils/phpstan-feature-files.php" report "$TEMP_DIR/blocks" || EXIT_CODE=$?
+		fi
+	else
+		EXIT_CODE=1
+	fi
+fi
+
+exit $EXIT_CODE
