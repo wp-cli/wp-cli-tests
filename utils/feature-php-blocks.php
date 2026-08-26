@@ -126,6 +126,101 @@ function is_php_file_step( $line ) {
 }
 
 /**
+ * Find the feature files of a source directory.
+ *
+ * @param string $source_dir Source directory containing .feature files.
+ * @return string[] Sorted paths of the feature files, with forward slashes.
+ */
+function find_feature_files( $source_dir ) {
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $source_dir, FilesystemIterator::SKIP_DOTS )
+	);
+
+	$feature_files = [];
+
+	foreach ( $iterator as $file ) {
+		if ( $file->isFile() && 'feature' === $file->getExtension() ) {
+			$feature_files[] = str_replace( '\\', '/', $file->getPathname() );
+		}
+	}
+
+	// A stable order keeps the results of a run comparable to those of the next.
+	sort( $feature_files );
+
+	return $feature_files;
+}
+
+/**
+ * Collect the PHP blocks contained in a single feature file.
+ *
+ * A docstring holds a PHP block when the step it belongs to creates a `.php`
+ * file, and also when it opens with `<?php`, which covers PHP files that are
+ * not named `*.php`, such as the `.maintenance` file of a WordPress install.
+ *
+ * Which of the two recognised a block is reported back rather than decided
+ * here, as a tool writing a block back cannot afford the second rule: a
+ * docstring stating an expectation about the contents of a file routinely
+ * opens with `<?php`, and reformatting one would make it stop matching the
+ * file it is checked against.
+ *
+ * @param string[] $lines Lines of the feature file.
+ * @return array<int, array{start: int, end: int, lines: array<int, string>, from_step: bool, has_php_tag: bool}>|null Blocks, or null on an unterminated docstring.
+ */
+function collect_blocks( array $lines ) {
+	$blocks          = [];
+	$in_docstring    = false;
+	$from_step       = false;
+	$has_php_tag     = false;
+	$has_content     = false;
+	$start_line      = 0;
+	$docstring_lines = [];
+
+	foreach ( $lines as $index => $line ) {
+		$trimmed = trim( $line );
+
+		if ( 0 === strpos( $trimmed, '"""' ) || 0 === strpos( $trimmed, "'''" ) ) {
+			if ( ! $in_docstring ) {
+				$in_docstring    = true;
+				$from_step       = $index > 0 && is_php_file_step( $lines[ $index - 1 ] );
+				$has_php_tag     = false;
+				$has_content     = false;
+				$docstring_lines = [];
+				$start_line      = $index;
+			} else {
+				$in_docstring = false;
+
+				if ( ( $from_step || $has_php_tag ) && ! empty( $docstring_lines ) ) {
+					$blocks[] = [
+						'start'       => $start_line,
+						'end'         => $index,
+						'lines'       => $docstring_lines,
+						'from_step'   => $from_step,
+						'has_php_tag' => $has_php_tag,
+					];
+				}
+			}
+			continue;
+		}
+
+		if ( $in_docstring ) {
+			if ( ! $has_content && 0 === strpos( $trimmed, '<?php' ) ) {
+				$has_php_tag = true;
+			}
+
+			if ( '' !== $trimmed ) {
+				$has_content = true;
+			}
+
+			// Every line is kept, including the empty ones leading up to
+			// an opening tag, so that line numbers keep matching.
+			$docstring_lines[ $index ] = $line;
+		}
+	}
+
+	return $in_docstring ? null : $blocks;
+}
+
+/**
  * Remove files of a previous extraction from the target directory.
  *
  * Only files created by this script are removed, so that an unrelated file in

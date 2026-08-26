@@ -58,6 +58,45 @@ function get_common_indent( array $lines ) {
 }
 
 /**
+ * Turn a PHP block into the source of a standalone PHP file.
+ *
+ * The block is padded with one empty line per preceding line of the feature
+ * file, so that the line numbers PHP_CodeSniffer reports are the line numbers
+ * of the feature file. A block that does not bring its own opening tag is
+ * given one on the line of the docstring delimiter, which is the line right
+ * before the first line of code and therefore free.
+ *
+ * Unlike the analysis in `phpstan-feature-files.php`, an opening tag that the
+ * block brings along stays where it is. A fix is written back into the feature
+ * file, so the checked copy has to line up with the block it came from.
+ *
+ * @param array{start: int, lines: array<int, string>, has_php_tag: bool} $block Block to render.
+ * @return string Source of the standalone PHP file.
+ */
+function render_fixable_block( array $block ) {
+	$indent_length = strlen( (string) get_common_indent( $block['lines'] ) );
+
+	$out_lines = [];
+	for ( $i = 0; $i < $block['start'] + 1; $i++ ) {
+		$out_lines[ $i ] = "\n";
+	}
+
+	if ( ! $block['has_php_tag'] ) {
+		$out_lines[ $block['start'] ] = "<?php\n";
+	}
+
+	foreach ( $block['lines'] as $line_idx => $code_line ) {
+		if ( '' === trim( $code_line ) ) {
+			$out_lines[ $line_idx ] = "\n";
+		} else {
+			$out_lines[ $line_idx ] = substr( $code_line, $indent_length );
+		}
+	}
+
+	return implode( '', $out_lines );
+}
+
+/**
  * Extract PHP blocks from a source directory of feature files to a target directory.
  *
  * @param string $source_dir Source directory containing .feature files.
@@ -82,102 +121,44 @@ function extract_feature_php( $source_dir, $target_dir ) {
 
 	$success = true;
 
-	$directory = new RecursiveDirectoryIterator( $source_dir );
-	$iterator  = new RecursiveIteratorIterator( $directory );
+	foreach ( find_feature_files( $source_dir ) as $filepath ) {
+		$relative = substr( $filepath, strlen( $source_dir ) + 1 );
+		$lines    = file( $filepath );
 
-	foreach ( $iterator as $file ) {
-		if ( $file->isFile() && 'feature' === $file->getExtension() ) {
-			$filepath = str_replace( '\\', '/', $file->getPathname() );
-			$relative = substr( $filepath, strlen( $source_dir ) + 1 );
-			$lines    = file( $filepath );
+		if ( false === $lines ) {
+			fwrite( STDERR, sprintf( 'Could not read "%s".', $filepath ) . PHP_EOL );
+			$success = false;
+			continue;
+		}
 
-			if ( false === $lines ) {
-				fwrite( STDERR, sprintf( 'Could not read "%s".', $filepath ) . PHP_EOL );
+		$blocks = collect_blocks( $lines );
+
+		if ( null === $blocks ) {
+			fwrite( STDERR, sprintf( 'Unterminated docstring in "%s".', $filepath ) . PHP_EOL );
+			$success = false;
+			continue;
+		}
+
+		foreach ( $blocks as $block ) {
+			// A docstring that merely opens with `<?php` is not necessarily a
+			// PHP file, and a block is fixed in place here, so the step is what
+			// decides. See is_php_file_step().
+			if ( ! $block['from_step'] ) {
+				continue;
+			}
+
+			$php_flag    = $block['has_php_tag'] ? 'HASPHP' : 'NOPHP';
+			$target_file = $target_dir . '/' . $relative . '_L' . ( $block['start'] + 1 ) . '_E' . ( $block['end'] + 1 ) . '_' . $php_flag . '.php';
+
+			$target_subdir = dirname( $target_file );
+			if ( ! is_dir( $target_subdir ) && ! mkdir( $target_subdir, 0777, true ) && ! is_dir( $target_subdir ) ) {
+				fwrite( STDERR, sprintf( 'Could not create directory "%s".', $target_subdir ) . PHP_EOL );
 				$success = false;
 				continue;
 			}
 
-			$in_docstring    = false;
-			$is_php_block    = false;
-			$start_line      = 0;
-			$docstring_lines = [];
-
-			foreach ( $lines as $index => $line ) {
-				$trimmed = trim( $line );
-
-				if ( 0 === strpos( $trimmed, '"""' ) || 0 === strpos( $trimmed, "'''" ) ) {
-					if ( ! $in_docstring ) {
-						$in_docstring    = true;
-						$is_php_block    = false;
-						$docstring_lines = [];
-						$start_line      = $index;
-
-						if ( $index > 0 && is_php_file_step( $lines[ $index - 1 ] ) ) {
-							$is_php_block = true;
-						}
-					} else {
-						$in_docstring = false;
-						if ( $is_php_block && ! empty( $docstring_lines ) ) {
-							$indent_length = strlen( (string) get_common_indent( $docstring_lines ) );
-
-							$has_php_tag = false;
-							foreach ( $docstring_lines as $code_line ) {
-								if ( '' !== trim( $code_line ) ) {
-									if ( 0 === strpos( trim( $code_line ), '<?php' ) ) {
-										$has_php_tag = true;
-									}
-									break;
-								}
-							}
-
-							$out_lines = [];
-							for ( $i = 0; $i < $start_line + 1; $i++ ) {
-								$out_lines[ $i ] = "\n";
-							}
-
-							// The docstring delimiter is the line right before the first line of
-							// code, so an added opening tag goes there to keep line numbers intact.
-							if ( ! $has_php_tag ) {
-								$out_lines[ $start_line ] = "<?php\n";
-							}
-
-							foreach ( $docstring_lines as $line_idx => $code_line ) {
-								if ( '' === trim( $code_line ) ) {
-									$out_lines[ $line_idx ] = "\n";
-								} else {
-									$out_lines[ $line_idx ] = substr( $code_line, $indent_length );
-								}
-							}
-
-							$end_line    = $index;
-							$php_flag    = $has_php_tag ? 'HASPHP' : 'NOPHP';
-							$target_file = $target_dir . '/' . $relative . '_L' . ( $start_line + 1 ) . '_E' . ( $end_line + 1 ) . '_' . $php_flag . '.php';
-
-							$target_subdir = dirname( $target_file );
-							if ( ! is_dir( $target_subdir ) && ! mkdir( $target_subdir, 0777, true ) && ! is_dir( $target_subdir ) ) {
-								fwrite( STDERR, sprintf( 'Could not create directory "%s".', $target_subdir ) . PHP_EOL );
-								$success = false;
-								continue;
-							}
-
-							if ( false === file_put_contents( $target_file, implode( '', $out_lines ) ) ) {
-								fwrite( STDERR, sprintf( 'Could not write "%s".', $target_file ) . PHP_EOL );
-								$success = false;
-							}
-						}
-					}
-					continue;
-				}
-
-				if ( $in_docstring ) {
-					// Every line is kept, including the empty ones leading up to
-					// an opening tag, so that line numbers keep matching.
-					$docstring_lines[ $index ] = $line;
-				}
-			}
-
-			if ( $in_docstring ) {
-				fwrite( STDERR, sprintf( 'Unterminated docstring in "%s".', $filepath ) . PHP_EOL );
+			if ( false === file_put_contents( $target_file, render_fixable_block( $block ) ) ) {
+				fwrite( STDERR, sprintf( 'Could not write "%s".', $target_file ) . PHP_EOL );
 				$success = false;
 			}
 		}

@@ -12,10 +12,7 @@
 
 namespace WP_CLI\Tests;
 
-use FilesystemIterator;
 use ParseError;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 
 require_once __DIR__ . '/feature-php-blocks.php';
 
@@ -28,65 +25,6 @@ const EXTRACTED_FILE_PATTERN = '/^(.*\.feature)_L(\d+)_E(\d+)\.php$/';
  * Name of the manifest describing an extraction.
  */
 const MANIFEST_FILE = 'manifest.json';
-
-/**
- * Collect the PHP blocks contained in a single feature file.
- *
- * @param string[] $lines Lines of the feature file.
- * @return array<int, array{start: int, end: int, lines: array<int, string>}>|null Blocks, or null on an unterminated docstring.
- */
-function collect_blocks( array $lines ) {
-	$blocks          = [];
-	$in_docstring    = false;
-	$is_php_block    = false;
-	$has_content     = false;
-	$start_line      = 0;
-	$docstring_lines = [];
-
-	foreach ( $lines as $index => $line ) {
-		$trimmed = trim( $line );
-
-		if ( 0 === strpos( $trimmed, '"""' ) || 0 === strpos( $trimmed, "'''" ) ) {
-			if ( ! $in_docstring ) {
-				$in_docstring    = true;
-				$is_php_block    = $index > 0 && is_php_file_step( $lines[ $index - 1 ] );
-				$has_content     = false;
-				$docstring_lines = [];
-				$start_line      = $index;
-			} else {
-				$in_docstring = false;
-
-				if ( $is_php_block && ! empty( $docstring_lines ) ) {
-					$blocks[] = [
-						'start' => $start_line,
-						'end'   => $index,
-						'lines' => $docstring_lines,
-					];
-				}
-			}
-			continue;
-		}
-
-		if ( $in_docstring ) {
-			// A block opening with `<?php` is PHP no matter which step precedes
-			// it, which covers PHP files that are not named `*.php`, such as the
-			// `.maintenance` file of a WordPress installation.
-			if ( ! $has_content && 0 === strpos( $trimmed, '<?php' ) ) {
-				$is_php_block = true;
-			}
-
-			if ( '' !== $trimmed ) {
-				$has_content = true;
-			}
-
-			// Every line is kept, including the empty ones leading up to
-			// an opening tag, so that line numbers keep matching.
-			$docstring_lines[ $index ] = $line;
-		}
-	}
-
-	return $in_docstring ? null : $blocks;
-}
 
 /**
  * Turn a PHP block into the source of a standalone PHP file.
@@ -327,21 +265,8 @@ function extract_feature_php( $source_dir, $target_dir ) {
 	$blocks  = [];
 	$skipped = [];
 
-	$iterator = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator( $source_dir, FilesystemIterator::SKIP_DOTS )
-	);
-
-	$feature_files = [];
-	foreach ( $iterator as $file ) {
-		if ( $file->isFile() && 'feature' === $file->getExtension() ) {
-			$feature_files[] = str_replace( '\\', '/', $file->getPathname() );
-		}
-	}
-
-	// The order determines the batch a block ends up in, so keep it stable.
-	sort( $feature_files );
-
-	foreach ( $feature_files as $filepath ) {
+	// The order determines the batch a block ends up in, so it has to be stable.
+	foreach ( find_feature_files( $source_dir ) as $filepath ) {
 		$relative = substr( $filepath, strlen( $source_dir ) + 1 );
 		$lines    = file( $filepath );
 
