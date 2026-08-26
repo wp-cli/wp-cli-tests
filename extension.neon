@@ -29,6 +29,10 @@ rules:
 parameters:
   dynamicConstantNames:
     - FOO
+  WPCompat:
+    pluginFile: null
+    # Oldest WordPress version supported by WP-CLI.
+    requiresAtLeast: '4.9'
   strictRules:
     allRules: false
     disallowedLooseComparison: false
@@ -53,9 +57,13 @@ parameters:
     dynamicCallOnStaticMethod: false
     illegalConstructorMethodCall: false
 
-# Add the schema from phpstan-strict-rules so it's available without loading the extension
-# and the above configuration works.
+# Add the schemas from phpstan-strict-rules and wp-compat so they're available without
+# loading the extensions and the above configuration works.
 parametersSchema:
+  WPCompat: structure([
+    pluginFile: schema(string(), nullable())
+    requiresAtLeast: schema(string(), nullable())
+  ])
   strictRules: structure([
     allRules: anyOf(bool(), arrayOf(bool())),
     disallowedLooseComparison: anyOf(bool(), arrayOf(bool())),
