@@ -17,6 +17,8 @@ use ParseError;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
+require_once __DIR__ . '/feature-php-blocks.php';
+
 /**
  * Pattern matching the file names created during extraction.
  */
@@ -26,155 +28,6 @@ const EXTRACTED_FILE_PATTERN = '/^(.*\.feature)_L(\d+)_E(\d+)\.php$/';
  * Name of the manifest describing an extraction.
  */
 const MANIFEST_FILE = 'manifest.json';
-
-/**
- * Bring a path into the form used to compare it against another path.
- *
- * @param string $path Path to normalize.
- * @return string Normalized path.
- */
-function normalize_path( $path ) {
-	$path = rtrim( str_replace( '\\', '/', $path ), '/' );
-
-	// Windows paths are not case sensitive.
-	return DIRECTORY_SEPARATOR === '\\' ? strtolower( $path ) : $path;
-}
-
-/**
- * Determine whether a path is the root of a filesystem or of a drive.
- *
- * @param string $path Path to check.
- * @return bool Whether the path is a root directory.
- */
-function is_root_dir( $path ) {
-	if ( '' === $path ) {
-		return false;
-	}
-
-	// A Windows drive root, such as `C:`, `C:\`, or `C:/`.
-	if ( preg_match( '/^[a-z]:[\\\\\/]?$/i', $path ) ) {
-		return true;
-	}
-
-	return '' === rtrim( $path, '/\\' );
-}
-
-/**
- * Determine whether a directory can be used as extraction target.
- *
- * Extraction removes previously extracted files from the target directory,
- * so guard against pointing it at a directory holding actual project files.
- *
- * @param string $target_dir Target directory to output extracted .php files.
- * @param string $source_dir Source directory containing .feature files.
- * @return bool Whether the target directory can be used.
- */
-function is_valid_target_dir( $target_dir, $source_dir ) {
-	if ( '' === $target_dir || '.' === $target_dir || '..' === $target_dir ) {
-		return false;
-	}
-
-	if ( is_root_dir( $target_dir ) ) {
-		return false;
-	}
-
-	$target_real = realpath( $target_dir );
-
-	// Also covers a path that only resolves to a root, such as `features/../..`.
-	if ( false !== $target_real && is_root_dir( $target_real ) ) {
-		return false;
-	}
-
-	// A directory that does not exist yet gets created during extraction.
-	if ( false === $target_real ) {
-		return true;
-	}
-
-	$cwd = getcwd();
-	if ( false !== $cwd && realpath( $cwd ) === $target_real ) {
-		return false;
-	}
-
-	$source_real = realpath( $source_dir );
-	if ( false === $source_real ) {
-		return true;
-	}
-
-	if ( $source_real === $target_real ) {
-		return false;
-	}
-
-	// The target directory contains the feature files themselves. A root
-	// directory already ends in a separator, so appending another one would
-	// keep the comparison below from ever matching it.
-	$target_prefix = rtrim( $target_real, '/\\' ) . DIRECTORY_SEPARATOR;
-	if ( 0 === strpos( $source_real . DIRECTORY_SEPARATOR, $target_prefix ) ) {
-		return false;
-	}
-
-	return true;
-}
-
-/**
- * Remove files of a previous extraction from the target directory.
- *
- * Only files created by this script and the directories that held them are
- * removed, so that an unrelated file in the target directory is never lost.
- *
- * @param string $target_dir Target directory containing extracted .php files.
- * @return void
- */
-function remove_extracted_files( $target_dir ) {
-	if ( ! is_dir( $target_dir ) ) {
-		return;
-	}
-
-	// The caller is expected to have rejected such a directory already, but
-	// the walk below is not something to start on a whole filesystem by
-	// accident.
-	$target_real = realpath( $target_dir );
-	if ( is_root_dir( $target_dir ) || ( false !== $target_real && is_root_dir( $target_real ) ) ) {
-		return;
-	}
-
-	$manifest = $target_dir . '/' . MANIFEST_FILE;
-	if ( is_file( $manifest ) ) {
-		unlink( $manifest );
-	}
-
-	$files = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator( $target_dir, RecursiveDirectoryIterator::SKIP_DOTS ),
-		RecursiveIteratorIterator::CHILD_FIRST
-	);
-
-	foreach ( $files as $fileinfo ) {
-		$pathname = $fileinfo->getPathname();
-
-		if ( $fileinfo->isDir() ) {
-			$contents = new FilesystemIterator( $pathname );
-			if ( ! $contents->valid() ) {
-				rmdir( $pathname );
-			}
-		} elseif ( preg_match( EXTRACTED_FILE_PATTERN, $fileinfo->getFilename() ) ) {
-			unlink( $pathname );
-		}
-	}
-}
-
-/**
- * Determine whether a step creates a PHP file.
- *
- * The docstring following such a step holds the contents of a PHP file, while
- * docstrings following other steps -- an expectation about the contents of a
- * file, for example -- are not necessarily PHP code. A docstring that opens
- * with `<?php` counts as PHP either way, see collect_blocks().
- *
- * @param string $line Line preceding a docstring.
- * @return bool Whether the line is a step creating a PHP file.
- */
-function is_php_file_step( $line ) {
-	return 1 === preg_match( '/^\s*(?:Given|When|Then|And|But|\*)\s+an?\s+[\w\/.-]+\.php\s+(?:cache\s+)?file:\s*$/i', $line );
-}
 
 /**
  * Collect the PHP blocks contained in a single feature file.
@@ -462,7 +315,13 @@ function extract_feature_php( $source_dir, $target_dir ) {
 		return false;
 	}
 
-	remove_extracted_files( $target_dir );
+	// The manifest is written by this script alone, so it goes on its own.
+	$manifest = $target_dir . '/' . MANIFEST_FILE;
+	if ( is_file( $manifest ) ) {
+		unlink( $manifest );
+	}
+
+	remove_extracted_files( $target_dir, EXTRACTED_FILE_PATTERN );
 
 	$success = true;
 	$blocks  = [];
