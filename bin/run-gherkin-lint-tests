@@ -72,6 +72,7 @@ then
 	# It writes the report to STDERR, so strip the escape sequences from that
 	# stream while leaving STDOUT and the exit code alone.
 	STDERR_FILE=$( mktemp )
+	trap 'rm -f "${STDERR_FILE}"' EXIT HUP INT TERM
 
 	run_linter "$@" 2> "${STDERR_FILE}"
 	STATUS=$?
@@ -81,8 +82,6 @@ then
 		ESC=$( printf '\033' )
 		sed "s/${ESC}\[[0-9;]*m//g" "${STDERR_FILE}" >&2
 	fi
-
-	rm -f "${STDERR_FILE}"
 
 	exit ${STATUS};
 fi
