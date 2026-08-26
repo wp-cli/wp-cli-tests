@@ -10,9 +10,19 @@ then
 		EXTRA_ARGS="--display-warnings --fail-on-warning --display-notices --fail-on-notice --display-deprecations --fail-on-deprecation"
 	fi
 
+	# Honor the NO_COLOR convention (https://no-color.org/). This has to be an
+	# explicit "never" rather than an omitted flag, because a project's
+	# phpunit.xml may well turn colors on by itself.
+	COLOR_ARGS="--color=always"
+	if [ -n "${NO_COLOR}" ]; then
+		COLOR_ARGS="--color=never"
+	fi
+
 	if [ -f "./vendor/wp-cli/wp-cli-tests/tests/bootstrap.php" ]; then
-		vendor/bin/phpunit --color=always "$@" $EXTRA_ARGS --bootstrap ./vendor/wp-cli/wp-cli-tests/tests/bootstrap.php
+		# shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.
+		vendor/bin/phpunit $COLOR_ARGS "$@" $EXTRA_ARGS --bootstrap ./vendor/wp-cli/wp-cli-tests/tests/bootstrap.php
 	else
-		vendor/bin/phpunit --color=always "$@" $EXTRA_ARGS
+		# shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.
+		vendor/bin/phpunit $COLOR_ARGS "$@" $EXTRA_ARGS
 	fi
 fi

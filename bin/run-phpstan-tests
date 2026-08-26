@@ -5,7 +5,22 @@ EXIT_CODE=0
 # 1. Run the static analysis only if a configuration file exists.
 if [ -f "phpstan.dist.neon" ] || [ -f "phpstan.neon.dist" ] || [ -f "phpstan.neon" ]
 then
-	vendor/bin/phpstan --memory-limit=2048M analyse "$@" || EXIT_CODE=$?
+	EXTRA_ARGS=""
+
+	# Honor the NO_COLOR convention (https://no-color.org/).
+	if [ -n "${NO_COLOR}" ]; then
+		EXTRA_ARGS="--no-ansi"
+	fi
+
+	# Replace the redrawing progress bar and the box-drawing result table with
+	# plain `file:line:message` lines. Useful for CI logs and for AI coding
+	# agents, which pay for every token of the report they read back.
+	if [ -n "${WP_CLI_TEST_QUIET}" ]; then
+		EXTRA_ARGS="${EXTRA_ARGS} --no-progress --error-format=raw"
+	fi
+
+	# shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.
+	vendor/bin/phpstan --memory-limit=2048M analyse $EXTRA_ARGS "$@" || EXIT_CODE=$?
 fi
 
 # 2. Run PHPStan over the PHP blocks in .feature files if the package opted in.

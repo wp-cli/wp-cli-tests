@@ -5,7 +5,26 @@ EXIT_CODE=0
 # 1. Run standard PHP code style check if a configuration file exists.
 if [ -f ".phpcs.xml" ] || [ -f "phpcs.xml" ] || [ -f ".phpcs.xml.dist" ] || [ -f "phpcs.xml.dist" ]
 then
-	vendor/bin/phpcs "$@" || EXIT_CODE=$?
+	EXTRA_ARGS=""
+
+	# Compact, one-line-per-violation output without the progress ticker.
+	# Useful for CI logs and for AI coding agents, which pay for every token of
+	# the report they read back.
+	if [ -n "${WP_CLI_TEST_QUIET}" ]; then
+		EXTRA_ARGS="-q"
+
+		# A report asked for on the command line wins. PHPCS does not let a
+		# later --report replace an earlier one -- 3.x prints both reports and
+		# 4.x keeps only the first it saw -- so the compact one has to stay out
+		# of the way rather than rely on ordering.
+		case " $* " in
+			*" --report="*|*" --report-"*) ;;
+			*) EXTRA_ARGS="${EXTRA_ARGS} --report=emacs" ;;
+		esac
+	fi
+
+	# shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.
+	vendor/bin/phpcs $EXTRA_ARGS "$@" || EXIT_CODE=$?
 fi
 
 # 2. Run PHPCS over the PHP blocks in .feature files.

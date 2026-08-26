@@ -22,6 +22,7 @@ To make use of the WP-CLI testing framework, you need to complete the following 
         "behat": "run-behat-tests",
         "behat-rerun": "rerun-behat-tests",
         "lint": "run-linter-tests",
+        "lint-gherkin": "run-gherkin-lint-tests",
         "phpcs": "run-phpcs-tests",
         "phpcbf": "run-phpcbf-cleanup",
         "phpstan": "run-phpstan-tests",
@@ -29,6 +30,7 @@ To make use of the WP-CLI testing framework, you need to complete the following 
         "prepare-tests": "install-package-tests",
         "test": [
             "@lint",
+            "@lint-gherkin",
             "@phpcs",
             "@phpstan",
             "@phpunit",
@@ -107,6 +109,7 @@ You can use the following commands to control the tests:
 * `composer prepare-tests` - Set up the database that is needed for running the functional tests. This is only needed once.
 * `composer test` - Run all test suites.
 * `composer lint` - Run only the linting test suite.
+* `composer lint-gherkin` - Run only the Gherkin linter over the feature files.
 * `composer phpcs` - Run only the code sniffer test suite.
 * `composer phpcbf` - Run only the code sniffer cleanup.
 * `composer phpstan` - Run only the static analysis.
@@ -237,6 +240,53 @@ composer behat -- features/cli-info.feature
 
 Prepending with the double dash is needed because the arguments would otherwise be sent to Composer itself, not the tool that Composer executes.
 
+The same mechanism works for narrowing a run down further, or for bailing out early:
+```bash
+# A single scenario, identified by the line it starts on.
+composer behat -- features/cli-info.feature:12
+
+# Every scenario carrying a given tag.
+composer behat -- --tags=@require-wp-5.0
+
+# Stop at the first failing scenario instead of running the whole suite.
+composer behat -- --stop-on-failure
+
+# Re-run only the scenarios that failed the last time.
+composer behat-rerun
+```
+
+### Linting the feature files
+
+`composer lint-gherkin` checks `features/` with
+[gherkin-lint-plus](https://www.npmjs.com/package/gherkin-lint-plus), against the
+`.gherkin-lintrc` ruleset shipped with this package. A project that needs
+different rules can override it by committing its own `.gherkin-lintrc`.
+
+The linter is a Node package, so it is run through `npx` and needs Node.js 20 or
+later. Where `npx` is not available the check reports that it is skipping, rather
+than failing a suite that is otherwise entirely PHP. Its version is pinned in
+this package's `package.json`, which exists only to hold that pin.
+
+### Controlling the amount of output
+
+Two environment variables make the test tools less chatty. Both are unset by default, which leaves the output exactly as it has always been.
+
+* `NO_COLOR` (the [no-color.org](https://no-color.org/) convention) turns off the ANSI color codes in the output of every runner. Set this when capturing output to a file or a pipe, where the escape sequences are noise.
+* `WP_CLI_TEST_QUIET` switches the reporters to their most compact form: PHP_CodeSniffer reports one `file:line:col` line per violation with no progress ticker, PHPStan reports one `file:line:message` line per error with no progress bar and no result table. This covers the analysis of the PHP files themselves; the checks over the PHP blocks embedded in feature files keep their own reports, which are rewritten to point back at the feature file a block came from. Behat's own output is already minimal, so it is unaffected.
+
+`NO_COLOR` also covers the Gherkin linter, which colors its report unconditionally and has no plain output format of its own.
+
+```bash
+NO_COLOR=1 WP_CLI_TEST_QUIET=1 composer phpstan
+```
+
+This is worth setting permanently in environments that read the output back rather than display it, such as an AI coding agent's shell:
+
+```bash
+export NO_COLOR=1
+export WP_CLI_TEST_QUIET=1
+```
+
 ### Controlling the test environment
 
 #### WordPress Version
@@ -251,6 +301,13 @@ Here's how to run your tests against the latest trunk version of WordPress:
 ```bash
 WP_VERSION=trunk composer behat
 ```
+
+Resolving `latest`, or a `X.Y` version without a patch number, needs the
+WordPress versions data, which is fetched once and cached in the system temp
+directory for a day. Repeated runs do not repeat the request, and a run without
+connectivity falls back to the last known copy.
+`WP_CLI_TEST_WP_VERSION_CACHE_TTL` sets the lifetime of that cache in seconds;
+`0` fetches it every time.
 
 #### WordPress Archive
 
