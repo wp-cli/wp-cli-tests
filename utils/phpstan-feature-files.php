@@ -40,16 +40,7 @@ const MANIFEST_FILE = 'manifest.json';
  * @return string Source of the standalone PHP file.
  */
 function render_block( array $block ) {
-	$min_indent = PHP_INT_MAX;
-	foreach ( $block['lines'] as $code_line ) {
-		if ( '' !== trim( $code_line ) ) {
-			preg_match( '/^[ \t]*/', $code_line, $matches );
-			$min_indent = min( $min_indent, strlen( $matches[0] ) );
-		}
-	}
-	if ( PHP_INT_MAX === $min_indent ) {
-		$min_indent = 0;
-	}
+	$indent_length = strlen( (string) get_common_indent( $block['lines'] ) );
 
 	$out_lines = [];
 	for ( $i = 0; $i <= $block['start']; $i++ ) {
@@ -64,7 +55,7 @@ function render_block( array $block ) {
 			continue;
 		}
 
-		$code_line = substr( $code_line, $min_indent );
+		$code_line = substr( $code_line, $indent_length );
 
 		if ( ! $tag_dropped ) {
 			$tag_dropped = true;

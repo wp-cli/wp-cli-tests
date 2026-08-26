@@ -151,6 +151,47 @@ function find_feature_files( $source_dir ) {
 }
 
 /**
+ * Determine the indentation that all lines holding code share.
+ *
+ * This is what extraction takes off a block and what syncing puts back, so it
+ * is determined as an actual prefix rather than as a number of characters: a
+ * block mixing tabs and spaces would otherwise come back with one swapped for
+ * the other. Blank lines carry no indentation of their own and are left out.
+ *
+ * @param string[] $lines Lines to compare.
+ * @return string|null Shared indentation, or null if no line holds code.
+ */
+function get_common_indent( array $lines ) {
+	$common = null;
+
+	foreach ( $lines as $line ) {
+		if ( '' === trim( $line ) ) {
+			continue;
+		}
+
+		preg_match( '/^[ \t]*/', $line, $matches );
+
+		if ( null === $common ) {
+			$common = $matches[0];
+			continue;
+		}
+
+		$length = min( strlen( $common ), strlen( $matches[0] ) );
+		while ( $length > 0 && substr( $common, 0, $length ) !== substr( $matches[0], 0, $length ) ) {
+			--$length;
+		}
+
+		$common = substr( $common, 0, $length );
+
+		if ( '' === $common ) {
+			break;
+		}
+	}
+
+	return $common;
+}
+
+/**
  * Collect the PHP blocks contained in a single feature file.
  *
  * A docstring holds a PHP block when the step it belongs to creates a `.php`

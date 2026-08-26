@@ -546,6 +546,30 @@ class TestPhpStanFeatureFiles extends TestCase {
 		$this->assertSame( $contents, file_get_contents( $feature_file ) );
 	}
 
+	public function test_extraction_preserves_indentation_that_mixes_tabs_and_spaces(): void {
+		// The shared indentation is taken off a block as a prefix rather than as
+		// a number of characters, so a line indented with a tab where the rest of
+		// the block uses spaces keeps its tab instead of trading it for a space.
+		$this->create_feature_file(
+			'example.feature',
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "\tfoo();\n"
+			. "      \"\"\"\n"
+		);
+
+		$result = $this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame(
+			"<?php\n\n\n\n\n\tfoo();\n",
+			$this->get_extracted_contents( 'batch0/example.feature_L4_E7.php' )
+		);
+	}
+
 	public function test_extraction_refuses_to_use_a_root_directory_as_target(): void {
 		$contents = "Feature: Example\n"
 			. "  Scenario: A PHP block\n"
