@@ -4,12 +4,17 @@ namespace WP_CLI\Tests\Tests;
 
 class TestPhpStanFeatureFiles extends FeatureFilesTestCase {
 
+	/**
+	 * @return string Name of the script.
+	 */
 	protected function get_script_name(): string {
 		return 'phpstan-feature-files.php';
 	}
 
 	/**
 	 * `php.ini` is loaded as usual here, as the script needs ext-tokenizer.
+	 *
+	 * @return string[] Flags to pass to the PHP binary.
 	 */
 	protected function get_php_flags(): array {
 		return array();

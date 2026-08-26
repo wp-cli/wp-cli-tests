@@ -4,6 +4,9 @@ namespace WP_CLI\Tests\Tests;
 
 class TestExtractFeaturePhp extends FeatureFilesTestCase {
 
+	/**
+	 * @return string Name of the script.
+	 */
 	protected function get_script_name(): string {
 		return 'extract-feature-php.php';
 	}
@@ -11,6 +14,8 @@ class TestExtractFeaturePhp extends FeatureFilesTestCase {
 	/**
 	 * The script needs nothing beyond the PHP core, so `php.ini` is left out of
 	 * the run to keep the environment it is exercised in predictable.
+	 *
+	 * @return string[] Flags to pass to the PHP binary.
 	 */
 	protected function get_php_flags(): array {
 		return array( '-n' );
