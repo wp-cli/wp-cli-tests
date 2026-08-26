@@ -108,13 +108,11 @@ WP_VERSIONS_URL="https://raw.githubusercontent.com/wp-cli/wp-cli-tests/artifacts
 WP_VERSIONS_CACHE_FILE="${TMPDIR:-/tmp}/wp-cli-test-wp-version-cache/wp-versions.json"
 WP_VERSIONS_CACHE_TTL="${WP_CLI_TEST_WP_VERSION_CACHE_TTL:-86400}"
 
-# A typo must not turn into a cache that never expires: the age comparison below
-# errors out on a non-numeric TTL, which would then accept the cached copy at
-# any age.
-if ! is_numeric "${WP_VERSIONS_CACHE_TTL}"; then
-	echo "Warning: WP_CLI_TEST_WP_VERSION_CACHE_TTL is not a number of seconds, falling back to 86400."
-	WP_VERSIONS_CACHE_TTL=86400
-fi
+# The versions data is a non-empty object mapping every release to its status.
+# An error page, or a copy that was truncated on its way to disk, is not one.
+is_valid_versions_json() {
+	jq -e 'type == "object" and length > 0' > /dev/null 2>&1
+}
 
 # Print the cached versions file if it is younger than the given number of
 # seconds. A negative TTL accepts it at any age.
@@ -133,6 +131,11 @@ read_versions_cache() {
 		esac
 		[ "${age}" -lt "${ttl}" ] || return 1
 	fi
+
+	# Held to the same standard as a fetched copy, so that an unusable cache
+	# counts as a miss and the network gets a chance to replace it, instead of
+	# being served unchecked for the rest of its lifetime.
+	is_valid_versions_json < "${WP_VERSIONS_CACHE_FILE}" || return 1
 
 	cat "${WP_VERSIONS_CACHE_FILE}"
 }
@@ -167,8 +170,17 @@ write_versions_cache() {
 # to STDERR so that they cannot end up inside the returned JSON.
 get_wp_versions() {
 	local json
+	local ttl="${WP_VERSIONS_CACHE_TTL}"
 
-	json=$( read_versions_cache "${WP_VERSIONS_CACHE_TTL}" )
+	# A typo must not turn into a cache that never expires: the age comparison
+	# errors out on a non-numeric TTL, which would then accept the cached copy
+	# at any age.
+	if ! is_numeric "${ttl}"; then
+		echo "Warning: WP_CLI_TEST_WP_VERSION_CACHE_TTL is not a number of seconds, falling back to 86400." >&2
+		ttl=86400
+	fi
+
+	json=$( read_versions_cache "${ttl}" )
 	if [ -n "${json}" ]; then
 		printf '%s' "${json}"
 		return 0
@@ -179,7 +191,7 @@ get_wp_versions() {
 	json=$( curl -s --connect-timeout 10 --max-time 30 "${WP_VERSIONS_URL}" )
 
 	# Only cache a well-formed response; an error page is not one.
-	if echo "${json}" | jq -e 'type == "object" and length > 0' > /dev/null 2>&1; then
+	if printf '%s' "${json}" | is_valid_versions_json; then
 		write_versions_cache "${json}"
 		printf '%s' "${json}"
 		return 0
@@ -201,7 +213,7 @@ if [ "${WP_VERSION-latest}" = "latest" ]; then
 	WP_VERSION=$( get_wp_versions | jq -r 'to_entries | map( select( .value == "latest" ) ) | last | .key // empty' )
 
 	if [ -z "${WP_VERSION}" ]; then
-		echo "Warning: Could not determine the latest WordPress version. Version-specific tags will not be filtered."
+		echo "Warning: Could not determine the latest WordPress version. Version-specific tags will not be filtered." >&2
 	fi
 
 	export WP_VERSION
