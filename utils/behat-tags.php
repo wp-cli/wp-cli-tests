@@ -131,6 +131,68 @@ function get_db_version() {
 	return $db_info['version'];
 }
 
+/**
+ * Whether any feature file uses the given tag.
+ *
+ * Tags that no scenario carries do not need to be filtered out, and leaving them
+ * out keeps the filter to what the suite being run actually uses.
+ *
+ * @param string $tag
+ * @param string $features_folder
+ * @return bool
+ */
+function tag_in_use( $tag, $features_folder = 'features' ) {
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+
+	if ( empty( $feature_files ) ) {
+		return false;
+	}
+
+	foreach ( $feature_files as $feature_file ) {
+		if ( false !== strpos( (string) file_get_contents( $feature_file ), $tag ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Whether the database server can be reached through a socket.
+ *
+ * A database server running in a container is only reachable over TCP, so the
+ * scenarios that connect through a socket cannot run against one. The locations
+ * checked here are the same ones those scenarios look in.
+ *
+ * @return bool
+ */
+function has_mysql_socket() {
+	$socket = getenv( 'WP_CLI_TEST_DBSOCKET' );
+
+	if ( is_string( $socket ) && '' !== $socket ) {
+		return file_exists( $socket );
+	}
+
+	// Anything but a port number after the colon in the host is a socket path.
+	$host = getenv( 'WP_CLI_TEST_DBHOST' );
+
+	if ( is_string( $host ) && false !== strpos( $host, ':' ) ) {
+		$after_colon = substr( $host, strrpos( $host, ':' ) + 1 );
+
+		if ( '' !== $after_colon && ! is_numeric( $after_colon ) ) {
+			return file_exists( $after_colon );
+		}
+	}
+
+	foreach ( array( '/var/run/mysqld/mysqld.sock', '/tmp/mysql.sock' ) as $location ) {
+		if ( file_exists( $location ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 $features_folder = getenv( 'BEHAT_FEATURES_FOLDER' ) ?: 'features';
 $wp_version      = getenv( 'WP_VERSION' );
 $wp_version_reqs = array();
@@ -174,6 +236,24 @@ if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
 
 if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) ) {
 	$skip_tags[] = '@broken-trunk';
+}
+
+// Some scenarios need a version of WordPress that WordPress.org knows about, such
+// as the ones verifying an installation against the published checksums. Neither a
+// development build nor an archive supplied through WP_CLI_TEST_CORE_ZIP qualifies.
+$core_zip = getenv( 'WP_CLI_TEST_CORE_ZIP' );
+if (
+	tag_in_use( '@require-wp-stable', $features_folder )
+	&& (
+		( false !== $core_zip && '' !== $core_zip )
+		|| in_array( $wp_version, array( 'nightly', 'trunk' ), true )
+	)
+) {
+	$skip_tags[] = '@require-wp-stable';
+}
+
+if ( tag_in_use( '@require-mysql-socket', $features_folder ) && ! has_mysql_socket() ) {
+	$skip_tags[] = '@require-mysql-socket';
 }
 
 $db_info    = get_db_type_and_version();

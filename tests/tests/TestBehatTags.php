@@ -459,4 +459,118 @@ class TestBehatTags extends TestCase {
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
 	}
+
+	/**
+	 * Write a feature file carrying the given tag.
+	 *
+	 * @param string $tag
+	 */
+	private function write_tagged_feature( $tag ): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'tagged.feature',
+			$tag . "\nFeature: Tagged\n"
+		);
+	}
+
+	/**
+	 * Run the script with the given environment, restoring it afterwards.
+	 *
+	 * @param array<string, ?string> $env Variables to set, or null to unset.
+	 * @return string|false
+	 */
+	private function run_with_env( array $env ) {
+		$previous = array();
+
+		foreach ( $env as $name => $value ) {
+			$current           = getenv( $name );
+			$previous[ $name ] = false === $current ? null : $current;
+
+			putenv( null === $value ? $name : "{$name}={$value}" );
+		}
+
+		try {
+			return $this->run_behat_tags_script();
+		} finally {
+			foreach ( $previous as $name => $value ) {
+				putenv( null === $value ? $name : "{$name}={$value}" );
+			}
+		}
+	}
+
+	public function test_require_wp_stable_is_skipped_for_an_archive(): void {
+		$this->write_tagged_feature( '@require-wp-stable' );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_VERSION'           => '6.4.2',
+				'WP_CLI_TEST_CORE_ZIP' => $this->temp_dir . DIRECTORY_SEPARATOR . 'wordpress.zip',
+			)
+		);
+
+		$this->assertStringContainsString( '~@require-wp-stable', (string) $output );
+	}
+
+	public function test_require_wp_stable_is_skipped_on_trunk(): void {
+		$this->write_tagged_feature( '@require-wp-stable' );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_VERSION'           => 'trunk',
+				'WP_CLI_TEST_CORE_ZIP' => null,
+			)
+		);
+
+		$this->assertStringContainsString( '~@require-wp-stable', (string) $output );
+	}
+
+	public function test_require_wp_stable_runs_on_a_release(): void {
+		$this->write_tagged_feature( '@require-wp-stable' );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_VERSION'           => '6.4.2',
+				'WP_CLI_TEST_CORE_ZIP' => null,
+			)
+		);
+
+		$this->assertStringNotContainsString( '@require-wp-stable', (string) $output );
+	}
+
+	public function test_require_mysql_socket_is_skipped_without_a_socket(): void {
+		$this->write_tagged_feature( '@require-mysql-socket' );
+
+		$output = $this->run_with_env(
+			array( 'WP_CLI_TEST_DBSOCKET' => $this->temp_dir . DIRECTORY_SEPARATOR . 'missing.sock' )
+		);
+
+		$this->assertStringContainsString( '~@require-mysql-socket', (string) $output );
+	}
+
+	public function test_require_mysql_socket_runs_with_a_socket(): void {
+		$this->write_tagged_feature( '@require-mysql-socket' );
+
+		$socket = $this->temp_dir . DIRECTORY_SEPARATOR . 'mysql.sock';
+		touch( $socket );
+
+		$output = $this->run_with_env( array( 'WP_CLI_TEST_DBSOCKET' => $socket ) );
+
+		$this->assertStringNotContainsString( '@require-mysql-socket', (string) $output );
+	}
+
+	/**
+	 * Tags no scenario carries do not need to be filtered out.
+	 */
+	public function test_unused_tags_are_not_filtered_out(): void {
+		$this->write_tagged_feature( '@some-other-tag' );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_VERSION'           => 'trunk',
+				'WP_CLI_TEST_DBSOCKET' => $this->temp_dir . DIRECTORY_SEPARATOR . 'missing.sock',
+			)
+		);
+
+		$this->assertStringNotContainsString( '@require-wp-stable', (string) $output );
+		$this->assertStringNotContainsString( '@require-mysql-socket', (string) $output );
+	}
 }
