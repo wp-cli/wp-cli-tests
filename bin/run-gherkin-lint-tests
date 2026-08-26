@@ -72,7 +72,14 @@ then
 	# It writes the report to STDERR, so strip the escape sequences from that
 	# stream while leaving STDOUT and the exit code alone.
 	STDERR_FILE=$( mktemp )
-	trap 'rm -f "${STDERR_FILE}"' EXIT HUP INT TERM
+	trap 'rm -f "${STDERR_FILE}"' EXIT
+
+	# A signal handler resumes where it left off, so stopping here is what keeps
+	# the report below from being read back out of the file the handler has just
+	# removed. 128+n is the status a shell reports for a death by signal n.
+	trap 'rm -f "${STDERR_FILE}"; exit 129' HUP
+	trap 'rm -f "${STDERR_FILE}"; exit 130' INT
+	trap 'rm -f "${STDERR_FILE}"; exit 143' TERM
 
 	run_linter "$@" 2> "${STDERR_FILE}"
 	STATUS=$?
