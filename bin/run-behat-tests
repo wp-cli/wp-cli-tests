@@ -108,6 +108,14 @@ WP_VERSIONS_URL="https://raw.githubusercontent.com/wp-cli/wp-cli-tests/artifacts
 WP_VERSIONS_CACHE_FILE="${TMPDIR:-/tmp}/wp-cli-test-wp-version-cache/wp-versions.json"
 WP_VERSIONS_CACHE_TTL="${WP_CLI_TEST_WP_VERSION_CACHE_TTL:-86400}"
 
+# A typo must not turn into a cache that never expires: the age comparison below
+# errors out on a non-numeric TTL, which would then accept the cached copy at
+# any age.
+if ! is_numeric "${WP_VERSIONS_CACHE_TTL}"; then
+	echo "Warning: WP_CLI_TEST_WP_VERSION_CACHE_TTL is not a number of seconds, falling back to 86400."
+	WP_VERSIONS_CACHE_TTL=86400
+fi
+
 # Print the cached versions file if it is younger than the given number of
 # seconds. A negative TTL accepts it at any age.
 read_versions_cache() {
@@ -129,6 +137,32 @@ read_versions_cache() {
 	cat "${WP_VERSIONS_CACHE_FILE}"
 }
 
+# Store the versions data for the next run. The write goes through a temporary
+# file in the same directory, so that a concurrent runner reading the cache sees
+# either the previous copy or the new one, never a partial write. Caching is
+# best effort throughout: a temp directory that cannot be written to is not a
+# reason to fail the run.
+write_versions_cache() {
+	local dir
+	local tmp
+
+	dir=$( dirname "${WP_VERSIONS_CACHE_FILE}" )
+	mkdir -p "${dir}" 2>/dev/null || return 0
+
+	tmp=$( mktemp "${dir}/wp-versions.XXXXXX" 2>/dev/null ) || return 0
+
+	if printf '%s' "$1" > "${tmp}" 2>/dev/null; then
+		# mktemp creates the file private to its owner; the cache directory is
+		# shared, and the data in it is public.
+		chmod 644 "${tmp}" 2>/dev/null
+		mv -f "${tmp}" "${WP_VERSIONS_CACHE_FILE}" 2>/dev/null || rm -f "${tmp}"
+	else
+		rm -f "${tmp}"
+	fi
+
+	return 0
+}
+
 # Print the WordPress versions data, from the cache where possible. Warnings go
 # to STDERR so that they cannot end up inside the returned JSON.
 get_wp_versions() {
@@ -140,12 +174,13 @@ get_wp_versions() {
 		return 0
 	fi
 
-	json=$( curl -s "${WP_VERSIONS_URL}" )
+	# Bounded, so that an unreachable or unresponsive host falls back to the
+	# cached copy instead of holding up the run indefinitely.
+	json=$( curl -s --connect-timeout 10 --max-time 30 "${WP_VERSIONS_URL}" )
 
 	# Only cache a well-formed response; an error page is not one.
 	if echo "${json}" | jq -e 'type == "object" and length > 0' > /dev/null 2>&1; then
-		mkdir -p "$( dirname "${WP_VERSIONS_CACHE_FILE}" )" 2>/dev/null \
-			&& printf '%s' "${json}" > "${WP_VERSIONS_CACHE_FILE}" 2>/dev/null || true
+		write_versions_cache "${json}"
 		printf '%s' "${json}"
 		return 0
 	fi
