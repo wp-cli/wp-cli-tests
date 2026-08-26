@@ -18,7 +18,7 @@ Feature: Test that WP-CLI loads.
     And a test_cron.php file:
       """
       <?php
-      $cron_disabled = defined( "DISABLE_WP_CRON" ) ? DISABLE_WP_CRON : false;
+      $cron_disabled = defined( 'DISABLE_WP_CRON' ) ? DISABLE_WP_CRON : false;
       echo 'DISABLE_WP_CRON is: ' . ( $cron_disabled ? 'true' : 'false' );
       """
 

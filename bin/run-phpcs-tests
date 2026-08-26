@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# Run the code style check only if a configuration file exists.
+EXIT_CODE=0
+
+# 1. Run standard PHP code style check if a configuration file exists.
 if [ -f ".phpcs.xml" ] || [ -f "phpcs.xml" ] || [ -f ".phpcs.xml.dist" ] || [ -f "phpcs.xml.dist" ]
 then
 	EXTRA_ARGS=""
@@ -22,5 +24,88 @@ then
 	fi
 
 	# shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.
-	vendor/bin/phpcs $EXTRA_ARGS "$@"
+	vendor/bin/phpcs $EXTRA_ARGS "$@" || EXIT_CODE=$?
 fi
+
+# 2. Run PHPCS over the PHP blocks in .feature files.
+# Composer installs this script as a symlink in the vendor binary directory, so
+# it has to be resolved before the root of this package can be derived from it.
+SOURCE="$0"
+while [ -h "$SOURCE" ]
+do
+	SOURCE_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+	SOURCE="$(readlink "$SOURCE")"
+	# A relative symlink is resolved against the directory holding the symlink.
+	case "$SOURCE" in
+		/*) ;;
+		*) SOURCE="$SOURCE_DIR/$SOURCE" ;;
+	esac
+done
+DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+
+# A ruleset of the same purpose in the package root replaces the defaults
+# wholesale. Both scripts read the defaults from the same file, so that the
+# check and the fixer cannot disagree over which sniff applies to a block.
+FEATURE_STANDARD=""
+for CANDIDATE in "phpcs-feature-files.xml" "phpcs-feature-files.xml.dist"
+do
+	if [ -f "$CANDIDATE" ]
+	then
+		FEATURE_STANDARD="$(pwd)/$CANDIDATE"
+		break
+	fi
+done
+
+FEATURE_ARGS=""
+if [ -z "$FEATURE_STANDARD" ] && [ -f "$DIR/phpcs/feature-files.sh" ]
+then
+	. "$DIR/phpcs/feature-files.sh"
+	FEATURE_STANDARD="$WP_CLI_TESTS_FEATURE_STANDARD"
+	# Holds no path, so leaving it unquoted below splits it into arguments.
+	FEATURE_ARGS="$WP_CLI_TESTS_FEATURE_ARGS"
+fi
+
+# An argument naming what to check applies to the files of the package itself,
+# so the blocks are left alone once a run has been narrowed down to a path.
+CHECK_BLOCKS=1
+for ARG in "$@"
+do
+	case "$ARG" in
+		-*) ;;
+		*) CHECK_BLOCKS=0 ;;
+	esac
+done
+
+if [ "$CHECK_BLOCKS" -eq 1 ] && [ -d "features" ] && [ -n "$FEATURE_STANDARD" ] \
+	&& [ -f "$DIR/utils/extract-feature-php.php" ]
+then
+	TEMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'feature_phpcs')
+	PHPCS_OUTPUT=$(mktemp 2>/dev/null || mktemp -t 'feature_phpcs_output')
+	trap 'rm -rf "$TEMP_DIR" "$PHPCS_OUTPUT"' EXIT HUP INT TERM
+
+	# Results are only reported when the extraction they are based on succeeded.
+	if php "$DIR/utils/extract-feature-php.php" extract features "$TEMP_DIR"
+	then
+		if [ -n "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]
+		then
+			# The report is written to a file so that the status of PHPCS itself
+			# is preserved instead of the status of the command rewriting it.
+			# `--basepath` reduces the reported paths to the part that is worth
+			# showing, which also keeps PHPCS from truncating them from the left
+			# once they grow past the width of the report.
+			# shellcheck disable=SC2086 # Intentional word splitting.
+			vendor/bin/phpcs --standard="$FEATURE_STANDARD" $FEATURE_ARGS \
+				--basepath="$TEMP_DIR" "$TEMP_DIR" >"$PHPCS_OUTPUT" 2>&1 || EXIT_CODE=$?
+
+			# Findings are reported against the feature files they came from.
+			sed -E \
+				-e 's|^FILE: |FILE: features/|' \
+				-e 's/\.feature_L[0-9]+_E[0-9]+_(HASPHP|NOPHP)\.php/.feature/g' \
+				"$PHPCS_OUTPUT"
+		fi
+	else
+		EXIT_CODE=1
+	fi
+fi
+
+exit $EXIT_CODE

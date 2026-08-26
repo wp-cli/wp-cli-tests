@@ -80,6 +80,8 @@ To make use of the WP-CLI testing framework, you need to complete the following 
     ```
 
     All other [PHPCS configuration options](https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
+    The PHP snippets embedded in your feature files are checked along with the rest of the package. See [Checking the code style of the PHP blocks in feature files](#checking-the-code-style-of-the-php-blocks-in-feature-files) below.
+
 6. Optionally add a `phpstan-feature-files.neon.dist` file to the package root to also run PHPStan over the PHP snippets embedded in your feature files. See [Analysing the PHP blocks in feature files](#analysing-the-php-blocks-in-feature-files) below.
 
 7. Update your composer dependencies and regenerate your autoloader and binary folders:
@@ -167,6 +169,56 @@ Two kinds of blocks are left out of the analysis, and are listed at the end of t
 
 Blocks that declare the same class or function as another block are analysed separately from each
 other, so that PHPStan does not resolve a name to the wrong block's declaration.
+
+### Checking the code style of the PHP blocks in feature files
+
+`composer phpcs` also checks the PHP snippets that feature files embed in docstrings, and
+`composer phpcbf` fixes them in place. No configuration is needed, and like the analysis above the
+blocks are padded so that findings are reported against the feature file itself:
+
+```text
+FILE: features/command.feature
+----------------------------------------------------------------------
+FOUND 1 ERROR AFFECTING 1 LINE
+----------------------------------------------------------------------
+ 438 | ERROR | [x] Expected 1 space after IF keyword; 0 found
+----------------------------------------------------------------------
+```
+
+Only a docstring belonging to a step that creates a `.php` file is checked:
+
+```gherkin
+Given a wp-content/mu-plugins/test-harness.php file:
+  """
+  <?php
+  WP_CLI::add_command( 'test-harness', 'Test_Harness' );
+  """
+```
+
+Unlike the analysis above, a docstring that merely opens with `<?php` does not count. Those are
+routinely an expectation about the contents of a file rather than a file, and reformatting one would
+make it stop matching what it is checked against.
+
+The defaults leave out the sniffs that look at a block as if it were a file of its own, along with
+those that ask of a fixture what is only worth asking of production code. They live in
+`phpcs/feature-files.sh` and are shared by the check and the fixer, so that the two cannot disagree
+over which sniff applies. A package replaces them wholesale by adding a `phpcs-feature-files.xml`
+(or `phpcs-feature-files.xml.dist`) ruleset to its root:
+
+```xml
+<?xml version="1.0"?>
+<ruleset name="WP-CLI-PROJECT-NAME-feature-files">
+    <arg name="warning-severity" value="0"/>
+
+    <rule ref="WP_CLI_CS">
+        <exclude name="Generic.Files.InlineHTML"/>
+        <exclude name="Squiz.Commenting.FileComment"/>
+    </rule>
+</ruleset>
+```
+
+The blocks are left alone when a run is narrowed down to a path, as in `composer phpcs -- src/`,
+since such an argument is about the files of the package itself.
 
 ### Controlling what to test
 
