@@ -1,10 +1,12 @@
 #!/bin/sh
 
-# Honor the NO_COLOR convention (https://no-color.org/) by leaving the color
-# decision to the tool's own TTY detection instead of forcing it.
+# Honor the NO_COLOR convention (https://no-color.org/). This has to turn the
+# color off explicitly rather than omit the flag, because the tool's own
+# detection only asks whether STDOUT is a terminal and knows nothing about
+# NO_COLOR, so an interactive run would still be colored.
 COLOR_ARGS="--colors"
 if [ -n "${NO_COLOR}" ]; then
-	COLOR_ARGS=""
+	COLOR_ARGS="--no-colors"
 fi
 
 # shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.

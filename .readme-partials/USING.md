@@ -208,8 +208,8 @@ this package's `package.json`, which exists only to hold that pin.
 
 Two environment variables make the test tools less chatty. Both are unset by default, which leaves the output exactly as it has always been.
 
-  - `NO_COLOR` (the [no-color.org](https://no-color.org/) convention) stops the runners from forcing ANSI color codes on, and leaves the decision to each tool's own terminal detection. Set this when capturing output to a file or a pipe, where the escape sequences are noise.
-  - `WP_CLI_TEST_QUIET` switches the reporters to their most compact form: PHP_CodeSniffer reports one `file:line:col` line per violation with no progress ticker, PHPStan reports one `file:line:message` line per error with no progress bar and no result table. Behat's own output is already minimal, so it is unaffected.
+* `NO_COLOR` (the [no-color.org](https://no-color.org/) convention) turns off the ANSI color codes in the output of every runner. Set this when capturing output to a file or a pipe, where the escape sequences are noise.
+* `WP_CLI_TEST_QUIET` switches the reporters to their most compact form: PHP_CodeSniffer reports one `file:line:col` line per violation with no progress ticker, PHPStan reports one `file:line:message` line per error with no progress bar and no result table. Behat's own output is already minimal, so it is unaffected.
 
 `NO_COLOR` also covers the Gherkin linter, which colors its report unconditionally and has no plain output format of its own.
 
