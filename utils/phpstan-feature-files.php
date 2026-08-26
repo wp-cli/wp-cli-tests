@@ -12,10 +12,9 @@
 
 namespace WP_CLI\Tests;
 
-use FilesystemIterator;
 use ParseError;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
+
+require_once __DIR__ . '/feature-php-blocks.php';
 
 /**
  * Pattern matching the file names created during extraction.
@@ -26,180 +25,6 @@ const EXTRACTED_FILE_PATTERN = '/^(.*\.feature)_L(\d+)_E(\d+)\.php$/';
  * Name of the manifest describing an extraction.
  */
 const MANIFEST_FILE = 'manifest.json';
-
-/**
- * Bring a path into the form used to compare it against another path.
- *
- * @param string $path Path to normalize.
- * @return string Normalized path.
- */
-function normalize_path( $path ) {
-	$path = rtrim( str_replace( '\\', '/', $path ), '/' );
-
-	// Windows paths are not case sensitive.
-	return DIRECTORY_SEPARATOR === '\\' ? strtolower( $path ) : $path;
-}
-
-/**
- * Determine whether a directory can be used as extraction target.
- *
- * Extraction removes previously extracted files from the target directory,
- * so guard against pointing it at a directory holding actual project files.
- *
- * @param string $target_dir Target directory to output extracted .php files.
- * @param string $source_dir Source directory containing .feature files.
- * @return bool Whether the target directory can be used.
- */
-function is_valid_target_dir( $target_dir, $source_dir ) {
-	if ( '' === $target_dir || '.' === $target_dir || '..' === $target_dir ) {
-		return false;
-	}
-
-	// A Windows drive root, such as `C:`, `C:\`, or `C:/`.
-	if ( preg_match( '/^[a-z]:[\\\\\/]?$/i', $target_dir ) ) {
-		return false;
-	}
-
-	$target_real = realpath( $target_dir );
-
-	// A directory that does not exist yet gets created during extraction.
-	if ( false === $target_real ) {
-		return true;
-	}
-
-	$cwd = getcwd();
-	if ( false !== $cwd && realpath( $cwd ) === $target_real ) {
-		return false;
-	}
-
-	$source_real = realpath( $source_dir );
-	if ( false === $source_real ) {
-		return true;
-	}
-
-	if ( $source_real === $target_real ) {
-		return false;
-	}
-
-	// The target directory contains the feature files themselves.
-	if ( 0 === strpos( $source_real . DIRECTORY_SEPARATOR, $target_real . DIRECTORY_SEPARATOR ) ) {
-		return false;
-	}
-
-	return true;
-}
-
-/**
- * Remove files of a previous extraction from the target directory.
- *
- * Only files created by this script and the directories that held them are
- * removed, so that an unrelated file in the target directory is never lost.
- *
- * @param string $target_dir Target directory containing extracted .php files.
- * @return void
- */
-function remove_extracted_files( $target_dir ) {
-	if ( ! is_dir( $target_dir ) ) {
-		return;
-	}
-
-	$manifest = $target_dir . '/' . MANIFEST_FILE;
-	if ( is_file( $manifest ) ) {
-		unlink( $manifest );
-	}
-
-	$files = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator( $target_dir, RecursiveDirectoryIterator::SKIP_DOTS ),
-		RecursiveIteratorIterator::CHILD_FIRST
-	);
-
-	foreach ( $files as $fileinfo ) {
-		$pathname = $fileinfo->getPathname();
-
-		if ( $fileinfo->isDir() ) {
-			$contents = new FilesystemIterator( $pathname );
-			if ( ! $contents->valid() ) {
-				rmdir( $pathname );
-			}
-		} elseif ( preg_match( EXTRACTED_FILE_PATTERN, $fileinfo->getFilename() ) ) {
-			unlink( $pathname );
-		}
-	}
-}
-
-/**
- * Determine whether a step creates a PHP file.
- *
- * The docstring following such a step holds the contents of a PHP file, while
- * docstrings following other steps -- an expectation about the contents of a
- * file, for example -- are not necessarily PHP code. A docstring that opens
- * with `<?php` counts as PHP either way, see collect_blocks().
- *
- * @param string $line Line preceding a docstring.
- * @return bool Whether the line is a step creating a PHP file.
- */
-function is_php_file_step( $line ) {
-	return 1 === preg_match( '/^\s*(?:Given|When|Then|And|But|\*)\s+an?\s+[\w\/.-]+\.php\s+(?:cache\s+)?file:\s*$/i', $line );
-}
-
-/**
- * Collect the PHP blocks contained in a single feature file.
- *
- * @param string[] $lines Lines of the feature file.
- * @return array<int, array{start: int, end: int, lines: array<int, string>}>|null Blocks, or null on an unterminated docstring.
- */
-function collect_blocks( array $lines ) {
-	$blocks          = [];
-	$in_docstring    = false;
-	$is_php_block    = false;
-	$has_content     = false;
-	$start_line      = 0;
-	$docstring_lines = [];
-
-	foreach ( $lines as $index => $line ) {
-		$trimmed = trim( $line );
-
-		if ( 0 === strpos( $trimmed, '"""' ) || 0 === strpos( $trimmed, "'''" ) ) {
-			if ( ! $in_docstring ) {
-				$in_docstring    = true;
-				$is_php_block    = $index > 0 && is_php_file_step( $lines[ $index - 1 ] );
-				$has_content     = false;
-				$docstring_lines = [];
-				$start_line      = $index;
-			} else {
-				$in_docstring = false;
-
-				if ( $is_php_block && ! empty( $docstring_lines ) ) {
-					$blocks[] = [
-						'start' => $start_line,
-						'end'   => $index,
-						'lines' => $docstring_lines,
-					];
-				}
-			}
-			continue;
-		}
-
-		if ( $in_docstring ) {
-			// A block opening with `<?php` is PHP no matter which step precedes
-			// it, which covers PHP files that are not named `*.php`, such as the
-			// `.maintenance` file of a WordPress installation.
-			if ( ! $has_content && 0 === strpos( $trimmed, '<?php' ) ) {
-				$is_php_block = true;
-			}
-
-			if ( '' !== $trimmed ) {
-				$has_content = true;
-			}
-
-			// Every line is kept, including the empty ones leading up to
-			// an opening tag, so that line numbers keep matching.
-			$docstring_lines[ $index ] = $line;
-		}
-	}
-
-	return $in_docstring ? null : $blocks;
-}
 
 /**
  * Turn a PHP block into the source of a standalone PHP file.
@@ -215,16 +40,7 @@ function collect_blocks( array $lines ) {
  * @return string Source of the standalone PHP file.
  */
 function render_block( array $block ) {
-	$min_indent = PHP_INT_MAX;
-	foreach ( $block['lines'] as $code_line ) {
-		if ( '' !== trim( $code_line ) ) {
-			preg_match( '/^[ \t]*/', $code_line, $matches );
-			$min_indent = min( $min_indent, strlen( $matches[0] ) );
-		}
-	}
-	if ( PHP_INT_MAX === $min_indent ) {
-		$min_indent = 0;
-	}
+	$indent_length = strlen( (string) get_common_indent( $block['lines'] ) );
 
 	$out_lines = [];
 	for ( $i = 0; $i <= $block['start']; $i++ ) {
@@ -239,7 +55,7 @@ function render_block( array $block ) {
 			continue;
 		}
 
-		$code_line = substr( $code_line, $min_indent );
+		$code_line = substr( $code_line, $indent_length );
 
 		if ( ! $tag_dropped ) {
 			$tag_dropped = true;
@@ -428,27 +244,20 @@ function extract_feature_php( $source_dir, $target_dir ) {
 		return false;
 	}
 
-	remove_extracted_files( $target_dir );
+	// The manifest is written by this script alone, so it goes on its own.
+	$manifest = $target_dir . '/' . MANIFEST_FILE;
+	if ( is_file( $manifest ) ) {
+		unlink( $manifest );
+	}
+
+	remove_extracted_files( $target_dir, EXTRACTED_FILE_PATTERN );
 
 	$success = true;
 	$blocks  = [];
 	$skipped = [];
 
-	$iterator = new RecursiveIteratorIterator(
-		new RecursiveDirectoryIterator( $source_dir, FilesystemIterator::SKIP_DOTS )
-	);
-
-	$feature_files = [];
-	foreach ( $iterator as $file ) {
-		if ( $file->isFile() && 'feature' === $file->getExtension() ) {
-			$feature_files[] = str_replace( '\\', '/', $file->getPathname() );
-		}
-	}
-
-	// The order determines the batch a block ends up in, so keep it stable.
-	sort( $feature_files );
-
-	foreach ( $feature_files as $filepath ) {
+	// The order determines the batch a block ends up in, so it has to be stable.
+	foreach ( find_feature_files( $source_dir ) as $filepath ) {
 		$relative = substr( $filepath, strlen( $source_dir ) + 1 );
 		$lines    = file( $filepath );
 

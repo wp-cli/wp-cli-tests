@@ -2,158 +2,22 @@
 
 namespace WP_CLI\Tests\Tests;
 
-use WP_CLI\Tests\TestCase;
-use WP_CLI\Utils;
-
-class TestPhpStanFeatureFiles extends TestCase {
+class TestPhpStanFeatureFiles extends FeatureFilesTestCase {
 
 	/**
-	 * @var string
+	 * @return string Name of the script.
 	 */
-	public $temp_dir;
-
-	/**
-	 * @var string
-	 */
-	public $features_dir;
-
-	/**
-	 * @var string
-	 */
-	public $target_dir;
-
-	protected function set_up(): void {
-		parent::set_up();
-
-		$this->temp_dir     = Utils\get_temp_dir() . uniqid( 'wp-cli-test-phpstan-feature-files-', true );
-		$this->features_dir = $this->temp_dir . '/features';
-		$this->target_dir   = $this->temp_dir . '/extracted';
-
-		mkdir( $this->temp_dir );
-		mkdir( $this->features_dir );
-	}
-
-	protected function tear_down(): void {
-		if ( is_dir( $this->temp_dir ) ) {
-			$this->remove_dir( $this->temp_dir );
-		}
-
-		parent::tear_down();
+	protected function get_script_name(): string {
+		return 'phpstan-feature-files.php';
 	}
 
 	/**
-	 * Recursively removes a directory and its contents.
+	 * `php.ini` is loaded as usual here, as the script needs ext-tokenizer.
 	 *
-	 * @param string $dir The directory to remove.
+	 * @return string[] Flags to pass to the PHP binary.
 	 */
-	private function remove_dir( $dir ): void {
-		if ( ! is_dir( $dir ) ) {
-			return;
-		}
-
-		$iterator = new \RecursiveIteratorIterator(
-			new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
-			\RecursiveIteratorIterator::CHILD_FIRST
-		);
-
-		foreach ( $iterator as $file ) {
-			if ( $file->isDir() ) {
-				rmdir( $file->getPathname() );
-			} else {
-				unlink( $file->getPathname() );
-			}
-		}
-
-		rmdir( $dir );
-	}
-
-	/**
-	 * Runs the phpstan-feature-files.php script from within the temporary directory.
-	 *
-	 * @param string[] $args Arguments to pass to the script.
-	 * @return array{output: string, exit_code: int} Combined output and exit code of the script.
-	 */
-	private function run_script( array $args ): array {
-		$script = dirname( dirname( __DIR__ ) ) . DIRECTORY_SEPARATOR . 'utils' . DIRECTORY_SEPARATOR . 'phpstan-feature-files.php';
-
-		// `php.ini` is loaded as usual here, as the script needs ext-tokenizer.
-		$command = escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( $script );
-
-		foreach ( $args as $arg ) {
-			$command .= ' ' . escapeshellarg( $arg );
-		}
-
-		$cd_command = Utils\is_windows() ? 'cd /d ' : 'cd ';
-		$command    = $cd_command . escapeshellarg( $this->temp_dir ) . ' && ' . $command . ' 2>&1';
-
-		$output    = array();
-		$exit_code = 0;
-
-		exec( $command, $output, $exit_code );
-
-		return array(
-			'output'    => implode( "\n", $output ),
-			'exit_code' => $exit_code,
-		);
-	}
-
-	/**
-	 * Creates a feature file in the features directory.
-	 *
-	 * @param string $relative_path Path relative to the features directory.
-	 * @param string $contents      Contents of the feature file.
-	 * @return string Full path to the created file.
-	 */
-	private function create_feature_file( $relative_path, $contents ): string {
-		$path = $this->features_dir . '/' . $relative_path;
-
-		$directory = dirname( $path );
-		if ( ! is_dir( $directory ) ) {
-			mkdir( $directory, 0777, true );
-		}
-
-		file_put_contents( $path, $contents );
-
-		return $path;
-	}
-
-	/**
-	 * Returns the paths of all extracted files, relative to the target directory.
-	 *
-	 * @return string[] Sorted list of relative file paths.
-	 */
-	private function get_extracted_files(): array {
-		if ( ! is_dir( $this->target_dir ) ) {
-			return array();
-		}
-
-		$iterator = new \RecursiveIteratorIterator(
-			new \RecursiveDirectoryIterator( $this->target_dir, \FilesystemIterator::SKIP_DOTS )
-		);
-
-		$files = array();
-
-		foreach ( $iterator as $file ) {
-			if ( $file->isFile() && 'php' === $file->getExtension() ) {
-				$files[] = str_replace( '\\', '/', substr( $file->getPathname(), strlen( $this->target_dir ) + 1 ) );
-			}
-		}
-
-		sort( $files );
-
-		return $files;
-	}
-
-	/**
-	 * Returns the contents of an extracted file.
-	 *
-	 * @param string $relative_path Path relative to the target directory.
-	 * @return string Contents of the file.
-	 */
-	private function get_extracted_contents( $relative_path ): string {
-		$contents = file_get_contents( $this->target_dir . '/' . $relative_path );
-
-		return false === $contents ? '' : $contents;
+	protected function get_php_flags(): array {
+		return array();
 	}
 
 	/**
@@ -543,6 +407,66 @@ class TestPhpStanFeatureFiles extends TestCase {
 
 		$this->assertSame( 1, $result['exit_code'] );
 		$this->assertFileExists( $feature_file );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
+	public function test_extraction_preserves_indentation_that_mixes_tabs_and_spaces(): void {
+		// The shared indentation is taken off a block as a prefix rather than as
+		// a number of characters, so a line indented with a tab where the rest of
+		// the block uses spaces keeps its tab instead of trading it for a space.
+		$this->create_feature_file(
+			'example.feature',
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "\tfoo();\n"
+			. "      \"\"\"\n"
+		);
+
+		$result = $this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame(
+			"<?php\n\n\n\n\n\tfoo();\n",
+			$this->get_extracted_contents( 'batch0/example.feature_L4_E7.php' )
+		);
+	}
+
+	public function test_extraction_refuses_to_use_a_root_directory_as_target(): void {
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$result = $this->run_script( array( 'extract', 'features', '/' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'Refusing to use', $result['output'] );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
+	public function test_extraction_refuses_a_target_that_only_resolves_to_a_root(): void {
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$result = $this->run_script( array( 'extract', 'features', str_repeat( '../', 64 ) ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'Refusing to use', $result['output'] );
 		$this->assertSame( $contents, file_get_contents( $feature_file ) );
 	}
 
