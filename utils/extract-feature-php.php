@@ -16,6 +16,25 @@ use RecursiveIteratorIterator;
 const EXTRACTED_FILE_PATTERN = '/^(.*\.feature)_L(\d+)_E(\d+)_(HASPHP|NOPHP)\.php$/';
 
 /**
+ * Determine whether a path is the root of a filesystem or of a drive.
+ *
+ * @param string $path Path to check.
+ * @return bool Whether the path is a root directory.
+ */
+function is_root_dir( $path ) {
+	if ( '' === $path ) {
+		return false;
+	}
+
+	// A Windows drive root, such as `C:`, `C:\`, or `C:/`.
+	if ( preg_match( '/^[a-z]:[\\\\\/]?$/i', $path ) ) {
+		return true;
+	}
+
+	return '' === rtrim( $path, '/\\' );
+}
+
+/**
  * Determine whether a directory can be used as extraction target.
  *
  * Extraction removes previously extracted files from the target directory,
@@ -30,12 +49,16 @@ function is_valid_target_dir( $target_dir, $source_dir ) {
 		return false;
 	}
 
-	// A Windows drive root, such as `C:`, `C:\`, or `C:/`.
-	if ( preg_match( '/^[a-z]:[\\\\\/]?$/i', $target_dir ) ) {
+	if ( is_root_dir( $target_dir ) ) {
 		return false;
 	}
 
 	$target_real = realpath( $target_dir );
+
+	// Also covers a path that only resolves to a root, such as `features/../..`.
+	if ( false !== $target_real && is_root_dir( $target_real ) ) {
+		return false;
+	}
 
 	// A directory that does not exist yet gets created during extraction.
 	if ( false === $target_real ) {
@@ -56,8 +79,11 @@ function is_valid_target_dir( $target_dir, $source_dir ) {
 		return false;
 	}
 
-	// The target directory contains the feature files themselves.
-	if ( 0 === strpos( $source_real . DIRECTORY_SEPARATOR, $target_real . DIRECTORY_SEPARATOR ) ) {
+	// The target directory contains the feature files themselves. A root
+	// directory already ends in a separator, so appending another one would
+	// keep the comparison below from ever matching it.
+	$target_prefix = rtrim( $target_real, '/\\' ) . DIRECTORY_SEPARATOR;
+	if ( 0 === strpos( $source_real . DIRECTORY_SEPARATOR, $target_prefix ) ) {
 		return false;
 	}
 
@@ -67,14 +93,23 @@ function is_valid_target_dir( $target_dir, $source_dir ) {
 /**
  * Remove files of a previous extraction from the target directory.
  *
- * Only files created by this script and the directories that held them are
- * removed, so that an unrelated file in the target directory is never lost.
+ * Only files created by this script are removed, so that an unrelated file in
+ * the target directory is never lost. Directories are removed once they are
+ * empty, which includes an empty directory that was already there.
  *
  * @param string $target_dir Target directory containing extracted .php files.
  * @return void
  */
 function remove_extracted_files( $target_dir ) {
 	if ( ! is_dir( $target_dir ) ) {
+		return;
+	}
+
+	// The caller is expected to have rejected such a directory already, but
+	// the walk below is not something to start on a whole filesystem by
+	// accident.
+	$target_real = realpath( $target_dir );
+	if ( is_root_dir( $target_dir ) || ( false !== $target_real && is_root_dir( $target_real ) ) ) {
 		return;
 	}
 
@@ -98,11 +133,58 @@ function remove_extracted_files( $target_dir ) {
 }
 
 /**
+ * Determine the indentation that all lines holding code share.
+ *
+ * This is what extraction takes off a block and what syncing puts back, so it
+ * is determined as an actual prefix rather than as a number of characters: a
+ * block mixing tabs and spaces would otherwise come back with one swapped for
+ * the other. Blank lines carry no indentation of their own and are left out.
+ *
+ * @param string[] $lines Lines to compare.
+ * @return string|null Shared indentation, or null if no line holds code.
+ */
+function get_common_indent( array $lines ) {
+	$common = null;
+
+	foreach ( $lines as $line ) {
+		if ( '' === trim( $line ) ) {
+			continue;
+		}
+
+		preg_match( '/^[ \t]*/', $line, $matches );
+
+		if ( null === $common ) {
+			$common = $matches[0];
+			continue;
+		}
+
+		$length = min( strlen( $common ), strlen( $matches[0] ) );
+		while ( $length > 0 && substr( $common, 0, $length ) !== substr( $matches[0], 0, $length ) ) {
+			--$length;
+		}
+
+		$common = substr( $common, 0, $length );
+
+		if ( '' === $common ) {
+			break;
+		}
+	}
+
+	return $common;
+}
+
+/**
  * Determine whether a step creates a PHP file.
  *
  * The docstring following such a step holds the contents of a PHP file, while
  * docstrings following other steps -- an expectation about the contents of a
  * file, for example -- are not necessarily PHP code and must not be touched.
+ *
+ * This is the only thing that makes a docstring a PHP block here. The analysis
+ * in `phpstan-feature-files.php` also takes one that opens with `<?php`, which
+ * it can afford because it only ever reads. Reformatting an expectation would
+ * make it stop matching the file it is checked against, so a block that is
+ * fixed in place has to be one whose contents are known to be a PHP file.
  *
  * @param string $line Line preceding a docstring.
  * @return bool Whether the line is a step creating a PHP file.
@@ -153,7 +235,6 @@ function extract_feature_php( $source_dir, $target_dir ) {
 
 			$in_docstring    = false;
 			$is_php_block    = false;
-			$has_content     = false;
 			$start_line      = 0;
 			$docstring_lines = [];
 
@@ -164,7 +245,6 @@ function extract_feature_php( $source_dir, $target_dir ) {
 					if ( ! $in_docstring ) {
 						$in_docstring    = true;
 						$is_php_block    = false;
-						$has_content     = false;
 						$docstring_lines = [];
 						$start_line      = $index;
 
@@ -174,16 +254,7 @@ function extract_feature_php( $source_dir, $target_dir ) {
 					} else {
 						$in_docstring = false;
 						if ( $is_php_block && ! empty( $docstring_lines ) ) {
-							$min_indent = PHP_INT_MAX;
-							foreach ( $docstring_lines as $code_line ) {
-								if ( '' !== trim( $code_line ) ) {
-									preg_match( '/^[ \t]*/', $code_line, $m );
-									$min_indent = min( $min_indent, strlen( $m[0] ) );
-								}
-							}
-							if ( PHP_INT_MAX === $min_indent ) {
-								$min_indent = 0;
-							}
+							$indent_length = strlen( (string) get_common_indent( $docstring_lines ) );
 
 							$has_php_tag = false;
 							foreach ( $docstring_lines as $code_line ) {
@@ -210,7 +281,7 @@ function extract_feature_php( $source_dir, $target_dir ) {
 								if ( '' === trim( $code_line ) ) {
 									$out_lines[ $line_idx ] = "\n";
 								} else {
-									$out_lines[ $line_idx ] = substr( $code_line, $min_indent );
+									$out_lines[ $line_idx ] = substr( $code_line, $indent_length );
 								}
 							}
 
@@ -235,14 +306,6 @@ function extract_feature_php( $source_dir, $target_dir ) {
 				}
 
 				if ( $in_docstring ) {
-					if ( ! $has_content && 0 === strpos( $trimmed, '<?php' ) ) {
-						$is_php_block = true;
-					}
-
-					if ( '' !== $trimmed ) {
-						$has_content = true;
-					}
-
 					// Every line is kept, including the empty ones leading up to
 					// an opening tag, so that line numbers keep matching.
 					$docstring_lines[ $index ] = $line;
@@ -260,10 +323,12 @@ function extract_feature_php( $source_dir, $target_dir ) {
 }
 
 /**
- * Determine the indentation to use for a PHP block in a feature file.
+ * Determine the indentation that extraction stripped from a PHP block.
  *
- * Blank lines carry no indentation of their own, so the first line that holds
- * actual code determines the indentation for the whole block.
+ * Extraction takes the indentation that all lines of a block share off each of
+ * them, so putting a block back restores exactly that prefix. Deriving it from
+ * the first line instead would make a block whose opening tag is indented
+ * deeper than the code below it drift further to the right on every run.
  *
  * @param string[] $feature_lines   Lines of the feature file.
  * @param int      $code_start      Index of the first line of code.
@@ -272,11 +337,20 @@ function extract_feature_php( $source_dir, $target_dir ) {
  * @return string Indentation of the block.
  */
 function get_block_indent( $feature_lines, $code_start, $code_end, $docstring_start ) {
+	$code_lines = [];
+
 	for ( $i = $code_start; $i <= $code_end; $i++ ) {
-		if ( isset( $feature_lines[ $i ] ) && '' !== trim( $feature_lines[ $i ] ) ) {
-			preg_match( '/^[ \t]*/', $feature_lines[ $i ], $m );
-			return $m[0];
+		if ( isset( $feature_lines[ $i ] ) ) {
+			$code_lines[] = $feature_lines[ $i ];
 		}
+	}
+
+	// An empty prefix is a valid answer, so only a block without any code at
+	// all falls through to the guesses below.
+	$indent = get_common_indent( $code_lines );
+
+	if ( null !== $indent ) {
+		return $indent;
 	}
 
 	if ( isset( $feature_lines[ $docstring_start ] ) ) {
@@ -416,7 +490,11 @@ function update_feature_php( $source_dir, $target_dir ) {
 			) {
 				fwrite(
 					STDERR,
-					sprintf( 'Unexpected content in "%s", not syncing this block.', $feature_path ) . PHP_EOL
+					sprintf(
+						'The block at "%s" line %d is no longer the one that was checked, dropping its fixes.',
+						$feature_path,
+						$docstring_start + 1
+					) . PHP_EOL
 				);
 				$success = false;
 				continue;
@@ -427,7 +505,11 @@ function update_feature_php( $source_dir, $target_dir ) {
 			if ( null === $code_lines ) {
 				fwrite(
 					STDERR,
-					sprintf( 'Unexpected content in "%s", not syncing this block.', $block['temp_filepath'] ) . PHP_EOL
+					sprintf(
+						'The checked copy of the block at "%s" line %d is padded unexpectedly, dropping its fixes.',
+						$feature_path,
+						$docstring_start + 1
+					) . PHP_EOL
 				);
 				$success = false;
 				continue;

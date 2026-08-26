@@ -41,6 +41,25 @@ function normalize_path( $path ) {
 }
 
 /**
+ * Determine whether a path is the root of a filesystem or of a drive.
+ *
+ * @param string $path Path to check.
+ * @return bool Whether the path is a root directory.
+ */
+function is_root_dir( $path ) {
+	if ( '' === $path ) {
+		return false;
+	}
+
+	// A Windows drive root, such as `C:`, `C:\`, or `C:/`.
+	if ( preg_match( '/^[a-z]:[\\\\\/]?$/i', $path ) ) {
+		return true;
+	}
+
+	return '' === rtrim( $path, '/\\' );
+}
+
+/**
  * Determine whether a directory can be used as extraction target.
  *
  * Extraction removes previously extracted files from the target directory,
@@ -55,12 +74,16 @@ function is_valid_target_dir( $target_dir, $source_dir ) {
 		return false;
 	}
 
-	// A Windows drive root, such as `C:`, `C:\`, or `C:/`.
-	if ( preg_match( '/^[a-z]:[\\\\\/]?$/i', $target_dir ) ) {
+	if ( is_root_dir( $target_dir ) ) {
 		return false;
 	}
 
 	$target_real = realpath( $target_dir );
+
+	// Also covers a path that only resolves to a root, such as `features/../..`.
+	if ( false !== $target_real && is_root_dir( $target_real ) ) {
+		return false;
+	}
 
 	// A directory that does not exist yet gets created during extraction.
 	if ( false === $target_real ) {
@@ -81,8 +104,11 @@ function is_valid_target_dir( $target_dir, $source_dir ) {
 		return false;
 	}
 
-	// The target directory contains the feature files themselves.
-	if ( 0 === strpos( $source_real . DIRECTORY_SEPARATOR, $target_real . DIRECTORY_SEPARATOR ) ) {
+	// The target directory contains the feature files themselves. A root
+	// directory already ends in a separator, so appending another one would
+	// keep the comparison below from ever matching it.
+	$target_prefix = rtrim( $target_real, '/\\' ) . DIRECTORY_SEPARATOR;
+	if ( 0 === strpos( $source_real . DIRECTORY_SEPARATOR, $target_prefix ) ) {
 		return false;
 	}
 
@@ -100,6 +126,14 @@ function is_valid_target_dir( $target_dir, $source_dir ) {
  */
 function remove_extracted_files( $target_dir ) {
 	if ( ! is_dir( $target_dir ) ) {
+		return;
+	}
+
+	// The caller is expected to have rejected such a directory already, but
+	// the walk below is not something to start on a whole filesystem by
+	// accident.
+	$target_real = realpath( $target_dir );
+	if ( is_root_dir( $target_dir ) || ( false !== $target_real && is_root_dir( $target_real ) ) ) {
 		return;
 	}
 

@@ -546,6 +546,42 @@ class TestPhpStanFeatureFiles extends TestCase {
 		$this->assertSame( $contents, file_get_contents( $feature_file ) );
 	}
 
+	public function test_extraction_refuses_to_use_a_root_directory_as_target(): void {
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$result = $this->run_script( array( 'extract', 'features', '/' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'Refusing to use', $result['output'] );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
+	public function test_extraction_refuses_a_target_that_only_resolves_to_a_root(): void {
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$result = $this->run_script( array( 'extract', 'features', str_repeat( '../', 64 ) ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'Refusing to use', $result['output'] );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
 	public function test_extraction_refuses_to_use_the_current_directory_as_target(): void {
 		$contents = "Feature: Example\n"
 			. "  Scenario: A PHP block\n"

@@ -5,7 +5,6 @@ namespace WP_CLI\Tests\Tests;
 use WP_CLI\Tests\TestCase;
 use WP_CLI\Utils;
 
-// phpcs:ignore Universal.Files.SeparateFunctionsFromOO.Mixed
 class TestExtractFeaturePhp extends TestCase {
 
 	/**
@@ -604,7 +603,104 @@ class TestExtractFeaturePhp extends TestCase {
 		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
 
 		$this->assertSame( 1, $result['exit_code'] );
-		$this->assertStringContainsString( 'Unexpected content in', $result['output'] );
+		$this->assertStringContainsString( 'is no longer the one that was checked', $result['output'] );
 		$this->assertSame( $modified_contents, file_get_contents( $feature_file ) );
+	}
+
+	public function test_extraction_skips_php_docstrings_that_do_not_belong_to_a_php_file_step(): void {
+		// The block opens with `<?php`, but the step it belongs to states an
+		// expectation instead of creating a file. Reformatting it would make it
+		// stop matching the file it is checked against.
+		$contents = "Feature: Example\n"
+			. "  Scenario: An expectation about a file\n"
+			. "    Then the wp-config.php file should contain:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      define('FOO',true);\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$result = $this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame( array(), $this->get_extracted_files() );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
+	public function test_update_preserves_a_block_indented_below_its_opening_tag(): void {
+		// The first line of the block is not the one carrying the least
+		// indentation, so the indentation to restore cannot be read off it.
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "    \$foo = 'bar';\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
+	public function test_update_preserves_mixed_tab_and_space_indentation(): void {
+		// Extraction takes a shared prefix off the block rather than a number of
+		// characters, so a tab never comes back as a space or the other way round.
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "\tif ( true ) {}\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
+	public function test_extraction_refuses_to_use_a_root_directory_as_target(): void {
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$result = $this->run_script( array( 'extract', 'features', '/' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'Refusing to use', $result['output'] );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
+	public function test_extraction_refuses_a_target_that_only_resolves_to_a_root(): void {
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      \$foo = 'bar';\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$result = $this->run_script( array( 'extract', 'features', str_repeat( '../', 64 ) ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertStringContainsString( 'Refusing to use', $result['output'] );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
 	}
 }
