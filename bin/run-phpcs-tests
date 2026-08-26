@@ -9,7 +9,16 @@ then
 	# Useful for CI logs and for AI coding agents, which pay for every token of
 	# the report they read back.
 	if [ -n "${WP_CLI_TEST_QUIET}" ]; then
-		EXTRA_ARGS="-q --report=emacs"
+		EXTRA_ARGS="-q"
+
+		# A report asked for on the command line wins. PHPCS does not let a
+		# later --report replace an earlier one -- 3.x prints both reports and
+		# 4.x keeps only the first it saw -- so the compact one has to stay out
+		# of the way rather than rely on ordering.
+		case " $* " in
+			*" --report="*|*" --report-"*) ;;
+			*) EXTRA_ARGS="${EXTRA_ARGS} --report=emacs" ;;
+		esac
 	fi
 
 	# shellcheck disable=SC2086 # Intentional word splitting of the optional arguments.
