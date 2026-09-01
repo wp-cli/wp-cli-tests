@@ -199,25 +199,24 @@ Unlike the analysis above, a docstring that merely opens with `<?php` does not c
 routinely an expectation about the contents of a file rather than a file, and reformatting one would
 make it stop matching what it is checked against.
 
-Feature files indent with spaces, the standard indents with tabs. A block is therefore converted on
-the way in and back on the way out: the check and the fixer see the tab-indented file the standard
-expects, and what lands back in the feature file is indented with four spaces per level, so a fixed
-block never mixes the two. Findings about indentation are worded in tabs for the same reason -- one
-tab per four columns of the feature file. Trailing whitespace is dropped along the way, as the fixer
-leaves some behind wherever it breaks a line.
+Feature files indent with spaces, so the sniffs that would indent a block with tabs are turned around
+for this run: a block is checked, and fixed, as the space-indented code it is, and a tab that does
+find its way into one is reported and fixed like any other violation. Trailing whitespace is reported
+too, as the fixer leaves some behind wherever it breaks a line.
 
 The defaults leave out the sniffs that look at a block as if it were a file of its own, along with
 those that ask of a fixture what is only worth asking of production code. They live in
 `phpcs/feature-files.sh` and are shared by the check and the fixer, so that the two cannot disagree
-over which sniff applies. A package replaces them wholesale by adding a `phpcs-feature-files.xml`
-(or `phpcs-feature-files.xml.dist`) ruleset to its root:
+over which sniff applies; what a sniff has to be told rather than simply left out lives in the
+`WP_CLI_CS_Feature_Files` ruleset. A package replaces both wholesale by adding a
+`phpcs-feature-files.xml` (or `phpcs-feature-files.xml.dist`) ruleset to its root:
 
 ```xml
 <?xml version="1.0"?>
 <ruleset name="WP-CLI-PROJECT-NAME-feature-files">
     <arg name="warning-severity" value="0"/>
 
-    <rule ref="WP_CLI_CS">
+    <rule ref="WP_CLI_CS_Feature_Files">
         <exclude name="Generic.Files.InlineHTML"/>
         <exclude name="Squiz.Commenting.FileComment"/>
     </rule>

@@ -12,11 +12,15 @@
 # spans several major versions of PHP_CodeSniffer and of the standards it
 # builds on, and not every entry exists in all of them.
 #
+# Only what cannot be said on the command line -- a sniff property, a single
+# message code -- is declared in the `WP_CLI_CS_Feature_Files` ruleset, which is
+# what tells the sniffs that indent that a feature file indents with spaces.
+#
 # A package replaces these defaults wholesale by adding a
 # `phpcs-feature-files.xml` (or `phpcs-feature-files.xml.dist`) ruleset to its
 # root, which is then used as the standard instead.
 
-WP_CLI_TESTS_FEATURE_STANDARD="WP_CLI_CS"
+WP_CLI_TESTS_FEATURE_STANDARD="WP_CLI_CS_Feature_Files"
 
 # Warnings are advisory, and the fixer must not rewrite a feature file over
 # something the check does not report.
@@ -36,12 +40,6 @@ WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Squiz.Commenting.F
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Generic.PHP.RequireStrictTypes"
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,WordPress.Files.FileName"
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Universal.WhiteSpace.PrecisionAlignment"
-# Only the part of this sniff that looks at the start and the end of the file
-# is in the way, but `--exclude` takes sniff codes and not message codes, so it
-# has to go as a whole. Syncing a fixed block back into its feature file trims
-# the trailing whitespace the sniff would have caught. See
-# `utils/extract-feature-php.php`.
-WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Squiz.WhiteSpace.SuperfluousWhitespace"
 
 # A block is a fixture, not production code. Snippets exist to set up a
 # scenario, run inside a throwaway WordPress installation, are written to be

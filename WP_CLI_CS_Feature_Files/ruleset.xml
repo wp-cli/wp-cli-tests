@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<ruleset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="WP_CLI_CS_Feature_Files" xsi:noNamespaceSchemaLocation="../vendor/squizlabs/php_codesniffer/phpcs.xsd">
+
+	<description>Coding standard for the PHP blocks embedded in Behat feature files</description>
+
+	<!--
+	The blocks live in the docstrings of .feature files, which indent with
+	spaces, while the standard they are checked against indents with tabs. What
+	it takes to turn that around is a property and a message code, neither of
+	which can be said on the command line, so it is said here.
+
+	The sniffs that are only ever left out stay in `phpcs/feature-files.sh`: an
+	exclusion there passes over a sniff the installed PHP_CodeSniffer does not
+	know, while one here aborts the whole run over it. Nothing in this file is
+	newer than PHP_CodeSniffer 3.0 or WordPressCS 1.0.
+	-->
+
+	<rule ref="WP_CLI_CS">
+		<exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
+	</rule>
+
+	<!-- The other way round, so that a block arriving with tabs is brought in line. -->
+	<rule ref="Generic.WhiteSpace.DisallowTabIndent"/>
+
+	<rule ref="Generic.WhiteSpace.ScopeIndent">
+		<properties>
+			<property name="tabIndent" value="false"/>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.Arrays.ArrayIndentation">
+		<properties>
+			<property name="tabIndent" value="false"/>
+		</properties>
+	</rule>
+
+	<!--
+	The fixer leaves whitespace behind wherever it breaks a line, so this sniff
+	has to run. Only the two message codes that look at the file as a whole are
+	in the way: a block is padded with one empty line per preceding line of the
+	feature file, and letting the fixer take that padding off would shift every
+	line number reported against it.
+	-->
+	<rule ref="Squiz.WhiteSpace.SuperfluousWhitespace">
+		<exclude name="Squiz.WhiteSpace.SuperfluousWhitespace.StartFile"/>
+		<exclude name="Squiz.WhiteSpace.SuperfluousWhitespace.EndFile"/>
+	</rule>
+
+</ruleset>
