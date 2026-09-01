@@ -223,6 +223,11 @@ over which sniff applies; what a sniff has to be told rather than simply left ou
 </ruleset>
 ```
 
+Such a ruleset takes the place of both halves of the defaults, so the sniffs listed in
+`phpcs/feature-files.sh` are no longer left out for it either. Starting it from
+`WP_CLI_CS_Feature_Files` rather than from `WP_CLI_CS`, as above, at least keeps the indentation and
+the whitespace handling.
+
 The blocks are left alone when a run is narrowed down to a path, as in `composer phpcs -- src/`,
 since such an argument is about the files of the package itself.
 

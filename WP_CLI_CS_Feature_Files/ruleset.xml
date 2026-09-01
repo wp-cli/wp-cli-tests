@@ -9,10 +9,13 @@
 	it takes to turn that around is a property and a message code, neither of
 	which can be said on the command line, so it is said here.
 
-	The sniffs that are only ever left out stay in `phpcs/feature-files.sh`: an
-	exclusion there passes over a sniff the installed PHP_CodeSniffer does not
-	know, while one here aborts the whole run over it. Nothing in this file is
-	newer than PHP_CodeSniffer 3.0 or WordPressCS 1.0.
+	The sniffs that are only ever left out stay on the command line, in
+	`phpcs/feature-files.sh`, because the exclude option passes over a sniff the
+	installed PHP_CodeSniffer does not know, while naming one here aborts the
+	whole run over it. Every sniff named below has been part of PHP_CodeSniffer
+	or WordPressCS for long enough to be worth that, and naming it here is what
+	makes a name that no longer resolves an error rather than a line that
+	quietly stops doing anything.
 	-->
 
 	<rule ref="WP_CLI_CS">

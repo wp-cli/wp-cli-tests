@@ -12,9 +12,12 @@
 # spans several major versions of PHP_CodeSniffer and of the standards it
 # builds on, and not every entry exists in all of them.
 #
-# Only what cannot be said on the command line -- a sniff property, a single
-# message code -- is declared in the `WP_CLI_CS_Feature_Files` ruleset, which is
-# what tells the sniffs that indent that a feature file indents with spaces.
+# The other half of the defaults is the `WP_CLI_CS_Feature_Files` ruleset, which
+# holds what a command line cannot express: a sniff property, and an exclusion
+# narrowed down to a single message code. What it names is long-standing enough
+# to be worth naming in a ruleset, where a name that does not resolve is an
+# error rather than a line that quietly does nothing. The list below cannot
+# afford that, which is the whole of why the defaults live in two files.
 #
 # A package replaces these defaults wholesale by adding a
 # `phpcs-feature-files.xml` (or `phpcs-feature-files.xml.dist`) ruleset to its
@@ -32,7 +35,7 @@ WP_CLI_TESTS_FEATURE_ARGS="--warning-severity=0"
 # the shared docstring indentation is taken off before the check and put back
 # afterwards, so none of the sniffs looking at a file as a whole apply.
 WP_CLI_TESTS_FEATURE_EXCLUDES="Generic.Files.InlineHTML"
-WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Generic.PHP.CharacterBeforePHPOpenTag"
+WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Generic.PHP.CharacterBeforePHPOpeningTag"
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Generic.Files.LineEndings"
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,PSR2.Files.EndFileNewline"
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,PSR12.Files.FileHeader"
