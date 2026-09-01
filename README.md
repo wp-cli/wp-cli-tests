@@ -210,23 +210,33 @@ Unlike the analysis above, a docstring that merely opens with `<?php` does not c
 routinely an expectation about the contents of a file rather than a file, and reformatting one would
 make it stop matching what it is checked against.
 
-The defaults leave out the sniffs that look at a block as if it were a file of its own, along with
-those that ask of a fixture what is only worth asking of production code. They live in
-`phpcs/feature-files.sh` and are shared by the check and the fixer, so that the two cannot disagree
-over which sniff applies. A package replaces them wholesale by adding a `phpcs-feature-files.xml`
-(or `phpcs-feature-files.xml.dist`) ruleset to its root:
+Feature files indent with spaces, so the sniffs that would indent a block with tabs are turned around
+for this run: a block is checked, and fixed, as the space-indented code it is, and a tab that does
+find its way into one is reported and fixed like any other violation. Trailing whitespace is reported
+too, as the fixer leaves some behind wherever it breaks a line.
+
+All of this is the `WP_CLI_CS_Feature_Files` ruleset, which is `WP_CLI_CS` with the sniffs that
+indent turned around, and with the sniffs that look at a block as if it were a file of its own left
+out, along with those that ask of a fixture what is only worth asking of production code. The check
+and the fixer both use it, so that the two cannot disagree over which sniff applies to a block. A
+package replaces it wholesale by adding a `phpcs-feature-files.xml` (or
+`phpcs-feature-files.xml.dist`) ruleset to its root:
 
 ```xml
 <?xml version="1.0"?>
 <ruleset name="WP-CLI-PROJECT-NAME-feature-files">
     <arg name="warning-severity" value="0"/>
 
-    <rule ref="WP_CLI_CS">
+    <rule ref="WP_CLI_CS_Feature_Files">
         <exclude name="Generic.Files.InlineHTML"/>
         <exclude name="Squiz.Commenting.FileComment"/>
     </rule>
 </ruleset>
 ```
+
+Starting from `WP_CLI_CS_Feature_Files`, as above, keeps the defaults and adds to them. Starting
+from `WP_CLI_CS` instead gives up all of them, including the space indentation, and leaves the
+package to say for itself what a padded block cannot satisfy.
 
 The blocks are left alone when a run is narrowed down to a path, as in `composer phpcs -- src/`,
 since such an argument is about the files of the package itself.
