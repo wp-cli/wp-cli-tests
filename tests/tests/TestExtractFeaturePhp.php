@@ -153,6 +153,33 @@ class TestExtractFeaturePhp extends FeatureFilesTestCase {
 		);
 	}
 
+	public function test_extraction_indents_the_block_with_tabs(): void {
+		// Feature files indent with spaces, the standard the blocks are checked
+		// against indents with tabs. What does not add up to a full tab stop stays
+		// a run of spaces, so that alignment survives the conversion.
+		$this->create_feature_file(
+			'example.feature',
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      if ( true ) {\n"
+			. "          \$foo = 'bar';\n"
+			. "        \$baz = 'qux';\n"
+			. "      }\n"
+			. "      \"\"\"\n"
+		);
+
+		$result = $this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame(
+			"\n\n\n\n<?php\nif ( true ) {\n\t\$foo = 'bar';\n  \$baz = 'qux';\n}\n",
+			$this->get_extracted_contents( 'example.feature_L4_E10_HASPHP.php' )
+		);
+	}
+
 	public function test_extraction_skips_docstrings_that_are_not_php_files(): void {
 		$this->create_feature_file(
 			'example.feature',
@@ -343,6 +370,65 @@ class TestExtractFeaturePhp extends FeatureFilesTestCase {
 		);
 	}
 
+	public function test_update_drops_trailing_whitespace(): void {
+		// The fixer leaves the whitespace it broke a line at behind, and the sniff
+		// that would clean that up cannot be part of the run, as it also wants the
+		// padding in front of the block gone.
+		$feature_file = $this->create_feature_file(
+			'example.feature',
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      foo( 'bar' );\n"
+			. "      \"\"\"\n"
+		);
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+
+		$extracted = $this->target_dir . '/example.feature_L4_E7_HASPHP.php';
+		file_put_contents( $extracted, "\n\n\n\n<?php\nfoo(\n\t'bar' \n); \n" );
+
+		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame(
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      foo(\n"
+			. "          'bar'\n"
+			. "      );\n"
+			. "      \"\"\"\n",
+			file_get_contents( $feature_file )
+		);
+	}
+
+	public function test_update_keeps_crlf_line_endings(): void {
+		// Trimming a line means taking its line ending off first, so a feature file
+		// using CRLF has to get its own back rather than the one PHP writes.
+		$contents = "Feature: Example\r\n"
+			. "  Scenario: A PHP block\r\n"
+			. "    Given a test.php file:\r\n"
+			. "      \"\"\"\r\n"
+			. "      <?php\r\n"
+			. "      if ( true ) {\r\n"
+			. "          \$foo = 'bar';\r\n"
+			. "      }\r\n"
+			. "      \"\"\"\r\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+	}
+
 	public function test_update_does_not_add_the_generated_opening_tag(): void {
 		$feature_file = $this->create_feature_file(
 			'example.feature',
@@ -384,7 +470,7 @@ class TestExtractFeaturePhp extends FeatureFilesTestCase {
 			. "\n"
 			. "      <?php\n"
 			. "      if ( true ) {\n"
-			. "      \t\$foo = 'bar';\n"
+			. "          \$foo = 'bar';\n"
 			. "      }\n"
 			. "\n"
 			. "      \"\"\"\n"
@@ -513,9 +599,44 @@ class TestExtractFeaturePhp extends FeatureFilesTestCase {
 		$this->assertSame( $contents, file_get_contents( $feature_file ) );
 	}
 
-	public function test_update_preserves_mixed_tab_and_space_indentation(): void {
-		// Extraction takes a shared prefix off the block rather than a number of
-		// characters, so a tab never comes back as a space or the other way round.
+	public function test_update_converts_tab_indentation_to_spaces(): void {
+		// A block is checked as the tab-indented file the standard expects, so a
+		// block that arrives with tabs -- written that way, or left behind by a
+		// fixer that did not convert them back -- comes back with spaces.
+		$contents = "Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      if ( true ) {\n"
+			. "      \t\$foo = 'bar';\n"
+			. "      }\n"
+			. "      \"\"\"\n";
+
+		$feature_file = $this->create_feature_file( 'example.feature', $contents );
+
+		$this->run_script( array( 'extract', 'features', 'extracted' ) );
+		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
+
+		$this->assertSame( 0, $result['exit_code'], $result['output'] );
+		$this->assertSame(
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "      if ( true ) {\n"
+			. "          \$foo = 'bar';\n"
+			. "      }\n"
+			. "      \"\"\"\n",
+			file_get_contents( $feature_file )
+		);
+	}
+
+	public function test_update_converts_indentation_a_tab_at_a_time(): void {
+		// The block shares no indentation with its opening tag, so the whole
+		// indentation of the line is the fixer's to see and comes back as the
+		// number of columns a tab covers rather than as a single space.
 		$contents = "Feature: Example\n"
 			. "  Scenario: A PHP block\n"
 			. "    Given a test.php file:\n"
@@ -530,7 +651,16 @@ class TestExtractFeaturePhp extends FeatureFilesTestCase {
 		$result = $this->run_script( array( 'update', 'features', 'extracted' ) );
 
 		$this->assertSame( 0, $result['exit_code'], $result['output'] );
-		$this->assertSame( $contents, file_get_contents( $feature_file ) );
+		$this->assertSame(
+			"Feature: Example\n"
+			. "  Scenario: A PHP block\n"
+			. "    Given a test.php file:\n"
+			. "      \"\"\"\n"
+			. "      <?php\n"
+			. "    if ( true ) {}\n"
+			. "      \"\"\"\n",
+			file_get_contents( $feature_file )
+		);
 	}
 
 	public function test_extraction_refuses_to_use_a_root_directory_as_target(): void {

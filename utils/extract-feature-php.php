@@ -17,6 +17,77 @@ require_once __DIR__ . '/feature-php-blocks.php';
 const EXTRACTED_FILE_PATTERN = '/^(.*\.feature)_L(\d+)_E(\d+)_(HASPHP|NOPHP)\.php$/';
 
 /**
+ * Width of a tab stop, in spaces.
+ *
+ * `WordPress-Core`, which `WP_CLI_CS` builds on, indents with one tab per level
+ * and has PHP_CodeSniffer read a tab as four columns. Converting the blocks at
+ * the same width is what makes the two conversions below meet in the middle.
+ */
+const TAB_WIDTH = 4;
+
+/**
+ * Determine how many columns a run of indentation covers.
+ *
+ * A tab advances to the next tab stop rather than by a fixed amount, which is
+ * what keeps the two conversions below each other's inverse.
+ *
+ * @param string $indent    Indentation to measure.
+ * @param int    $tab_width Width of a tab stop, in spaces.
+ * @return int Number of columns the indentation covers.
+ */
+function get_indent_width( $indent, $tab_width ) {
+	$width = 0;
+
+	for ( $i = 0, $length = strlen( $indent ); $i < $length; $i++ ) {
+		if ( "\t" === $indent[ $i ] ) {
+			$width += $tab_width - ( $width % $tab_width );
+		} else {
+			++$width;
+		}
+	}
+
+	return $width;
+}
+
+/**
+ * Indent a line with tabs.
+ *
+ * Whatever is left over past the last full tab stop stays a run of spaces, so
+ * that a line aligned to something rather than indented keeps its alignment.
+ *
+ * @param string $line      Line to convert.
+ * @param int    $tab_width Width of a tab stop, in spaces.
+ * @return string Line indented with tabs.
+ */
+function indent_with_tabs( $line, $tab_width = TAB_WIDTH ) {
+	if ( 1 !== preg_match( '/^[ \t]+/', $line, $matches ) ) {
+		return $line;
+	}
+
+	$width = get_indent_width( $matches[0], $tab_width );
+
+	return str_repeat( "\t", intdiv( $width, $tab_width ) )
+		. str_repeat( ' ', $width % $tab_width )
+		. substr( $line, strlen( $matches[0] ) );
+}
+
+/**
+ * Indent a line with spaces.
+ *
+ * @param string $line      Line to convert.
+ * @param int    $tab_width Width of a tab stop, in spaces.
+ * @return string Line indented with spaces.
+ */
+function indent_with_spaces( $line, $tab_width = TAB_WIDTH ) {
+	if ( 1 !== preg_match( '/^[ \t]+/', $line, $matches ) ) {
+		return $line;
+	}
+
+	return str_repeat( ' ', get_indent_width( $matches[0], $tab_width ) )
+		. substr( $line, strlen( $matches[0] ) );
+}
+
+/**
  * Turn a PHP block into the source of a standalone PHP file.
  *
  * The block is padded with one empty line per preceding line of the feature
@@ -28,6 +99,10 @@ const EXTRACTED_FILE_PATTERN = '/^(.*\.feature)_L(\d+)_E(\d+)_(HASPHP|NOPHP)\.ph
  * Unlike the analysis in `phpstan-feature-files.php`, an opening tag that the
  * block brings along stays where it is. A fix is written back into the feature
  * file, so the checked copy has to line up with the block it came from.
+ *
+ * What is left of a line once the shared indentation is off is indented with
+ * tabs, which is how the standard the block is checked against wants it. Feature
+ * files indent with spaces, so update_feature_php() converts it back.
  *
  * @param array{start: int, lines: array<int, string>, has_php_tag: bool} $block Block to render.
  * @return string Source of the standalone PHP file.
@@ -48,7 +123,7 @@ function render_fixable_block( array $block ) {
 		if ( '' === trim( $code_line ) ) {
 			$out_lines[ $line_idx ] = "\n";
 		} else {
-			$out_lines[ $line_idx ] = substr( $code_line, $indent_length );
+			$out_lines[ $line_idx ] = indent_with_tabs( substr( $code_line, $indent_length ) );
 		}
 	}
 
@@ -133,6 +208,9 @@ function extract_feature_php( $source_dir, $target_dir ) {
  * them, so putting a block back restores exactly that prefix. Deriving it from
  * the first line instead would make a block whose opening tag is indented
  * deeper than the code below it drift further to the right on every run.
+ *
+ * The prefix is measured, not reproduced verbatim: the caller writes it back as
+ * spaces, along with the rest of the indentation of the line.
  *
  * @param string[] $feature_lines   Lines of the feature file.
  * @param int      $code_start      Index of the first line of code.
@@ -328,12 +406,25 @@ function update_feature_php( $source_dir, $target_dir ) {
 					continue;
 				}
 
-				$fixed_line = $indent . $line_content;
-				if ( "\n" !== substr( $fixed_line, -1 ) ) {
-					$fixed_line .= "\n";
+				// The line ending is put back the way it was found, so that a
+				// feature file using CRLF keeps doing so.
+				$eol = "\n";
+				if ( 1 === preg_match( '/\r?\n$/', $line_content, $eol_match ) ) {
+					$eol          = $eol_match[0];
+					$line_content = substr( $line_content, 0, -strlen( $eol ) );
 				}
 
-				$fixed_lines[] = $fixed_line;
+				// Indentation goes back to spaces, undoing what extraction did to
+				// have the block checked as the tab-indented file the standard
+				// expects. Trailing whitespace goes with it: the fixer leaves some
+				// behind wherever it breaks a line, and the sniff that would clean
+				// that up cannot be part of the run, as it also wants the padding
+				// gone. See render_fixable_block() and `phpcs/feature-files.sh`.
+				// The two runs are converted apart rather than as one: extraction
+				// took the shared prefix off before handing the rest to the fixer, so
+				// the tabs it produced count from the start of the line as the fixer
+				// saw it, not from the start of the line in the feature file.
+				$fixed_lines[] = rtrim( indent_with_spaces( $indent ) . indent_with_spaces( $line_content ), " \t" ) . $eol;
 			}
 
 			$num_code_lines = ( $code_end - $code_start + 1 );

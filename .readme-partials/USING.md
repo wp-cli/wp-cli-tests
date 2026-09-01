@@ -199,6 +199,13 @@ Unlike the analysis above, a docstring that merely opens with `<?php` does not c
 routinely an expectation about the contents of a file rather than a file, and reformatting one would
 make it stop matching what it is checked against.
 
+Feature files indent with spaces, the standard indents with tabs. A block is therefore converted on
+the way in and back on the way out: the check and the fixer see the tab-indented file the standard
+expects, and what lands back in the feature file is indented with four spaces per level, so a fixed
+block never mixes the two. Findings about indentation are worded in tabs for the same reason -- one
+tab per four columns of the feature file. Trailing whitespace is dropped along the way, as the fixer
+leaves some behind wherever it breaks a line.
+
 The defaults leave out the sniffs that look at a block as if it were a file of its own, along with
 those that ask of a fixture what is only worth asking of production code. They live in
 `phpcs/feature-files.sh` and are shared by the check and the fixer, so that the two cannot disagree

@@ -36,6 +36,11 @@ WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Squiz.Commenting.F
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Generic.PHP.RequireStrictTypes"
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,WordPress.Files.FileName"
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Universal.WhiteSpace.PrecisionAlignment"
+# Only the part of this sniff that looks at the start and the end of the file
+# is in the way, but `--exclude` takes sniff codes and not message codes, so it
+# has to go as a whole. Syncing a fixed block back into its feature file trims
+# the trailing whitespace the sniff would have caught. See
+# `utils/extract-feature-php.php`.
 WP_CLI_TESTS_FEATURE_EXCLUDES="$WP_CLI_TESTS_FEATURE_EXCLUDES,Squiz.WhiteSpace.SuperfluousWhitespace"
 
 # A block is a fixture, not production code. Snippets exist to set up a
