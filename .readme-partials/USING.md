@@ -204,12 +204,12 @@ for this run: a block is checked, and fixed, as the space-indented code it is, a
 find its way into one is reported and fixed like any other violation. Trailing whitespace is reported
 too, as the fixer leaves some behind wherever it breaks a line.
 
-The defaults leave out the sniffs that look at a block as if it were a file of its own, along with
-those that ask of a fixture what is only worth asking of production code. They live in
-`phpcs/feature-files.sh` and are shared by the check and the fixer, so that the two cannot disagree
-over which sniff applies; what a sniff has to be told rather than simply left out lives in the
-`WP_CLI_CS_Feature_Files` ruleset. A package replaces both wholesale by adding a
-`phpcs-feature-files.xml` (or `phpcs-feature-files.xml.dist`) ruleset to its root:
+All of this is the `WP_CLI_CS_Feature_Files` ruleset, which is `WP_CLI_CS` with the sniffs that
+indent turned around, and with the sniffs that look at a block as if it were a file of its own left
+out, along with those that ask of a fixture what is only worth asking of production code. The check
+and the fixer both use it, so that the two cannot disagree over which sniff applies to a block. A
+package replaces it wholesale by adding a `phpcs-feature-files.xml` (or
+`phpcs-feature-files.xml.dist`) ruleset to its root:
 
 ```xml
 <?xml version="1.0"?>
@@ -223,10 +223,9 @@ over which sniff applies; what a sniff has to be told rather than simply left ou
 </ruleset>
 ```
 
-Such a ruleset takes the place of both halves of the defaults, so the sniffs listed in
-`phpcs/feature-files.sh` are no longer left out for it either. Starting it from
-`WP_CLI_CS_Feature_Files` rather than from `WP_CLI_CS`, as above, at least keeps the indentation and
-the whitespace handling.
+Starting from `WP_CLI_CS_Feature_Files`, as above, keeps the defaults and adds to them. Starting
+from `WP_CLI_CS` instead gives up all of them, including the space indentation, and leaves the
+package to say for itself what a padded block cannot satisfy.
 
 The blocks are left alone when a run is narrowed down to a path, as in `composer phpcs -- src/`,
 since such an argument is about the files of the package itself.
