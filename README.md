@@ -3,7 +3,7 @@ wp-cli/wp-cli-tests
 
 WP-CLI testing framework
 
-[![Testing](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml/badge.svg)](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml)
+[![Testing](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml/badge.svg)](https://github.com/wp-cli/wp-cli-tests/actions/workflows/testing.yml) [![Code Coverage](https://codecov.io/gh/wp-cli/wp-cli-tests/branch/main/graph/badge.svg)](https://codecov.io/gh/wp-cli/wp-cli-tests/tree/main)
 
 Quick links: [Using](#using) | [Contributing](#contributing) | [Support](#support)
 
@@ -22,13 +22,17 @@ To make use of the WP-CLI testing framework, you need to complete the following 
         "behat": "run-behat-tests",
         "behat-rerun": "rerun-behat-tests",
         "lint": "run-linter-tests",
+        "lint-gherkin": "run-gherkin-lint-tests",
         "phpcs": "run-phpcs-tests",
         "phpcbf": "run-phpcbf-cleanup",
+        "phpstan": "run-phpstan-tests",
         "phpunit": "run-php-unit-tests",
         "prepare-tests": "install-package-tests",
         "test": [
             "@lint",
+            "@lint-gherkin",
             "@phpcs",
+            "@phpstan",
             "@phpunit",
             "@behat"
         ]
@@ -87,7 +91,11 @@ To make use of the WP-CLI testing framework, you need to complete the following 
     ```
 
     All other [PHPCS configuration options](https://github.com/PHPCSStandards/PHP_CodeSniffer/wiki/Annotated-Ruleset) are, of course, available.
-6. Update your composer dependencies and regenerate your autoloader and binary folders:
+    The PHP snippets embedded in your feature files are checked along with the rest of the package. See [Checking the code style of the PHP blocks in feature files](#checking-the-code-style-of-the-php-blocks-in-feature-files) below.
+
+6. Optionally add a `phpstan-feature-files.neon.dist` file to the package root to also run PHPStan over the PHP snippets embedded in your feature files. See [Analysing the PHP blocks in feature files](#analysing-the-php-blocks-in-feature-files) below.
+
+7. Update your composer dependencies and regenerate your autoloader and binary folders:
     ```bash
     composer update
     ```
@@ -101,10 +109,127 @@ You can use the following commands to control the tests:
 * `composer prepare-tests` - Set up the database that is needed for running the functional tests. This is only needed once.
 * `composer test` - Run all test suites.
 * `composer lint` - Run only the linting test suite.
+* `composer lint-gherkin` - Run only the Gherkin linter over the feature files.
 * `composer phpcs` - Run only the code sniffer test suite.
 * `composer phpcbf` - Run only the code sniffer cleanup.
+* `composer phpstan` - Run only the static analysis.
 * `composer phpunit` - Run only the unit test suite.
 * `composer behat` - Run only the functional test suite.
+
+### Analysing the PHP blocks in feature files
+
+Feature files embed PHP snippets in docstrings, which none of the static analysis tools normally
+look at:
+
+```gherkin
+Given a wp-content/mu-plugins/test-harness.php file:
+  """
+  <?php
+  WP_CLI::add_command( 'test-harness', 'Test_Harness' );
+  """
+```
+
+Adding a `phpstan-feature-files.neon.dist` file to the package root makes `composer phpstan` analyse
+those snippets as well. The blocks are extracted into standalone PHP files that are padded so their
+line numbers match the feature file, which is what allows errors to be reported against the feature
+file itself:
+
+```text
+ features/command.feature
+  438    Parameter #1 $message of static method WP_CLI::log() expects string, int<0, max> given.
+         🪪  argument.type
+```
+
+The defaults in `phpstan/feature-files.neon` are applied first, so the file only needs to hold what
+it wants to change. An empty file is enough to run with the defaults, and a level of its own looks
+like this:
+
+```neon
+parameters:
+	level: 4
+```
+
+Do note that snippets in feature files are fixtures, not production code, and that they run inside a
+WordPress installation the analysis knows nothing about. Expect to have to ignore errors that are
+not actually wrong, such as functions a scenario deliberately leaves undefined.
+
+An ignore matches against the extracted file rather than the feature file it came from. Those files
+are named `<feature file>_L<first line>_E<last line>.php`, with the feature file relative to the
+`features` directory, so ignoring an error for a whole feature file takes a pattern:
+
+```neon
+parameters:
+	ignoreErrors:
+		-
+			identifier: function.notFound
+			path: */shutdown-handler.feature_L*.php
+```
+
+Since the blocks are analysed in more than one run (see below), an ignore that no run matches is not
+reported. A pattern that matches nothing at all therefore goes unnoticed, so it is worth checking
+that the error it targets is really gone.
+
+Two kinds of blocks are left out of the analysis, and are listed at the end of the run:
+
+* Blocks that are not standalone PHP, such as snippets holding a placeholder that Behat substitutes
+  (`get_the_title( {POST_ID} )`) or code that is deliberately broken to test error handling. PHPStan
+  stops analysing altogether when a single file fails to parse, so these have to be skipped.
+* Docstrings that neither belong to a step creating a `.php` file nor open with `<?php`, since those
+  are not necessarily PHP at all. The second rule covers PHP files that are not named `*.php`, such
+  as the `.maintenance` file of a WordPress installation.
+
+Blocks that declare the same class or function as another block are analysed separately from each
+other, so that PHPStan does not resolve a name to the wrong block's declaration.
+
+### Checking the code style of the PHP blocks in feature files
+
+`composer phpcs` also checks the PHP snippets that feature files embed in docstrings, and
+`composer phpcbf` fixes them in place. No configuration is needed, and like the analysis above the
+blocks are padded so that findings are reported against the feature file itself:
+
+```text
+FILE: features/command.feature
+----------------------------------------------------------------------
+FOUND 1 ERROR AFFECTING 1 LINE
+----------------------------------------------------------------------
+ 438 | ERROR | [x] Expected 1 space after IF keyword; 0 found
+----------------------------------------------------------------------
+```
+
+Only a docstring belonging to a step that creates a `.php` file is checked:
+
+```gherkin
+Given a wp-content/mu-plugins/test-harness.php file:
+  """
+  <?php
+  WP_CLI::add_command( 'test-harness', 'Test_Harness' );
+  """
+```
+
+Unlike the analysis above, a docstring that merely opens with `<?php` does not count. Those are
+routinely an expectation about the contents of a file rather than a file, and reformatting one would
+make it stop matching what it is checked against.
+
+The defaults leave out the sniffs that look at a block as if it were a file of its own, along with
+those that ask of a fixture what is only worth asking of production code. They live in
+`phpcs/feature-files.sh` and are shared by the check and the fixer, so that the two cannot disagree
+over which sniff applies. A package replaces them wholesale by adding a `phpcs-feature-files.xml`
+(or `phpcs-feature-files.xml.dist`) ruleset to its root:
+
+```xml
+<?xml version="1.0"?>
+<ruleset name="WP-CLI-PROJECT-NAME-feature-files">
+    <arg name="warning-severity" value="0"/>
+
+    <rule ref="WP_CLI_CS">
+        <exclude name="Generic.Files.InlineHTML"/>
+        <exclude name="Squiz.Commenting.FileComment"/>
+    </rule>
+</ruleset>
+```
+
+The blocks are left alone when a run is narrowed down to a path, as in `composer phpcs -- src/`,
+since such an argument is about the files of the package itself.
 
 ### Controlling what to test
 
@@ -114,6 +239,53 @@ composer behat -- features/cli-info.feature
 ```
 
 Prepending with the double dash is needed because the arguments would otherwise be sent to Composer itself, not the tool that Composer executes.
+
+The same mechanism works for narrowing a run down further, or for bailing out early:
+```bash
+# A single scenario, identified by the line it starts on.
+composer behat -- features/cli-info.feature:12
+
+# Every scenario carrying a given tag.
+composer behat -- --tags=@require-wp-5.0
+
+# Stop at the first failing scenario instead of running the whole suite.
+composer behat -- --stop-on-failure
+
+# Re-run only the scenarios that failed the last time.
+composer behat-rerun
+```
+
+### Linting the feature files
+
+`composer lint-gherkin` checks `features/` with
+[gherkin-lint-plus](https://www.npmjs.com/package/gherkin-lint-plus), against the
+`.gherkin-lintrc` ruleset shipped with this package. A project that needs
+different rules can override it by committing its own `.gherkin-lintrc`.
+
+The linter is a Node package, so it is run through `npx` and needs Node.js 20 or
+later. Where `npx` is not available the check reports that it is skipping, rather
+than failing a suite that is otherwise entirely PHP. Its version is pinned in
+this package's `package.json`, which exists only to hold that pin.
+
+### Controlling the amount of output
+
+Two environment variables make the test tools less chatty. Both are unset by default, which leaves the output exactly as it has always been.
+
+* `NO_COLOR` (the [no-color.org](https://no-color.org/) convention) turns off the ANSI color codes in the output of every runner. Set this when capturing output to a file or a pipe, where the escape sequences are noise.
+* `WP_CLI_TEST_QUIET` switches the reporters to their most compact form: PHP_CodeSniffer reports one `file:line:col` line per violation with no progress ticker, PHPStan reports one `file:line:message` line per error with no progress bar and no result table. This covers the analysis of the PHP files themselves; the checks over the PHP blocks embedded in feature files keep their own reports, which are rewritten to point back at the feature file a block came from. Behat's own output is already minimal, so it is unaffected.
+
+`NO_COLOR` also covers the Gherkin linter, which colors its report unconditionally and has no plain output format of its own.
+
+```bash
+NO_COLOR=1 WP_CLI_TEST_QUIET=1 composer phpstan
+```
+
+This is worth setting permanently in environments that read the output back rather than display it, such as an AI coding agent's shell:
+
+```bash
+export NO_COLOR=1
+export WP_CLI_TEST_QUIET=1
+```
 
 ### Controlling the test environment
 
@@ -129,6 +301,13 @@ Here's how to run your tests against the latest trunk version of WordPress:
 ```bash
 WP_VERSION=trunk composer behat
 ```
+
+Resolving `latest`, or a `X.Y` version without a patch number, needs the
+WordPress versions data, which is fetched once and cached in the system temp
+directory for a day. Repeated runs do not repeat the request, and a run without
+connectivity falls back to the last known copy.
+`WP_CLI_TEST_WP_VERSION_CACHE_TTL` sets the lifetime of that cache in seconds;
+`0` fetches it every time.
 
 #### WordPress Archive
 
@@ -158,6 +337,20 @@ WP_VERSION=6.4.2 WP_CLI_TEST_CORE_ZIP=~/Downloads/wordpress-6.4.2.zip composer b
 
 Note that steps requesting an explicit version, such as `Given a WP 6.4.2 installation`, keep
 downloading that version from WordPress.org and ignore the archive.
+
+#### Environment-specific scenarios
+
+Some scenarios can only run in certain environments. Tagging them makes the test framework
+filter them out everywhere else, rather than having them fail for reasons unrelated to what
+they test.
+
+* `@require-wp-stable` — the scenario needs a version of WordPress that WordPress.org knows
+  about, such as one verifying an installation against the published checksums. It is
+  skipped when `WP_CLI_TEST_CORE_ZIP` is set, and when `WP_VERSION` is `trunk` or `nightly`.
+* `@require-mysql-socket` — the scenario connects to the database through a socket. It is
+  skipped when there is none, which is the case when the database server runs in a
+  container and is only reachable over TCP. Set `WP_CLI_TEST_DBSOCKET` to point at the
+  socket if it lives somewhere unusual.
 
 #### WP-CLI Binary
 
