@@ -1,7 +1,77 @@
 #!/bin/sh
 
-# Run the code style check only if a configuration file exists.
+EXIT_CODE=0
+
+# 1. Run standard PHPCBF if configuration file exists.
 if [ -f ".phpcs.xml" ] || [ -f "phpcs.xml" ] || [ -f ".phpcs.xml.dist" ] || [ -f "phpcs.xml.dist" ]
 then
-	vendor/bin/phpcbf "$@"
+	vendor/bin/phpcbf "$@" || EXIT_CODE=$?
 fi
+
+# 2. Run PHPCBF over the PHP blocks in .feature files and sync back fixes.
+# Composer installs this script as a symlink in the vendor binary directory, so
+# it has to be resolved before the root of this package can be derived from it.
+SOURCE="$0"
+while [ -h "$SOURCE" ]
+do
+	SOURCE_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+	SOURCE="$(readlink "$SOURCE")"
+	# A relative symlink is resolved against the directory holding the symlink.
+	case "$SOURCE" in
+		/*) ;;
+		*) SOURCE="$SOURCE_DIR/$SOURCE" ;;
+	esac
+done
+DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+
+# A ruleset of the same purpose in the package root replaces the defaults
+# wholesale. Both scripts use the same ruleset otherwise, so that the check and
+# the fixer cannot disagree over which sniff applies to a block.
+FEATURE_STANDARD=""
+for CANDIDATE in "phpcs-feature-files.xml" "phpcs-feature-files.xml.dist"
+do
+	if [ -f "$CANDIDATE" ]
+	then
+		FEATURE_STANDARD="$(pwd)/$CANDIDATE"
+		break
+	fi
+done
+
+if [ -z "$FEATURE_STANDARD" ]
+then
+	FEATURE_STANDARD="WP_CLI_CS_Feature_Files"
+fi
+
+# An argument naming what to fix applies to the files of the package itself, so
+# the blocks are left alone once a run has been narrowed down to a path.
+FIX_BLOCKS=1
+for ARG in "$@"
+do
+	case "$ARG" in
+		-*) ;;
+		*) FIX_BLOCKS=0 ;;
+	esac
+done
+
+if [ "$FIX_BLOCKS" -eq 1 ] && [ -d "features" ] \
+	&& [ -f "$DIR/utils/extract-feature-php.php" ]
+then
+	TEMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'feature_phpcbf')
+	trap 'rm -rf "$TEMP_DIR"' EXIT HUP INT TERM
+
+	# Fixes are only synced back when the extraction they are based on succeeded.
+	if php "$DIR/utils/extract-feature-php.php" extract features "$TEMP_DIR"
+	then
+		if [ -n "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]
+		then
+			vendor/bin/phpcbf --standard="$FEATURE_STANDARD" \
+				"$TEMP_DIR" >/dev/null || EXIT_CODE=$?
+
+			php "$DIR/utils/extract-feature-php.php" update features "$TEMP_DIR" >/dev/null || EXIT_CODE=$?
+		fi
+	else
+		EXIT_CODE=1
+	fi
+fi
+
+exit $EXIT_CODE

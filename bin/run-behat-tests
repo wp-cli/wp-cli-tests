@@ -89,22 +89,145 @@ else
 	fi
 fi
 
-# Turn WP_VERSION into an actual number to make sure our tags work correctly.
-if [ "${WP_VERSION-latest}" = "latest" ]; then
-	export WP_VERSION=$(curl -s https://api.wordpress.org/core/version-check/1.7/ | jq -r ".offers[0].current")
+# When installing from an arbitrary archive, there is no version to resolve against
+# WordPress.org. Default to "trunk" so that no @require-wp tags are filtered out, as
+# such an archive is usually a development build. Set WP_VERSION explicitly alongside
+# WP_CLI_TEST_CORE_ZIP when the archive holds a specific release.
+if [ -n "${WP_CLI_TEST_CORE_ZIP-}" ] && [ -z "${WP_VERSION-}" ]; then
+	export WP_VERSION=trunk
 fi
 
-# Normalize WP_VERSION=X.Y.0 to X.Y (WordPress uses X.Y for the initial release, not X.Y.0).
-# If WP_VERSION=X.Y (major.minor only), resolve to the latest available patch release.
-if [[ "${WP_VERSION}" =~ ^([0-9]+\.[0-9]+)\.0$ ]]; then
+# Everything WP_VERSION resolution needs is in one file: the wp-versions artifact
+# maps every WordPress release to its status, with the current one marked
+# "latest". Cache it, so that re-running a single scenario while iterating does
+# not refetch it every time, and so that a run without connectivity can fall back
+# to the last known answer instead of ending up with no version at all.
+#
+# Set WP_CLI_TEST_WP_VERSION_CACHE_TTL to 0 to always refetch.
+WP_VERSIONS_URL="https://raw.githubusercontent.com/wp-cli/wp-cli-tests/artifacts/wp-versions.json"
+WP_VERSIONS_CACHE_FILE="${TMPDIR:-/tmp}/wp-cli-test-wp-version-cache/wp-versions.json"
+WP_VERSIONS_CACHE_TTL="${WP_CLI_TEST_WP_VERSION_CACHE_TTL:-86400}"
+
+# The versions data is a non-empty object mapping every release to its status.
+# An error page, or a copy that was truncated on its way to disk, is not one.
+is_valid_versions_json() {
+	jq -e 'type == "object" and length > 0' > /dev/null 2>&1
+}
+
+# Print the cached versions file if it is younger than the given number of
+# seconds. A negative TTL accepts it at any age.
+read_versions_cache() {
+	local ttl="$1"
+	local age
+
+	[ -s "${WP_VERSIONS_CACHE_FILE}" ] || return 1
+
+	if [ "${ttl}" -ge 0 ]; then
+		# PHP rather than `find -newermt`, which is not portable across
+		# GNU and BSD userlands. The Behat runner needs PHP anyway.
+		age=$(php -r 'echo time() - filemtime( $argv[1] );' "${WP_VERSIONS_CACHE_FILE}" 2>/dev/null)
+		case ${age} in
+			''|*[!0-9]*) return 1;;
+		esac
+		[ "${age}" -lt "${ttl}" ] || return 1
+	fi
+
+	# Held to the same standard as a fetched copy, so that an unusable cache
+	# counts as a miss and the network gets a chance to replace it, instead of
+	# being served unchecked for the rest of its lifetime.
+	is_valid_versions_json < "${WP_VERSIONS_CACHE_FILE}" || return 1
+
+	cat "${WP_VERSIONS_CACHE_FILE}"
+}
+
+# Store the versions data for the next run. The write goes through a temporary
+# file in the same directory, so that a concurrent runner reading the cache sees
+# either the previous copy or the new one, never a partial write. Caching is
+# best effort throughout: a temp directory that cannot be written to is not a
+# reason to fail the run.
+write_versions_cache() {
+	local dir
+	local tmp
+
+	dir=$( dirname "${WP_VERSIONS_CACHE_FILE}" )
+	mkdir -p "${dir}" 2>/dev/null || return 0
+
+	tmp=$( mktemp "${dir}/wp-versions.XXXXXX" 2>/dev/null ) || return 0
+
+	if printf '%s' "$1" > "${tmp}" 2>/dev/null; then
+		# mktemp creates the file private to its owner; the cache directory is
+		# shared, and the data in it is public.
+		chmod 644 "${tmp}" 2>/dev/null
+		mv -f "${tmp}" "${WP_VERSIONS_CACHE_FILE}" 2>/dev/null || rm -f "${tmp}"
+	else
+		rm -f "${tmp}"
+	fi
+
+	return 0
+}
+
+# Print the WordPress versions data, from the cache where possible. Warnings go
+# to STDERR so that they cannot end up inside the returned JSON.
+get_wp_versions() {
+	local json
+	local ttl="${WP_VERSIONS_CACHE_TTL}"
+
+	# A typo must not turn into a cache that never expires: the age comparison
+	# errors out on a non-numeric TTL, which would then accept the cached copy
+	# at any age.
+	if ! is_numeric "${ttl}"; then
+		echo "Warning: WP_CLI_TEST_WP_VERSION_CACHE_TTL is not a number of seconds, falling back to 86400." >&2
+		ttl=86400
+	fi
+
+	json=$( read_versions_cache "${ttl}" )
+	if [ -n "${json}" ]; then
+		printf '%s' "${json}"
+		return 0
+	fi
+
+	# Bounded, so that an unreachable or unresponsive host falls back to the
+	# cached copy instead of holding up the run indefinitely.
+	json=$( curl -s --connect-timeout 10 --max-time 30 "${WP_VERSIONS_URL}" )
+
+	# Only cache a well-formed response; an error page is not one.
+	if printf '%s' "${json}" | is_valid_versions_json; then
+		write_versions_cache "${json}"
+		printf '%s' "${json}"
+		return 0
+	fi
+
+	# Prefer a stale answer over no answer.
+	json=$( read_versions_cache -1 )
+	if [ -n "${json}" ]; then
+		echo "Warning: Could not fetch the WordPress versions data, falling back to the cached copy." >&2
+		printf '%s' "${json}"
+		return 0
+	fi
+
+	return 1
+}
+
+# Turn WP_VERSION into an actual number to make sure our tags work correctly.
+if [ "${WP_VERSION-latest}" = "latest" ]; then
+	WP_VERSION=$( get_wp_versions | jq -r 'to_entries | map( select( .value == "latest" ) ) | last | .key // empty' )
+
+	if [ -z "${WP_VERSION}" ]; then
+		echo "Warning: Could not determine the latest WordPress version. Version-specific tags will not be filtered." >&2
+	fi
+
+	export WP_VERSION
+# Normalize WP_VERSION=X.Y.0 to X.Y (WordPress uses X.Y for the initial release,
+# not X.Y.0). This asks for that specific release, so it must not fall through to
+# the patch resolution below.
+elif [[ "${WP_VERSION}" =~ ^([0-9]+\.[0-9]+)\.0$ ]]; then
 	export WP_VERSION="${BASH_REMATCH[1]}"
+# If WP_VERSION=X.Y (major.minor only), resolve to the latest available patch release.
 elif [[ "${WP_VERSION}" =~ ^[0-9]+\.[0-9]+$ ]]; then
-	WP_VERSIONS_JSON=$(curl -s https://raw.githubusercontent.com/wp-cli/wp-cli-tests/artifacts/wp-versions.json)
-	if [ -n "${WP_VERSIONS_JSON}" ]; then
-		RESOLVED_VERSION=$(echo "${WP_VERSIONS_JSON}" | jq -r --arg prefix "${WP_VERSION}." 'keys | map(select(startswith($prefix))) | sort_by(split(".") | map(tonumber)) | last // empty')
-		if [ -n "${RESOLVED_VERSION}" ]; then
-			export WP_VERSION="${RESOLVED_VERSION}"
-		fi
+	RESOLVED_VERSION=$( get_wp_versions | jq -r --arg prefix "${WP_VERSION}." 'keys | map( select( startswith( $prefix ) ) ) | sort_by( split(".") | map( tonumber ) ) | last // empty' )
+
+	if [ -n "${RESOLVED_VERSION}" ]; then
+		export WP_VERSION="${RESOLVED_VERSION}"
 	fi
 fi
 
@@ -131,6 +254,11 @@ BEHAT_TAGS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-tags.php)
 BEHAT_EXTRA_ARGS=()
 if [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]] && vendor/bin/behat --help 2>/dev/null | grep -q 'xdebug'; then
 	BEHAT_EXTRA_ARGS+=('--xdebug')
+fi
+
+# Honor the NO_COLOR convention (https://no-color.org/).
+if [ -n "${NO_COLOR}" ]; then
+	BEHAT_EXTRA_ARGS+=('--no-colors')
 fi
 
 # Run the functional tests.

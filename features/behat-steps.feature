@@ -389,6 +389,19 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
     Then the wp-cli.yml file should exist
     And the mock-requests.php file should exist
+    And the mock-requests-data.php file should exist
+
+    When I run `php -l mock-requests.php`
+    Then STDOUT should contain:
+      """
+      No syntax errors detected
+      """
+
+    When I run `php -l mock-requests-data.php`
+    Then STDOUT should contain:
+      """
+      No syntax errors detected
+      """
 
   @require-wp
   Scenario: Test background process launch
@@ -574,7 +587,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     And a send-email.php file:
       """
       <?php
-      wp_mail('test@example.com', 'Test', 'Body');
+      wp_mail( 'test@example.com', 'Test', 'Body' );
       """
     When I run `wp eval-file send-email.php`
     Then an email should be sent
