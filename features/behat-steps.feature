@@ -403,6 +403,65 @@ Feature: Test that WP-CLI Behat steps work as expected
       No syntax errors detected
       """
 
+  Scenario: Test "a PHP built-in web server" step in a plain directory
+    Given an empty directory
+    And an index.html file:
+      """
+      Hello from the built-in web server
+      """
+    And a fetch.php file:
+      """
+      <?php
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
+      """
+    And a PHP built-in web server
+    Then the HTTP status code should be 200
+
+    # Without a router, the directory is served as-is: the file itself comes back, not a PHP error page.
+    When I run `php fetch.php http://localhost:8080/`
+    Then STDOUT should contain:
+      """
+      200 OK
+      """
+    And STDOUT should contain:
+      """
+      Hello from the built-in web server
+      """
+
+  Scenario: Test "a PHP built-in web server" step returns 404 for a missing file
+    Given an empty directory
+    And a hello.html file:
+      """
+      Hello from the built-in web server
+      """
+    And a fetch.php file:
+      """
+      <?php
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
+      """
+    And a PHP built-in web server
+
+    When I run `php fetch.php http://localhost:8080/hello.html`
+    Then STDOUT should contain:
+      """
+      200 OK
+      """
+    And STDOUT should contain:
+      """
+      Hello from the built-in web server
+      """
+
+    # No index file means nothing to fall back to, so a missing file is a real 404.
+    When I run `php fetch.php http://localhost:8080/missing.html`
+    Then STDOUT should contain:
+      """
+      404 Not Found
+      """
+
   @require-wp
   Scenario: Test background process launch
     Given a WP installation
