@@ -412,8 +412,9 @@ Feature: Test that WP-CLI Behat steps work as expected
     And a fetch.php file:
       """
       <?php
-      $body = @file_get_contents( (string) ( $_SERVER['argv'][1] ?? '' ) );
-      echo $http_response_header[0], PHP_EOL, (string) $body;
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
       """
     And a PHP built-in web server
     Then the HTTP status code should be 200
@@ -438,8 +439,9 @@ Feature: Test that WP-CLI Behat steps work as expected
     And a fetch.php file:
       """
       <?php
-      $body = @file_get_contents( (string) ( $_SERVER['argv'][1] ?? '' ) );
-      echo $http_response_header[0], PHP_EOL, (string) $body;
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
       """
     And a PHP built-in web server
 
