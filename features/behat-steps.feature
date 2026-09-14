@@ -412,7 +412,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     And a fetch.php file:
       """
       <?php
-      $body = @file_get_contents( $argv[1] );
+      $body = @file_get_contents( (string) ( $_SERVER['argv'][1] ?? '' ) );
       echo $http_response_header[0], PHP_EOL, (string) $body;
       """
     And a PHP built-in web server
@@ -438,7 +438,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     And a fetch.php file:
       """
       <?php
-      $body = @file_get_contents( $argv[1] );
+      $body = @file_get_contents( (string) ( $_SERVER['argv'][1] ?? '' ) );
       echo $http_response_header[0], PHP_EOL, (string) $body;
       """
     And a PHP built-in web server
