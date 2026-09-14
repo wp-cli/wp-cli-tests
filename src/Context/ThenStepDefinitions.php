@@ -5,8 +5,8 @@ namespace WP_CLI\Tests\Context;
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use WP_CLI\Path;
+use WP_CLI\RequestsLibrary;
 use Exception;
-use Requests;
 use RuntimeException;
 
 trait ThenStepDefinitions {
@@ -613,8 +613,11 @@ trait ThenStepDefinitions {
 	 * @param int $return_code Expected HTTP status code.
 	 */
 	public function then_the_http_status_code_should_be( $return_code ): void {
-		// @phpstan-ignore staticMethod.deprecatedClass
-		$response = Requests::request( 'http://localhost:8080' );
-		$this->assert_equals( $return_code, $response->status_code );
+		// Use whichever version of the Requests library WP-CLI ships with.
+		RequestsLibrary::register_autoloader();
+		$requests_class = RequestsLibrary::get_class_name();
+
+		$response = $requests_class::request( 'http://localhost:8080' );
+		$this->assert_equals( (int) $return_code, (int) $response->status_code );
 	}
 }

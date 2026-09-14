@@ -2122,14 +2122,48 @@ class FeatureContext implements Context {
 			$dir .= trim( $subdir, '/' ) . '/';
 		}
 		$cmd = Utils\esc_cmd(
-			'%s -S %s -t %s -c %s %s',
+			'%s -S %s -t %s -c %s',
 			Utils\get_php_binary(),
 			'localhost:8080',
 			$dir,
-			get_cfg_var( 'cfg_file_path' ),
-			$this->variables['RUN_DIR'] . '/vendor/wp-cli/server-command/router.php'
+			get_cfg_var( 'cfg_file_path' )
 		);
+
+		// Route requests through the router script of wp-cli/server-command when
+		// it is available, so that a WordPress installation gets pretty permalinks.
+		// Without a router, PHP's built-in web server serves the directory as-is,
+		// which is what a plain directory of static files needs. Passing a router
+		// path that does not exist would make every request fail with a fatal error.
+		$router = $this->get_php_server_router();
+		if ( null !== $router ) {
+			$cmd .= ' ' . escapeshellarg( $router );
+		}
+
 		$this->background_proc( $cmd );
+	}
+
+	/**
+	 * Locate the router script of wp-cli/server-command, if it is installed.
+	 *
+	 * The run directory is checked first, so that a scenario which installs
+	 * the package itself takes precedence, followed by the vendor directory of
+	 * the project under test.
+	 *
+	 * @return string|null Absolute path to the router script, or null if none was found.
+	 */
+	private function get_php_server_router(): ?string {
+		$candidates = [
+			$this->variables['RUN_DIR'] . '/vendor/wp-cli/server-command/router.php',
+			self::get_vendor_dir() . '/wp-cli/server-command/router.php',
+		];
+
+		foreach ( $candidates as $candidate ) {
+			if ( is_file( $candidate ) ) {
+				return $candidate;
+			}
+		}
+
+		return null;
 	}
 
 	/**

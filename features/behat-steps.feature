@@ -403,6 +403,15 @@ Feature: Test that WP-CLI Behat steps work as expected
       No syntax errors detected
       """
 
+  Scenario: Test "a PHP built-in web server" step in a plain directory
+    Given an empty directory
+    And an index.html file:
+      """
+      Hello from the built-in web server
+      """
+    And a PHP built-in web server
+    Then the HTTP status code should be 200
+
   @require-wp
   Scenario: Test background process launch
     Given a WP installation
