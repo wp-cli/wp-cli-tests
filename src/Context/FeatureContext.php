@@ -2145,25 +2145,57 @@ class FeatureContext implements Context {
 	/**
 	 * Locate the router script of wp-cli/server-command, if it is installed.
 	 *
-	 * The run directory is checked first, so that a scenario which installs
-	 * the package itself takes precedence, followed by the vendor directory of
-	 * the project under test.
+	 * The Composer vendor directory of the run directory is checked first, so
+	 * that a scenario which installs the package itself takes precedence,
+	 * followed by the vendor directory of the project under test.
 	 *
 	 * @return string|null Absolute path to the router script, or null if none was found.
 	 */
 	private function get_php_server_router(): ?string {
 		$candidates = [
-			$this->variables['RUN_DIR'] . '/vendor/wp-cli/server-command/router.php',
-			self::get_vendor_dir() . '/wp-cli/server-command/router.php',
+			$this->variables['RUN_DIR'] . '/' . $this->get_run_dir_composer_vendor_dir(),
+			self::get_vendor_dir(),
 		];
 
-		foreach ( $candidates as $candidate ) {
-			if ( is_file( $candidate ) ) {
-				return $candidate;
+		foreach ( $candidates as $vendor_dir ) {
+			$router = $vendor_dir . '/wp-cli/server-command/router.php';
+			if ( is_file( $router ) ) {
+				return $router;
 			}
 		}
 
 		return null;
+	}
+
+	/**
+	 * Get the Composer vendor directory configured in the run directory.
+	 *
+	 * Honors a custom `vendor-dir` in the run directory's composer.json, as set
+	 * up by `Given a WP installation with Composer and a custom vendor directory`.
+	 *
+	 * @return string Vendor directory, relative to the run directory.
+	 */
+	private function get_run_dir_composer_vendor_dir(): string {
+		$composer_json = $this->variables['RUN_DIR'] . '/composer.json';
+
+		if ( ! is_file( $composer_json ) ) {
+			return 'vendor';
+		}
+
+		$composer_data = json_decode( (string) file_get_contents( $composer_json ), true );
+
+		if (
+			is_array( $composer_data )
+			&& isset( $composer_data['config'] )
+			&& is_array( $composer_data['config'] )
+			&& isset( $composer_data['config']['vendor-dir'] )
+			&& is_string( $composer_data['config']['vendor-dir'] )
+			&& '' !== $composer_data['config']['vendor-dir']
+		) {
+			return trim( $composer_data['config']['vendor-dir'], '/' );
+		}
+
+		return 'vendor';
 	}
 
 	/**
