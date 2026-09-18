@@ -908,15 +908,12 @@ class FeatureContext implements Context {
 	}
 
 	/**
-	 * We cache the results of `wp core download` to improve test performance.
-	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
+	 * We cache the SQLite plugins so that they only need to be downloaded once per machine.
 	 *
-	 * @param string $version
+	 * Every code path that installs WordPress has to call this before using the cache directories,
+	 * as any of them can be the first step of a scenario.
 	 */
-	private static function cache_wp_files( $version = '' ): void {
-		$core_zip               = $version ? null : self::get_core_zip();
-		$wp_version             = $version ?: getenv( 'WP_VERSION' );
-		$cache_dir              = self::get_core_cache_dir( $version );
+	private static function cache_sqlite_plugins(): void {
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
@@ -931,6 +928,20 @@ class FeatureContext implements Context {
 				self::download_sqlite_object_cache_plugin( self::$sqlite_object_cache_dir );
 			}
 		}
+	}
+
+	/**
+	 * We cache the results of `wp core download` to improve test performance.
+	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
+	 *
+	 * @param string $version
+	 */
+	private static function cache_wp_files( $version = '' ): void {
+		$core_zip   = $version ? null : self::get_core_zip();
+		$wp_version = $version ?: getenv( 'WP_VERSION' );
+		$cache_dir  = self::get_core_cache_dir( $version );
+
+		self::cache_sqlite_plugins();
 
 		if ( is_readable( $cache_dir . '/wp-includes/version.php' ) ) {
 			self::$cache_dir = $cache_dir;
@@ -2035,6 +2046,10 @@ class FeatureContext implements Context {
 		$this->create_run_dir();
 		$this->create_db();
 
+		// Unlike download_wp(), this path never goes through cache_wp_files(),
+		// so the SQLite plugins have to be cached here.
+		self::cache_sqlite_plugins();
+
 		$yml_path = $this->variables['RUN_DIR'] . '/wp-cli.yml';
 		file_put_contents( $yml_path, 'path: WordPress' );
 
@@ -2044,7 +2059,10 @@ class FeatureContext implements Context {
 
 		// Allow for all Composer plugins to run to avoid warnings.
 		$this->composer_command( 'config --no-plugins allow-plugins true' );
-		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
+		// The roots packages link directly to the official WordPress.org release zips,
+		// so they are published immediately and cannot suffer from repackaging issues.
+		// The "-full" variant ships the default themes and plugins, roots/wordpress does not.
+		$this->composer_command( 'require roots/wordpress-core-installer roots/wordpress-full --optimize-autoloader' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }\n";
