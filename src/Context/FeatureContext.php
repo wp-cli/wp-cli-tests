@@ -2044,7 +2044,10 @@ class FeatureContext implements Context {
 
 		// Allow for all Composer plugins to run to avoid warnings.
 		$this->composer_command( 'config --no-plugins allow-plugins true' );
-		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
+		// The roots packages link directly to the official WordPress.org release zips,
+		// so they are published immediately and cannot suffer from repackaging issues.
+		// The "-full" variant ships the default themes and plugins, roots/wordpress does not.
+		$this->composer_command( 'require roots/wordpress-core-installer roots/wordpress-full --optimize-autoloader' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }\n";
