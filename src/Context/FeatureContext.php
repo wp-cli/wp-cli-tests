@@ -1953,50 +1953,11 @@ class FeatureContext implements Context {
 
 		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir . ':object_cache=' . getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) );
 
-		$install_cache_is_valid = is_dir( $install_cache_path )
-			&& ( 'sqlite' !== self::$db_type || file_exists( "{$install_cache_path}.sqlite" ) );
-
-		if ( ! $install_cache_is_valid && file_exists( $install_cache_path ) ) {
-			if ( is_dir( $install_cache_path ) ) {
-				$iterator = new \RecursiveIteratorIterator(
-					new \RecursiveDirectoryIterator( $install_cache_path, \FilesystemIterator::SKIP_DOTS ),
-					\RecursiveIteratorIterator::CHILD_FIRST
-				);
-				foreach ( $iterator as $fileinfo ) {
-					if ( $fileinfo->isDir() ) {
-						rmdir( $fileinfo->getPathname() );
-					} else {
-						unlink( $fileinfo->getPathname() );
-					}
-				}
-				rmdir( $install_cache_path );
-			} else {
-				unlink( $install_cache_path );
-			}
-
-			$sqlite_cache = "{$install_cache_path}.sqlite";
-			if ( file_exists( $sqlite_cache ) && is_file( $sqlite_cache ) ) {
-				unlink( $sqlite_cache );
-			}
-
-			$sql_cache = "{$install_cache_path}.sql";
-			if ( file_exists( $sql_cache ) && is_file( $sql_cache ) ) {
-				unlink( $sql_cache );
-			}
-		}
-		if ( $install_cache_is_valid ) {
+		// The cache includes the SQLite database, stored under "wp-content/database".
+		if ( is_dir( $install_cache_path ) ) {
 			self::copy_dir( $install_cache_path, $run_dir );
 
-			// This is the sqlite equivalent of restoring a database dump in MySQL
-			if ( 'sqlite' === self::$db_type ) {
-				$sqlite_dest_dir = "$run_dir/wp-content/database";
-				if ( ! is_dir( $sqlite_dest_dir ) ) {
-					mkdir( $sqlite_dest_dir, 0755, true );
-				}
-				if ( file_exists( "{$install_cache_path}.sqlite" ) ) {
-					copy( "{$install_cache_path}.sqlite", "$sqlite_dest_dir/.ht.sqlite.php" );
-				}
-			} else {
+			if ( 'sqlite' !== self::$db_type ) {
 				$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
@@ -2020,21 +1981,6 @@ class FeatureContext implements Context {
 					$command .= ' --skip-column-statistics';
 				}
 				self::run_sql( $command, [ 'result-file' => "{$install_cache_path}.sql" ], true /*add_database*/ );
-			}
-
-			if ( 'sqlite' === self::$db_type ) {
-				// This is the sqlite equivalent of creating a database dump in MySQL
-				// Support both the new (.ht.sqlite.php) and legacy (.ht.sqlite) file names.
-				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite.php";
-				if ( ! file_exists( $sqlite_source ) ) {
-					$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
-				}
-				if ( file_exists( $sqlite_source ) ) {
-					copy( $sqlite_source, "{$install_cache_path}.sqlite" );
-				} elseif ( file_exists( "{$install_cache_path}.sqlite" ) ) {
-					// Ensure we don't keep a stale cached SQLite DB if the source wasn't produced
-					unlink( "{$install_cache_path}.sqlite" );
-				}
 			}
 		}
 	}

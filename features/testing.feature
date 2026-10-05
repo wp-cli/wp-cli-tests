@@ -37,6 +37,46 @@ Feature: Test that WP-CLI loads.
       sqlite
       """
 
+  @require-sqlite
+  Scenario: Restore independent SQLite databases from the installation cache
+    Given a WP installation in 'cached'
+    When I run `wp eval 'echo substr( defined( "DB_PATH" ) ? DB_PATH : FQDB, strlen( ABSPATH ) );'` from 'cached'
+    Then save STDOUT as {DATABASE_PATH}
+
+    When I run `php -r "rename('cached', 'first');"`
+    And I run `wp eval 'update_option( "blogname", "First installation" );'` from 'first'
+
+    # Reuse the subdirectory to select the same installation cache.
+    Given a WP installation in 'cached'
+    Then the cached/{DATABASE_PATH} file should exist
+    When I run `wp eval 'echo get_option( "blogname" );'` from 'cached'
+    Then STDOUT should be:
+      """
+      WP CLI Site
+      """
+
+    When I run `php -r "rename('cached', 'second');"`
+    And I run `wp eval 'update_option( "blogname", "Second installation" );'` from 'second'
+
+    Given a WP installation in 'cached'
+    Then the cached/{DATABASE_PATH} file should exist
+    When I run `wp eval 'echo get_option( "blogname" );'` from 'cached'
+    Then STDOUT should be:
+      """
+      WP CLI Site
+      """
+
+    When I run `wp eval 'echo get_option( "blogname" );'` from 'first'
+    Then STDOUT should be:
+      """
+      First installation
+      """
+    When I run `wp eval 'echo get_option( "blogname" );'` from 'second'
+    Then STDOUT should be:
+      """
+      Second installation
+      """
+
   @require-mysql
   Scenario: Uses MySQL
     Given a WP install
