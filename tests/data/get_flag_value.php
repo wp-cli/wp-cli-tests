@@ -60,3 +60,14 @@ assertType( 'true', $value );
 
 $value = get_flag_value( $assoc_args, $key2, 123 );
 assertType( "123|'bar'|true", $value );
+
+/**
+ * @param array{foo?: string, bar?: 'json'|'xml', baz: bool, qux: string|null} $assoc_args
+ */
+function test_shape_with_optional_keys( array $assoc_args ): void {
+	assertType( 'string|null', get_flag_value( $assoc_args, 'foo' ) );
+	assertType( "'json'|'xml'|null", get_flag_value( $assoc_args, 'bar' ) );
+	assertType( "'json'|'xml'|false", get_flag_value( $assoc_args, 'bar', false ) );
+	assertType( 'bool', get_flag_value( $assoc_args, 'baz', 123 ) );
+	assertType( '123|string', get_flag_value( $assoc_args, 'qux', 123 ) );
+}

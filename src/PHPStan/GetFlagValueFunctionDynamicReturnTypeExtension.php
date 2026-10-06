@@ -61,22 +61,28 @@ final class GetFlagValueFunctionDynamicReturnTypeExtension implements \PHPStan\T
 			$keyTypes               = $assocArgsConstantArray->getKeyTypes();
 			$valueTypes             = $assocArgsConstantArray->getValueTypes();
 			$resolvedValueType      = null;
+			$isOptionalKey          = false;
 
 			foreach ( $keyTypes as $index => $keyType ) {
 				$keyConstantStrings = $keyType->getConstantStrings();
 				if ( count( $keyConstantStrings ) === 1 && $keyConstantStrings[0]->getValue() === $flagValue ) {
 					$resolvedValueType = $valueTypes[ $index ];
+					$isOptionalKey     = $assocArgsConstantArray->isOptionalKey( $index );
 					break;
 				}
 			}
 
-			if ( null !== $resolvedValueType ) {
-				// Key definitely exists and has a resolved type.
-				return $resolvedValueType;
-			} else {
+			if ( null === $resolvedValueType ) {
 				// Key definitely does not exist in this constant array.
 				return $defaultType;
 			}
+
+			// get_flag_value() uses isset(), so a null value also falls back to the default.
+			if ( $resolvedValueType->isNull()->no() && ! $isOptionalKey ) {
+				return $resolvedValueType;
+			}
+
+			return TypeCombinator::union( TypeCombinator::removeNull( $resolvedValueType ), $defaultType );
 		}
 
 		// 4.b. $assoc_args is not a single ConstantArray (but $flagValue is known):
