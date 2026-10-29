@@ -506,6 +506,14 @@ class FeatureContext implements Context {
 			$env['WP_CLI_REQUIRE'] = $updated;
 		}
 
+		// Test fixtures routinely create project-level `wp-cli.yml` files that contain
+		// `require`, `exec`, `env` or `ssh-args` directives. WP-CLI gates those behind a
+		// trust confirmation, which cannot be answered in a non-interactive test run, so
+		// trust them by default. Scenarios that specifically test the trust mechanism can
+		// still override this by prefixing their command with their own value.
+		$trust_project_config               = getenv( 'WP_CLI_TRUST_PROJECT_CONFIG' );
+		$env['WP_CLI_TRUST_PROJECT_CONFIG'] = false !== $trust_project_config ? $trust_project_config : '1';
+
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
 		if ( false !== $config_path ) {
 			$env['WP_CLI_CONFIG_PATH'] = $config_path;
