@@ -6,16 +6,6 @@ then
 	exit 0;
 fi
 
-# The linter is a Node package, which a PHP project cannot assume is present.
-# Skip rather than fail, the same way the Behat runner skips a package without a
-# behat.yml. The check still runs in CI, where Node is always available.
-if ! command -v npx > /dev/null 2>&1
-then
-	echo 'Did not detect the "npx" command, skipping the Gherkin linting.'
-	echo "It is part of Node.js 20 or later, see https://nodejs.org/ for installation instructions."
-	exit 0;
-fi
-
 # To retrieve the WP-CLI tests package root folder, we start with this scripts
 # location.
 SOURCE="$0"
@@ -60,6 +50,21 @@ if [ $# -eq 0 ]
 then
 	set -- features
 fi
+
+# Flag scenarios that run tools which are not always installed without declaring them.
+# This only reports, so that existing feature files can be tagged over time.
+php "${WP_CLI_TESTS_ROOT}/utils/check-required-tools.php" "$@"
+
+# The linter is a Node package, which a PHP project cannot assume is present.
+# Skip rather than fail, the same way the Behat runner skips a package without a
+# behat.yml. The check still runs in CI, where Node is always available.
+if ! command -v npx > /dev/null 2>&1
+then
+	echo 'Did not detect the "npx" command, skipping the Gherkin linting.'
+	echo "It is part of Node.js 20 or later, see https://nodejs.org/ for installation instructions."
+	exit 0;
+fi
+
 
 run_linter() {
 	npx --yes "gherkin-lint-plus@${GHERKIN_LINT_VERSION}" --config "${CONFIG_FILE}" "$@"

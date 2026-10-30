@@ -32,6 +32,8 @@ trait WhenStepDefinitions {
 					$message .= "\n\nThe command unexpectedly exited with status {$status}. If you expect a non-zero exit status, use `When I try [...]`. Else, this may be a bug in your code or test.";
 				}
 
+				$message .= $this->missing_command_hint( $e->getMessage() );
+
 				throw new \RuntimeException( $message, $e->getCode(), $e );
 			}
 
