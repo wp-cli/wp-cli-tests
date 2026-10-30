@@ -1440,11 +1440,16 @@ class FeatureContext implements Context {
 
 		$line = $scenario_feature->getLine();
 
-		if ( ! method_exists( $scenario_feature, 'getFile' ) ) {
-			return null;
+		if ( method_exists( $scenario_feature, 'getFile' ) ) {
+			return $scenario_feature->getFile();
 		}
 
-		return $scenario_feature->getFile();
+		// Scenario nodes do not know their file, but the feature they belong to does.
+		if ( method_exists( $scope, 'getFeature' ) ) {
+			return $scope->getFeature()->getFile();
+		}
+
+		return null;
 	}
 
 	/**
@@ -2393,7 +2398,9 @@ class FeatureContext implements Context {
 		if ( 'error_log' === self::$output_to ) {
 			error_log( $log );
 		} else {
-			echo PHP_EOL . $log;
+			// Behat buffers what hooks echo and only prints it for failed scenarios,
+			// so write to the stream directly to get the report in every run.
+			fwrite( STDOUT, PHP_EOL . $log . PHP_EOL );
 		}
 	}
 

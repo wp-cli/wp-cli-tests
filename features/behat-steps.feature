@@ -19,6 +19,12 @@ Feature: Test that WP-CLI Behat steps work as expected
     Given an empty directory
     Then the {RUN_DIR} directory should exist
 
+  Scenario: Name the run directory after the scenario it belongs to
+    Given an empty directory
+
+    When I run `echo {RUN_DIR}`
+    Then STDOUT should match /wp-cli-test-run-behat-steps\.feature\.\d+-/
+
   Scenario: Test "Given a specific directory" steps
     Given an empty directory
     And an empty test-dir directory
