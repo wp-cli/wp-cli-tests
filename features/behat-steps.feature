@@ -469,6 +469,23 @@ Feature: Test that WP-CLI Behat steps work as expected
     # Background process should not block, continuing immediately
 
   @require-wp
+  Scenario: Use the plugin and theme directories of a WP installation
+    Given a WP installation
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
+    And the {PLUGIN_DIR}/akismet directory should exist
+    And the {THEME_DIR} directory should exist
+
+  @require-wp
   Scenario: Test custom wp-content directory
     Given a WP installation
     And a custom wp-content directory
@@ -478,6 +495,18 @@ Feature: Test that WP-CLI Behat steps work as expected
     And the wp-config.php file should contain:
       """
       WP_CONTENT_DIR
+      """
+
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
       """
 
   @require-wp
@@ -524,6 +553,18 @@ Feature: Test that WP-CLI Behat steps work as expected
     And the vendor directory should exist
     When I run `wp core version`
     Then STDOUT should not be empty
+
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
 
   # Skipped on Windows because of curl getaddrinfo() errors.
   @require-wp @require-composer @skip-windows
