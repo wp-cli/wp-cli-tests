@@ -496,6 +496,27 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
 
   @require-wp
+  Scenario: Create several sites at once
+    Given a WP multisite installation
+    And these sites:
+      | slug   | title      | save      |
+      | first  | First site | FIRST_ID  |
+      | second |            | SECOND_ID |
+
+    When I run `wp site list --fields=blog_id,url --format=csv`
+    Then STDOUT should contain:
+      """
+      {FIRST_ID},https://example.com/first/
+      {SECOND_ID},https://example.com/second/
+      """
+
+    When I run `wp eval 'echo get_blog_option( {FIRST_ID}, "blogname" ) . "|" . get_blog_option( {SECOND_ID}, "blogname" );'`
+    Then STDOUT should be:
+      """
+      First site|Second
+      """
+
+  @require-wp
   Scenario: Test custom wp-content directory
     Given a WP installation
     And a custom wp-content directory

@@ -431,6 +431,45 @@ FILE;
 	}
 
 	/**
+	 * Creates one or more sites on a multisite installation in a single process.
+	 *
+	 * The `slug` column is required. The optional `title` column sets the site title, and the
+	 * optional `save` column names a variable to save the new site's ID into.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP multisite installation
+	 *   And these sites:
+	 *     | slug   | title       | save      |
+	 *     | first  | First site  | FIRST_ID  |
+	 *     | second |             | SECOND_ID |
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given these sites:
+	 *
+	 * @param TableNode $table
+	 */
+	public function given_these_sites( TableNode $table ): void {
+		$commands = [];
+		foreach ( $table->getHash() as $row ) {
+			if ( empty( $row['slug'] ) ) {
+				throw new RuntimeException( 'The sites table needs a "slug" column.' );
+			}
+
+			$command = 'wp site create --slug=' . $row['slug'] . ' --porcelain';
+			if ( isset( $row['title'] ) && '' !== $row['title'] ) {
+				$command .= ' --title="' . addcslashes( $row['title'], '"\\' ) . '"';
+			}
+
+			$commands[] = [ $command, trim( $row['save'] ?? '', '{} ' ) ];
+		}
+
+		$this->run_commands_in_single_process( $commands );
+	}
+
+	/**
 	 * Runs several setup commands in a single process.
 	 *
 	 * Avoids loading WordPress once per command when a scenario needs several fixtures. The `command`
