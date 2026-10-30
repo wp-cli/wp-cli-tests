@@ -47,7 +47,7 @@ function wp_cli_tests_failures_file() {
  * @param array<string> $args
  */
 function wp_cli_tests_run_behat_and_exit( array $args ) {
-	$command = 'vendor/bin/behat ' . implode( ' ', array_map( 'escapeshellarg', $args ) );
+	$command = escapeshellarg( PHP_BINARY ) . ' vendor/bin/behat ' . implode( ' ', array_map( 'escapeshellarg', $args ) );
 	passthru( $command, $exit_code );
 	exit( $exit_code );
 }
@@ -204,7 +204,7 @@ if ( false !== $rerun && file_exists( wp_cli_tests_failures_file() ) ) {
 	$copy     = $failures . '.' . getmypid() . '.scenarios';
 	rename( $failures, $copy );
 	register_shutdown_function( 'unlink', $copy );
-	$command = 'vendor/bin/behat ' . implode( ' ', array_map( 'escapeshellarg', array_merge( $behat_args, array_values( $user_args ), [ $copy ] ) ) );
+	$command = escapeshellarg( PHP_BINARY ) . ' vendor/bin/behat ' . implode( ' ', array_map( 'escapeshellarg', array_merge( $behat_args, array_values( $user_args ), [ $copy ] ) ) );
 	passthru( $command, $exit_code );
 	exit( $exit_code );
 }
@@ -265,7 +265,7 @@ foreach ( $shards as $index => $paths ) {
 	}
 
 	$output  = "{$base_dir}/worker-{$index}.log";
-	$command = 'vendor/bin/behat ' . implode( ' ', array_map( 'escapeshellarg', array_merge( $all_args, [ $list ] ) ) );
+	$command = escapeshellarg( PHP_BINARY ) . ' vendor/bin/behat ' . implode( ' ', array_map( 'escapeshellarg', array_merge( $all_args, [ $list ] ) ) );
 
 	$procs[ $index ] = [
 		'proc'   => proc_open(

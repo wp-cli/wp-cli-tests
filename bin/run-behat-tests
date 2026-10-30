@@ -274,6 +274,10 @@ done
 # Every worker but the first uses its own test database, which the test user needs
 # to be allowed to create, as set up by "composer prepare-tests".
 PARALLEL="${WP_CLI_TEST_PARALLEL-}"
+case "$(uname -s)" in
+	MINGW*|MSYS*|CYGWIN*)
+		PARALLEL="";;
+esac
 if [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; then
 	if ! is_numeric "${PARALLEL}"; then
 		echo "Warning: WP_CLI_TEST_PARALLEL is not a number of workers, running the scenarios one after the other." >&2
