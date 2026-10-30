@@ -405,7 +405,12 @@ FILE;
 	}
 
 	/**
-	 * Installs and activates one or more plugins.
+	 * Installs and optionally activates one or more plugins or themes.
+	 *
+	 * Plugins and themes from WordPress.org are downloaded once and copied from a local cache
+	 * afterwards. Each line holds a slug, optionally followed by `--version=<version>` and `--force`. Other
+	 * lines, like a URL or a path to a ZIP file, are installed with `wp plugin install` or
+	 * `wp theme install` every time.
 	 *
 	 * ```
 	 * Scenario: My example scenario
@@ -415,19 +420,30 @@ FILE;
 	 *     akismet
 	 *     wordpress-importer
 	 *     """
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP installation
+	 *   And these installed themes:
+	 *     """
+	 *     twentysixteen
+	 *     twentyseventeen --version=1.0
+	 *     """
 	 * ```
 	 *
 	 * @access public
 	 *
-	 * @Given these installed and active plugins:
+	 * @Given /^these installed (and active )?(plugins|themes):$/
 	 *
-	 * @param string $stream
+	 * @param string       $active
+	 * @param string       $type
+	 * @param PyStringNode $stream
 	 */
-	public function given_these_installed_and_active_plugins( $stream ): void {
-		$plugins = implode( ' ', array_map( 'trim', explode( PHP_EOL, (string) $stream ) ) );
-		$plugins = $this->replace_variables( $plugins );
+	public function given_these_installed_plugins_or_themes( $active, $type, PyStringNode $stream ): void {
+		$lines    = array_filter( array_map( 'trim', explode( "\n", $this->replace_variables( (string) $stream ) ) ) );
+		$type     = 'plugins' === $type ? 'plugin' : 'theme';
+		$activate = '' !== trim( $active );
 
-		$this->proc( "wp plugin install $plugins --activate" )->run_check();
+		$this->install_extensions( $type, $lines, $activate );
 	}
 
 	/**

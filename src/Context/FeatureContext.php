@@ -1872,6 +1872,109 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Install plugins or themes, copying the ones from WordPress.org from a local cache when possible.
+	 *
+	 * @param string        $type     Either 'plugin' or 'theme'.
+	 * @param array<string> $lines    Slugs, optionally followed by `--version=<version>` and `--force`, or anything `wp plugin install` accepts.
+	 * @param bool          $activate Whether to activate them.
+	 */
+	public function install_extensions( $type, array $lines, $activate ): void {
+		$target_dir = $this->get_extension_dir( $type );
+		$slugs      = [];
+		$uncached   = [];
+		$others     = [];
+
+		foreach ( $lines as $line ) {
+			if ( ! preg_match( '/^([a-z0-9][a-z0-9._-]*)(?:\s+--version=(\S+))?(\s+--force)?$/i', $line, $matches ) || null === $target_dir ) {
+				$others[] = $line;
+				continue;
+			}
+
+			$slug    = $matches[1];
+			$flags   = ( isset( $matches[2] ) && '' !== $matches[2] ? ' --version=' . escapeshellarg( $matches[2] ) : '' ) . ( empty( $matches[3] ) ? '' : ' --force' );
+			$slugs[] = $slug;
+
+			$cache_path = self::get_extension_cache_path( $type, $slug, $flags );
+			if ( is_dir( $cache_path ) ) {
+				self::remove_dir( "$target_dir/$slug" );
+				mkdir( "$target_dir/$slug" );
+				self::copy_dir( $cache_path, "$target_dir/$slug" );
+			} else {
+				$uncached[ $flags ][] = $slug;
+			}
+		}
+
+		foreach ( $uncached as $flags => $uncached_slugs ) {
+			$this->proc( "wp $type install " . implode( ' ', array_map( 'escapeshellarg', $uncached_slugs ) ) . $flags )->run_check();
+
+			foreach ( $uncached_slugs as $slug ) {
+				if ( is_dir( "$target_dir/$slug" ) ) {
+					self::store_in_extension_cache( "$target_dir/$slug", self::get_extension_cache_path( $type, $slug, (string) $flags ) );
+				}
+			}
+		}
+
+		if ( $others ) {
+			$this->proc( "wp $type install " . implode( ' ', $others ) . ( $activate ? ' --activate' : '' ) )->run_check();
+		}
+
+		if ( $activate && $slugs ) {
+			$this->proc( "wp $type activate " . implode( ' ', array_map( 'escapeshellarg', $slugs ) ) )->run_check();
+		}
+	}
+
+	/**
+	 * Get the directory plugins or themes are installed into, or null if it is not known.
+	 *
+	 * @param string $type Either 'plugin' or 'theme'.
+	 */
+	private function get_extension_dir( $type ): ?string {
+		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
+			return null;
+		}
+
+		$run_dir    = $this->variables['RUN_DIR'];
+		$candidates = 'plugin' === $type
+			? [ "$run_dir/my-plugins", "$run_dir/wp-content/plugins", "$run_dir/WordPress/wp-content/plugins" ]
+			: [ "$run_dir/my-content/themes", "$run_dir/wp-content/themes", "$run_dir/WordPress/wp-content/themes" ];
+
+		foreach ( $candidates as $candidate ) {
+			if ( is_dir( $candidate ) ) {
+				return $candidate;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * @param string $type
+	 * @param string $slug
+	 * @param string $flags Install flags that change what gets installed.
+	 */
+	private static function get_extension_cache_path( $type, $slug, $flags ): string {
+		$key = implode( ':', [ $type, $slug, $flags, (string) getenv( 'WP_VERSION' ), PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION ] );
+
+		return sys_get_temp_dir() . '/wp-cli-test-extension-cache/' . $type . '-' . $slug . '-' . substr( md5( $key ), 0, 12 );
+	}
+
+	/**
+	 * @param string $source_dir
+	 * @param string $cache_path
+	 */
+	private static function store_in_extension_cache( $source_dir, $cache_path ): void {
+		$temp_path = $cache_path . '-' . uniqid( '', true );
+		mkdir( $temp_path, 0777, true );
+
+		self::copy_dir( $source_dir, $temp_path );
+
+		// Another process may have filled the cache in the meantime.
+		if ( is_dir( $cache_path ) || ! rename( $temp_path, $cache_path ) ) {
+			self::remove_dir( $temp_path );
+		}
+	}
+
+	/**
 	 * Create a wp-config.php file.
 	 *
 	 * @param string $subdir

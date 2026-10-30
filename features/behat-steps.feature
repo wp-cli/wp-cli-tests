@@ -469,6 +469,71 @@ Feature: Test that WP-CLI Behat steps work as expected
     # Background process should not block, continuing immediately
 
   @require-wp
+  Scenario: Install plugins and themes from WordPress.org
+    Given a WP installation
+    And these installed themes:
+      """
+      twentysixteen
+      """
+    And these installed and active plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    Then the wp-content/themes/twentysixteen/style.css file should exist
+
+    When I run `wp plugin get wordpress-importer --fields=status,version --format=csv`
+    Then STDOUT should contain:
+      """
+      status,active
+      version,0.8
+      """
+
+  @require-wp
+  Scenario: Install cached plugins and themes without requests to WordPress.org
+    Given a WP installation
+    And these installed themes:
+      """
+      twentysixteen
+      """
+    And these installed plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    And a non-existent wp-content/themes/twentysixteen directory
+    And a non-existent wp-content/plugins/wordpress-importer directory
+    And a wp-content/mu-plugins/block-http-requests.php file:
+      """
+      <?php
+      add_filter(
+          'pre_http_request',
+          static function () {
+              return new WP_Error( 'http_request_blocked', 'HTTP requests are blocked.' );
+          }
+      );
+      """
+
+    When these installed and active themes:
+      """
+      twentysixteen
+      """
+    And these installed and active plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    And I run `wp theme list --status=active --field=name`
+    Then STDOUT should be:
+      """
+      twentysixteen
+      """
+
+    When I run `wp plugin get wordpress-importer --fields=status,version --format=csv`
+    Then STDOUT should contain:
+      """
+      status,active
+      version,0.8
+      """
+
+  @require-wp
   Scenario: Test custom wp-content directory
     Given a WP installation
     And a custom wp-content directory
