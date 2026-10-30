@@ -32,9 +32,6 @@
         "wp-coding-standards/wpcs": "dev-develop",
         "yoast/phpunit-polyfills": "^2.0 || ^3.0 || ^4.0"
     },
-    "require-dev": {
-        "roave/security-advisories": "dev-latest"
-    },
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,
