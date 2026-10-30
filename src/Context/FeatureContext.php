@@ -1705,10 +1705,12 @@ class FeatureContext implements Context {
 			$rows[] = [ substr( $command, 3 ), $save ];
 		}
 
-		$marker = 'WP_CLI_TEST_SAVED_VARIABLES:';
-		$code   = '<?php
+		$marker  = 'WP_CLI_TEST_SAVED_VARIABLES:';
+		$started = 'WP_CLI_TEST_STARTED_COMMAND:';
+		$code    = '<?php
 $wp_cli_test_saved = [];
-foreach ( ' . var_export( $rows, true ) . ' as $wp_cli_test_row ) {
+foreach ( ' . var_export( $rows, true ) . ' as $wp_cli_test_index => $wp_cli_test_row ) {
+	echo "\n' . $started . '{$wp_cli_test_index}\n";
 	$wp_cli_test_command = strtr( $wp_cli_test_row[0], $wp_cli_test_saved );
 	$wp_cli_test_result  = WP_CLI::runcommand( $wp_cli_test_command, [ "launch" => false, "return" => "all", "exit_error" => false ] );
 	if ( 0 !== $wp_cli_test_result->return_code ) {
@@ -1738,6 +1740,10 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 		$position = strrpos( $result->stdout, $marker );
 		$saved    = false !== $position ? json_decode( trim( substr( $result->stdout, $position + strlen( $marker ) ) ), true ) : null;
 		if ( ! is_array( $saved ) ) {
+			$last = preg_match_all( '/^' . $started . '(\d+)$/m', $result->stdout, $matches ) ? (int) end( $matches[1] ) : null;
+			if ( null !== $last ) {
+				throw new RuntimeException( "The process ended while running `wp {$rows[ $last ][0]}`. A command that exits on its own cannot share a process with other commands." );
+			}
 			throw new RuntimeException( "Could not read the saved variables from the output:\n{$result->stdout}" );
 		}
 
