@@ -187,6 +187,179 @@ function wp_cli_tests_distribute( array $scenarios, $workers ) {
 	return $shards;
 }
 
+/**
+ * Get the Docker image of the database server the tests run against on the host, so that the
+ * containers test against the same type and version of database server.
+ *
+ * @return string|null Image name, or null if the server could not be identified.
+ */
+function wp_cli_tests_docker_db_image() {
+	$image = getenv( 'WP_CLI_TEST_DOCKER_DB' );
+	if ( is_string( $image ) && '' !== $image ) {
+		return $image;
+	}
+
+	$host  = getenv( 'WP_CLI_TEST_DBHOST' ) ?: 'localhost';
+	$parts = explode( ':', $host );
+	$args  = '-h' . escapeshellarg( $parts[0] );
+	if ( isset( $parts[1] ) ) {
+		$args .= is_numeric( $parts[1] ) ? ' --port=' . escapeshellarg( $parts[1] ) . ' --protocol=tcp' : ' --socket=' . escapeshellarg( $parts[1] );
+	}
+	$pass  = getenv( 'WP_CLI_TEST_DBROOTPASS' );
+	$args .= ' -u' . escapeshellarg( getenv( 'WP_CLI_TEST_DBROOTUSER' ) ?: 'root' ) . ( false !== $pass && '' !== $pass ? ' -p' . escapeshellarg( $pass ) : '' );
+
+	foreach ( [ 'mysql', 'mariadb' ] as $client ) {
+		$version = (string) exec( "{$client} {$args} --skip-column-names -e 'SELECT VERSION()' 2>/dev/null" );
+		if ( preg_match( '/^(\d+\.\d+)/', $version, $matches ) ) {
+			return ( false !== stripos( $version, 'mariadb' ) ? 'mariadb:' : 'mysql:' ) . $matches[1];
+		}
+	}
+
+	return null;
+}
+
+/**
+ * Get the extra options a database server image needs to accept the test user's password.
+ *
+ * @param string $image
+ * @return string
+ */
+function wp_cli_tests_docker_db_options( $image ) {
+	// Throwaway databases do not need to wait for their writes to reach the disk.
+	$options = '--innodb-flush-log-at-trx-commit=0 --sync-binlog=0';
+
+	if ( preg_match( '/^mysql:(\d+)\.(\d+)/', $image, $matches ) && (int) $matches[1] >= 8 ) {
+		$options .= version_compare( "{$matches[1]}.{$matches[2]}", '8.4', '>=' )
+			? ' --mysql-native-password=ON --authentication-policy=mysql_native_password'
+			: ' --default-authentication-plugin=mysql_native_password';
+	}
+
+	return $options;
+}
+
+/**
+ * Build the image the workers run in.
+ *
+ * @return string|null Image name, or null if it could not be built.
+ */
+function wp_cli_tests_docker_php_image() {
+	$version = PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;
+	$image   = "wp-cli-tests-php:{$version}";
+
+	exec( 'docker build -q -t ' . escapeshellarg( $image ) . ' --build-arg ' . escapeshellarg( "PHP_VERSION={$version}" ) . ' ' . escapeshellarg( __DIR__ . '/docker' ) . ' 2>&1', $output, $exit_code );
+
+	if ( 0 !== $exit_code ) {
+		fwrite( STDERR, "Warning: Could not build the Docker image for PHP {$version}:\n" . implode( "\n", array_slice( $output, -5 ) ) . "\n" );
+		return null;
+	}
+
+	return $image;
+}
+
+/**
+ * Get the directories a container needs to see at their usual paths.
+ *
+ * @param string $base_dir
+ * @return array<int|string, string> Paths to mount at the same path, and read-only sources keyed by source path.
+ */
+function wp_cli_tests_docker_mounts( $base_dir ) {
+	$cwd    = (string) getcwd();
+	$mounts = [ $cwd, $base_dir ];
+
+	// Dependencies can be symlinked from outside the project, as in wp-cli/wp-cli-dev,
+	// in which case the closest directory holding both has to be visible.
+	foreach ( [ $cwd . '/vendor/autoload.php' ] as $path ) {
+		$real = realpath( $path );
+		if ( false === $real || 0 === strpos( $real . '/', $cwd . '/' ) ) {
+			continue;
+		}
+		$common = $cwd;
+		while ( 0 !== strpos( $real . '/', rtrim( $common, '/' ) . '/' ) && dirname( $common ) !== $common ) {
+			$common = dirname( $common );
+		}
+		$mounts[] = '/' === $common ? dirname( $real ) : $common;
+	}
+
+	$mounts = array_values( array_unique( $mounts ) );
+
+	// Download WordPress once for all containers, which only ever copy from it.
+	$version = getenv( 'WP_VERSION' );
+	if ( $version && ! getenv( 'WP_CLI_TEST_CORE_ZIP' ) ) {
+		$cache = sys_get_temp_dir() . '/wp-cli-test-core-download-cache-' . $version;
+		if ( ! is_readable( $cache . '/wp-includes/version.php' ) ) {
+			exec( 'vendor/bin/wp core download --force --path=' . escapeshellarg( $cache ) . ' --version=' . escapeshellarg( $version ) . ' > /dev/null 2>&1' );
+		}
+		if ( is_readable( $cache . '/wp-includes/version.php' ) ) {
+			$mounts[ $cache ] = '/tmp/wp-cli-test-core-download-cache-' . $version;
+		}
+	}
+
+	return $mounts;
+}
+
+/**
+ * Start the containers of a worker and get the command that runs its scenarios.
+ *
+ * @param string      $name     Name prefix of the worker's containers.
+ * @param string      $php_image
+ * @param string|null $db_image Null when running on SQLite.
+ * @param array<int|string, string> $mounts
+ * @param array<string> $user_args
+ * @param string      $scenario_list File listing the worker's scenarios.
+ * @return string
+ */
+function wp_cli_tests_docker_worker_command( $name, $php_image, $db_image, array $mounts, array $user_args, $scenario_list ) {
+	$network = '';
+
+	if ( null !== $db_image ) {
+		exec(
+			'docker run -d --rm --name ' . escapeshellarg( "{$name}-db" )
+			. ' --tmpfs /var/lib/mysql'
+			. ' -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=wp_cli_test -e MYSQL_PASSWORD=password1'
+			. ' ' . escapeshellarg( $db_image ) . ' ' . wp_cli_tests_docker_db_options( $db_image ) . ' 2>&1'
+		);
+		// Share the database container's network, so the server is at 127.0.0.1 and nothing else is.
+		$network = ' --network ' . escapeshellarg( "container:{$name}-db" );
+	}
+
+	$env = [
+		'HOME'                   => '/tmp/home',
+		'WP_CLI_TEST_DBHOST'     => '127.0.0.1:3306',
+		'WP_CLI_TEST_DBROOTUSER' => 'root',
+		'WP_CLI_TEST_DBROOTPASS' => 'root',
+	];
+
+	foreach ( getenv() as $key => $value ) {
+		if ( preg_match( '/^(WP_VERSION|NO_COLOR|CI|GITHUB_TOKEN|WP_CLI_TEST_(DBTYPE|OBJECT_CACHE|CORE_ZIP|QUIET|LOG_RUN_TIMES|PHP_TUNING|WP_VERSION_CACHE_TTL))$/', $key ) ) {
+			$env[ $key ] = $value;
+		}
+	}
+
+	$command = 'docker run --rm --name ' . escapeshellarg( $name ) . $network
+		. ' --tmpfs /tmp:exec,mode=1777'
+		. ' -u ' . escapeshellarg( getmyuid() . ':' . getmygid() )
+		. ' -w ' . escapeshellarg( (string) getcwd() );
+
+	foreach ( $mounts as $source => $target ) {
+		if ( is_int( $source ) ) {
+			$command .= ' -v ' . escapeshellarg( "{$target}:{$target}" );
+		} else {
+			$command .= ' -v ' . escapeshellarg( "{$source}:{$target}:ro" );
+		}
+	}
+
+	foreach ( $env as $key => $value ) {
+		$command .= ' -e ' . escapeshellarg( "{$key}={$value}" );
+	}
+
+	$inner = 'mkdir -p "$HOME"'
+		// Wait for the database server, which takes a few seconds to start, before preparing it.
+		. ( null !== $db_image ? ' && for i in $(seq 1 60); do mysql -h127.0.0.1 -P3306 --protocol=tcp -uroot -proot -e "SELECT 1" > /dev/null 2>&1 && break; sleep 1; done && vendor/bin/install-package-tests > /dev/null' : '' )
+		. ' && vendor/bin/run-behat-tests ' . implode( ' ', array_map( 'escapeshellarg', array_merge( $user_args, [ $scenario_list ] ) ) );
+
+	return $command . ' ' . escapeshellarg( $php_image ) . ' sh -c ' . escapeshellarg( $inner );
+}
+
 $args = array_slice( $argv, 1 );
 
 $workers = (int) array_shift( $args );
@@ -196,9 +369,18 @@ $behat_args = false === $separator ? $args : array_slice( $args, 0, $separator )
 $user_args  = false === $separator ? [] : array_slice( $args, $separator + 1 );
 $all_args   = array_merge( $behat_args, $user_args );
 
+// Run every worker in its own throwaway containers, see run-behat-tests.
+$docker      = (bool) getenv( 'WP_CLI_TEST_DOCKER' ) && DIRECTORY_SEPARATOR !== '\\';
+$rerun_paths = null;
+
 // A rerun after a parallel run covers exactly the scenarios that failed in it.
 $rerun = array_search( '--rerun', $user_args, true );
-if ( false !== $rerun && file_exists( wp_cli_tests_failures_file() ) ) {
+if ( false !== $rerun && file_exists( wp_cli_tests_failures_file() ) && $docker ) {
+	unset( $user_args[ $rerun ] );
+	$user_args   = array_values( $user_args );
+	$rerun_paths = array_filter( explode( "\n", (string) file_get_contents( wp_cli_tests_failures_file() ) ) );
+	unlink( wp_cli_tests_failures_file() );
+} elseif ( false !== $rerun && file_exists( wp_cli_tests_failures_file() ) ) {
 	unset( $user_args[ $rerun ] );
 	$failures = wp_cli_tests_failures_file();
 	$copy     = $failures . '.' . getmypid() . '.scenarios';
@@ -217,8 +399,23 @@ foreach ( $user_args as $arg ) {
 	}
 }
 
-if ( $workers < 2 || DIRECTORY_SEPARATOR === '\\' || $selects_scenarios ) {
+if ( ( $workers < 2 && ! $docker ) || DIRECTORY_SEPARATOR === '\\' || ( $selects_scenarios && null === $rerun_paths ) ) {
 	wp_cli_tests_run_behat_and_exit( $all_args );
+}
+
+$php_image = null;
+$db_image  = null;
+if ( $docker ) {
+	$php_image = wp_cli_tests_docker_php_image();
+	$db_image  = 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ? null : wp_cli_tests_docker_db_image();
+
+	if ( null === $php_image || ( null === $db_image && 'sqlite' !== getenv( 'WP_CLI_TEST_DBTYPE' ) ) ) {
+		fwrite( STDERR, "Warning: Running the scenarios without Docker.\n" );
+		$docker = false;
+		if ( $workers < 2 || null !== $rerun_paths ) {
+			wp_cli_tests_run_behat_and_exit( $all_args );
+		}
+	}
 }
 
 require getcwd() . '/vendor/autoload.php';
@@ -230,12 +427,41 @@ foreach ( $behat_args as $arg ) {
 	}
 }
 
-$features_folder = getenv( 'BEHAT_FEATURES_FOLDER' ) ?: 'features';
-$scenarios       = wp_cli_tests_collect_scenarios( $features_folder, $tags );
-$workers         = min( $workers, max( 1, count( $scenarios ) ) );
+// Containers check for PHP extensions themselves, as theirs can differ from the host's.
+if ( $docker ) {
+	$tags = (string) preg_replace( '/(^|&&)~@require-extension-[A-Za-z0-9_]+/', '', $tags );
+	$tags = trim( $tags, '&' );
+}
 
-if ( $workers < 2 ) {
+$features_folder = getenv( 'BEHAT_FEATURES_FOLDER' ) ?: 'features';
+
+if ( null !== $rerun_paths ) {
+	$scenarios = array_map(
+		static function ( $path ) {
+			return [
+				'path'   => $path,
+				'cost'   => 1,
+				'shared' => false,
+			];
+		},
+		$rerun_paths
+	);
+	$workers   = 1;
+} else {
+	$scenarios = wp_cli_tests_collect_scenarios( $features_folder, $tags );
+}
+
+$workers = min( max( 1, $workers ), max( 1, count( $scenarios ) ) );
+
+if ( $workers < 2 && ! $docker ) {
 	wp_cli_tests_run_behat_and_exit( $all_args );
+}
+
+// Containers do not share ports or temporary directories, so any of them can run any scenario.
+if ( $docker ) {
+	foreach ( $scenarios as $key => $scenario ) {
+		$scenarios[ $key ]['shared'] = false;
+	}
 }
 
 $shards = wp_cli_tests_distribute( $scenarios, $workers );
@@ -247,7 +473,19 @@ if ( ! is_dir( $base_dir ) ) {
 	mkdir( $base_dir, 0777, true );
 }
 
-printf( "Running %d scenarios in %d parallel workers.\n", count( $scenarios ), $workers );
+printf( "Running %d scenarios in %d parallel workers%s.\n", count( $scenarios ), $workers, $docker ? ' in Docker containers' : '' );
+
+$containers = [];
+if ( $docker ) {
+	$mounts = wp_cli_tests_docker_mounts( $base_dir );
+	register_shutdown_function(
+		static function () use ( &$containers ) {
+			foreach ( $containers as $container ) {
+				exec( 'docker rm -f ' . escapeshellarg( $container ) . ' > /dev/null 2>&1' );
+			}
+		}
+	);
+}
 
 $procs = [];
 foreach ( $shards as $index => $paths ) {
@@ -266,6 +504,14 @@ foreach ( $shards as $index => $paths ) {
 
 	$output  = "{$base_dir}/worker-{$index}.log";
 	$command = escapeshellarg( PHP_BINARY ) . ' vendor/bin/behat ' . implode( ' ', array_map( 'escapeshellarg', array_merge( $all_args, [ $list ] ) ) );
+
+	if ( $docker ) {
+		$name         = 'wp-cli-tests-' . substr( md5( $base_dir ), 0, 8 ) . "-{$index}";
+		$containers[] = $name;
+		$containers[] = "{$name}-db";
+		$env          = getenv();
+		$command      = wp_cli_tests_docker_worker_command( $name, (string) $php_image, $db_image, $mounts, array_values( $user_args ), $list );
+	}
 
 	$procs[ $index ] = [
 		'proc'   => proc_open(

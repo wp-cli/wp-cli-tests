@@ -286,8 +286,24 @@ done
 
 case "$(uname -s)" in
 	MINGW*|MSYS*|CYGWIN*)
-		PARALLEL="";;
+		PARALLEL=""
+		unset WP_CLI_TEST_DOCKER;;
 esac
+
+# With WP_CLI_TEST_DOCKER set, every worker runs in its own throwaway containers instead,
+# with a database server of the same type and version, so they share nothing.
+if [ -n "${WP_CLI_TEST_DOCKER-}" ]; then
+	if ! docker info > /dev/null 2>&1; then
+		echo "Warning: WP_CLI_TEST_DOCKER is set, but Docker is not available. Running the scenarios without it." >&2
+		unset WP_CLI_TEST_DOCKER
+	elif [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]]; then
+		echo "Code coverage is collected, running the scenarios without Docker." >&2
+		unset WP_CLI_TEST_DOCKER
+	else
+		exec php "$WP_CLI_TESTS_ROOT"/utils/behat-parallel.php "${PARALLEL:-1}" --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" -- "$@"
+	fi
+fi
+
 if [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; then
 	if ! is_numeric "${PARALLEL}"; then
 		echo "Warning: WP_CLI_TEST_PARALLEL is not a number of workers, running the scenarios one after the other." >&2

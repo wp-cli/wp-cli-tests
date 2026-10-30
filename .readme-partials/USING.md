@@ -265,6 +265,13 @@ Every worker but the first gets its own temporary directory, and with it its own
 
 Scenarios that rely on resources shared across the system, such as a fixed port or a fixed path in the system's temporary directory, are all run by the first worker, one after the other. `composer behat-rerun` re-runs exactly the scenarios that failed in the last parallel run.
 
+When Docker is available, set `WP_CLI_TEST_DOCKER` to run every worker in its own throwaway containers instead:
+```bash
+WP_CLI_TEST_DOCKER=1 WP_CLI_TEST_PARALLEL=4 composer behat
+```
+
+Each worker then gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. The containers run the same PHP version as the host, as the project's Composer dependencies are installed for it. Where the image cannot be built or the database server cannot be identified, the scenarios run without Docker.
+
 ### Linting the feature files
 
 `composer lint-gherkin` checks `features/` with
