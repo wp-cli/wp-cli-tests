@@ -1677,6 +1677,76 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Run several WP-CLI commands one after the other in a single `wp` process.
+	 *
+	 * Each command has to start with `wp `, and has to succeed. A command can use the
+	 * output saved by an earlier command in the same batch as a {VARIABLE}.
+	 *
+	 * @param array<array{0: string, 1: string}> $commands Pairs of command and the name of the variable to save its STDOUT into, or ''.
+	 */
+	public function run_commands_in_single_process( array $commands ): void {
+		$batch_variables = array_filter( array_column( $commands, 1 ) );
+
+		$rows = [];
+		foreach ( $commands as list( $command, $save ) ) {
+			// Variables saved within the batch are only known once the process runs.
+			$command = (string) preg_replace_callback(
+				'/\{([A-Z_][A-Z_0-9]*)\}/',
+				function ( $matches ) use ( $batch_variables ) {
+					return in_array( $matches[1], $batch_variables, true ) ? $matches[0] : $this->replace_variables( $matches[0] );
+				},
+				$command
+			);
+
+			if ( 0 !== strpos( $command, 'wp ' ) ) {
+				throw new RuntimeException( "Only WP-CLI commands can run in a single process, got: {$command}" );
+			}
+
+			$rows[] = [ substr( $command, 3 ), $save ];
+		}
+
+		$marker = 'WP_CLI_TEST_SAVED_VARIABLES:';
+		$code   = '<?php
+$wp_cli_test_saved = [];
+foreach ( ' . var_export( $rows, true ) . ' as $wp_cli_test_row ) {
+	$wp_cli_test_command = strtr( $wp_cli_test_row[0], $wp_cli_test_saved );
+	$wp_cli_test_result  = WP_CLI::runcommand( $wp_cli_test_command, [ "launch" => false, "return" => "all", "exit_error" => false ] );
+	if ( 0 !== $wp_cli_test_result->return_code ) {
+		fwrite( STDERR, "\$ wp {$wp_cli_test_command}\n{$wp_cli_test_result->stdout}\n{$wp_cli_test_result->stderr}\nexit status: {$wp_cli_test_result->return_code}\n" );
+		exit( 1 );
+	}
+	if ( "" !== $wp_cli_test_row[1] ) {
+		$wp_cli_test_saved[ "{" . $wp_cli_test_row[1] . "}" ] = trim( $wp_cli_test_result->stdout, "\n" );
+	}
+}
+echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
+';
+
+		$file = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-test-commands-', true ) . '.php';
+		file_put_contents( $file, $code );
+
+		try {
+			$result = $this->proc( Utils\esc_cmd( 'wp eval-file %s', $file ) )->run();
+		} finally {
+			unlink( $file );
+		}
+
+		if ( 0 !== $result->return_code ) {
+			throw new RuntimeException( "Running the commands in a single process failed:\n{$result->stderr}\n{$result->stdout}" );
+		}
+
+		$position = strrpos( $result->stdout, $marker );
+		$saved    = false !== $position ? json_decode( trim( substr( $result->stdout, $position + strlen( $marker ) ) ), true ) : null;
+		if ( ! is_array( $saved ) ) {
+			throw new RuntimeException( "Could not read the saved variables from the output:\n{$result->stdout}" );
+		}
+
+		foreach ( $saved as $placeholder => $value ) {
+			$this->variables[ trim( $placeholder, '{}' ) ] = $value;
+		}
+	}
+
+	/**
 	 * Start a background process. Will automatically be closed when the tests finish.
 	 *
 	 * @param string $cmd
