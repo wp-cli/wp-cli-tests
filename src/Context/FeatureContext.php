@@ -1899,6 +1899,12 @@ class FeatureContext implements Context {
 				self::remove_dir( "$target_dir/$slug" );
 				mkdir( "$target_dir/$slug" );
 				self::copy_dir( $cache_path, "$target_dir/$slug" );
+
+				// Installing a child theme also installs its parent.
+				$parent = 'theme' === $type ? self::get_parent_theme( "$target_dir/$slug" ) : '';
+				if ( '' !== $parent && ! is_dir( "$target_dir/$parent" ) ) {
+					$this->install_extensions( 'theme', [ $parent ], false );
+				}
 			} else {
 				$uncached[ $flags ][] = $slug;
 			}
@@ -1910,6 +1916,11 @@ class FeatureContext implements Context {
 			foreach ( $uncached_slugs as $slug ) {
 				if ( is_dir( "$target_dir/$slug" ) ) {
 					self::store_in_extension_cache( "$target_dir/$slug", self::get_extension_cache_path( $type, $slug, (string) $flags ) );
+				}
+
+				$parent = 'theme' === $type && is_dir( "$target_dir/$slug" ) ? self::get_parent_theme( "$target_dir/$slug" ) : '';
+				if ( '' !== $parent && is_dir( "$target_dir/$parent" ) && ! is_dir( self::get_extension_cache_path( 'theme', $parent, '' ) ) ) {
+					self::store_in_extension_cache( "$target_dir/$parent", self::get_extension_cache_path( 'theme', $parent, '' ) );
 				}
 			}
 		}
@@ -1945,6 +1956,22 @@ class FeatureContext implements Context {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Get the parent of a theme from the `Template` header of its stylesheet, or '' if it has none.
+	 *
+	 * @param string $theme_dir
+	 */
+	private static function get_parent_theme( $theme_dir ): string {
+		$stylesheet = "$theme_dir/style.css";
+		if ( ! is_file( $stylesheet ) ) {
+			return '';
+		}
+
+		$header = (string) file_get_contents( $stylesheet, false, null, 0, 8192 );
+
+		return preg_match( '/^[ \t\/*#@]*Template:(.*)$/mi', $header, $matches ) ? trim( $matches[1] ) : '';
 	}
 
 	/**

@@ -494,12 +494,15 @@ Feature: Test that WP-CLI Behat steps work as expected
     And these installed themes:
       """
       twentysixteen
+      oceanly-green
       """
     And these installed plugins:
       """
       wordpress-importer --version=0.8
       """
     And a non-existent wp-content/themes/twentysixteen directory
+    And a non-existent wp-content/themes/oceanly-green directory
+    And a non-existent wp-content/themes/oceanly directory
     And a non-existent wp-content/plugins/wordpress-importer directory
     And a wp-content/mu-plugins/block-http-requests.php file:
       """
@@ -512,7 +515,11 @@ Feature: Test that WP-CLI Behat steps work as expected
       );
       """
 
-    When these installed and active themes:
+    When these installed themes:
+      """
+      oceanly-green
+      """
+    And these installed and active themes:
       """
       twentysixteen
       """
@@ -532,6 +539,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       status,active
       version,0.8
       """
+    And the wp-content/themes/oceanly-green/style.css file should exist
+    And the wp-content/themes/oceanly/style.css file should exist
 
   @require-wp
   Scenario: Test custom wp-content directory
