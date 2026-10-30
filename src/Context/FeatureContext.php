@@ -1702,6 +1702,11 @@ class FeatureContext implements Context {
 				throw new RuntimeException( "Only WP-CLI commands can run in a single process, got: {$command}" );
 			}
 
+			// These change how WordPress is loaded, which has already happened for every command but the first.
+			if ( preg_match( '/(?:^|\s)--(?:require|path|url|skip-plugins|skip-themes|skip-packages|context|exec|ssh|http)(?:[=\s]|$)/', $command ) ) {
+				throw new RuntimeException( "Commands that change how WordPress is loaded cannot share a process, got: {$command}" );
+			}
+
 			$rows[] = [ substr( $command, 3 ), $save ];
 		}
 
@@ -1734,7 +1739,8 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 		}
 
 		if ( 0 !== $result->return_code ) {
-			throw new RuntimeException( "Running the commands in a single process failed:\n{$result->stderr}\n{$result->stdout}" );
+			$stdout = trim( (string) preg_replace( '/^' . $started . '\d+$/m', '', $result->stdout ) );
+			throw new RuntimeException( "Running the commands in a single process failed:\n{$result->stderr}\n{$stdout}" );
 		}
 
 		$position = strrpos( $result->stdout, $marker );
