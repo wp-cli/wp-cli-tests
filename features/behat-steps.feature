@@ -543,6 +543,38 @@ Feature: Test that WP-CLI Behat steps work as expected
     And the wp-content/themes/oceanly/style.css file should exist
 
   @require-wp
+  Scenario: Keep only the listed themes
+    Given a WP installation
+    And only these installed themes:
+      """
+      twentysixteen
+      twentyseventeen
+      """
+
+    When I run `wp theme list --format=count`
+    Then STDOUT should be:
+      """
+      2
+      """
+    And the wp-content/themes/twentysixteen/style.css file should exist
+    And the wp-content/themes/twentyseventeen/style.css file should exist
+
+  @require-wp
+  Scenario: Keep only the listed theme and activate it
+    Given a WP installation
+    And only these installed and active themes:
+      """
+      twentysixteen
+      """
+
+    When I run `wp theme list --fields=name,status --format=csv`
+    Then STDOUT should be:
+      """
+      name,status
+      twentysixteen,active
+      """
+
+  @require-wp
   Scenario: Test custom wp-content directory
     Given a WP installation
     And a custom wp-content directory

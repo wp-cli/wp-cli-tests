@@ -1935,6 +1935,23 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Remove every installed theme, like `wp theme delete --all --force` does.
+	 */
+	public function remove_all_themes(): void {
+		$themes_dir = $this->get_extension_dir( 'theme' );
+		if ( null === $themes_dir ) {
+			throw new RuntimeException( 'Could not find the themes directory.' );
+		}
+
+		$entries = scandir( $themes_dir );
+		foreach ( false === $entries ? [] : $entries as $entry ) {
+			if ( '.' !== $entry[0] && is_dir( "$themes_dir/$entry" ) ) {
+				self::remove_dir( "$themes_dir/$entry" );
+			}
+		}
+	}
+
+	/**
 	 * Get the directory plugins or themes are installed into, or null if it is not known.
 	 *
 	 * @param string $type Either 'plugin' or 'theme'.
