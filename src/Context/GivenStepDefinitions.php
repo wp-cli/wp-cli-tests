@@ -393,15 +393,7 @@ FILE;
 	 * @param string $type Multisite installation type.
 	 */
 	public function given_a_wp_multisite_installation( $type = 'subdirectory' ): void {
-		$this->install_wp();
-		$subdomains = ! empty( $type ) && 'subdomain' === $type ? 1 : 0;
-		$this->proc(
-			'wp core install-network',
-			array(
-				'title'      => 'WP CLI Network',
-				'subdomains' => $subdomains,
-			)
-		)->run_check();
+		$this->install_wp( '', '', 'subdomain' === $type ? 'subdomain' : 'subdirectory' );
 	}
 
 	/**

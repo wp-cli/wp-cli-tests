@@ -499,6 +499,52 @@ Feature: Test that WP-CLI Behat steps work as expected
     Then the return code should be 0
 
   @require-wp
+  Scenario: Create a site on a cached multisite subdomain installation
+    Given a WP multisite subdomain installation
+    When I run `wp eval 'echo is_subdomain_install() ? "subdomain" : "subdirectory";'`
+    Then STDOUT should be:
+      """
+      subdomain
+      """
+
+    When I run `wp eval 'wp_insert_site( [ "domain" => "first.example.com", "path" => "/" ] );'`
+    And I run `wp eval 'echo get_sites( [ "count" => true ] );'`
+    Then STDOUT should be:
+      """
+      2
+      """
+
+  @require-wp
+  Scenario: Restore a cached multisite subdirectory installation
+    Given a WP multisite subdirectory installation
+    When I run `wp eval 'echo is_subdomain_install() ? "subdomain" : "subdirectory";'`
+    Then STDOUT should be:
+      """
+      subdirectory
+      """
+
+    When I run `wp eval 'echo get_sites( [ "count" => true ] );'`
+    Then STDOUT should be:
+      """
+      1
+      """
+
+  @require-wp
+  Scenario: Restore a cached multisite subdomain installation without earlier changes
+    Given a WP multisite subdomain installation
+    When I run `wp eval 'echo is_subdomain_install() ? "subdomain" : "subdirectory";'`
+    Then STDOUT should be:
+      """
+      subdomain
+      """
+
+    When I run `wp eval 'echo get_sites( [ "count" => true ] );'`
+    Then STDOUT should be:
+      """
+      1
+      """
+
+  @require-wp
   Scenario: Test misconfigured WP_CONTENT_DIR
     Given a WP installation
     And a misconfigured WP_CONTENT_DIR constant directory

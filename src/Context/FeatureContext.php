@@ -1913,8 +1913,9 @@ class FeatureContext implements Context {
 	/**
 	 * @param string $subdir
 	 * @param string $version
+	 * @param string $network Multisite type to install on top, either 'subdirectory' or 'subdomain'. Empty for a single site.
 	 */
-	public function install_wp( $subdir = '', $version = '' ): void {
+	public function install_wp( $subdir = '', $version = '', $network = '' ): void {
 		$wp_version              = $version ?: getenv( 'WP_VERSION' );
 		$wp_version_suffix       = $wp_version ? "-$wp_version" : '';
 		self::$install_cache_dir = sys_get_temp_dir() . '/wp-cli-test-core-install-cache' . $wp_version_suffix;
@@ -1951,7 +1952,7 @@ class FeatureContext implements Context {
 
 		$run_dir = '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'];
 
-		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir . ':object_cache=' . getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) );
+		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir . ':object_cache=' . getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) . ( $network ? ':network=' . $network : '' ) );
 
 		// The cache includes the SQLite database, stored under "wp-content/database".
 		if ( is_dir( $install_cache_path ) ) {
@@ -1963,6 +1964,14 @@ class FeatureContext implements Context {
 			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
+
+			if ( $network ) {
+				$network_args = [
+					'title'      => 'WP CLI Network',
+					'subdomains' => 'subdomain' === $network ? 1 : 0,
+				];
+				$this->proc( 'wp core install-network', $network_args, $subdir )->run_check();
+			}
 
 			if ( ! is_dir( $install_cache_path ) ) {
 				mkdir( $install_cache_path );
