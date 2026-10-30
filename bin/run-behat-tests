@@ -270,4 +270,26 @@ for arg in "$@"; do
 	fi
 done
 
+# Run the scenarios in parallel workers when WP_CLI_TEST_PARALLEL is set to their number.
+# Every worker but the first uses its own test database, which the test user needs
+# to be allowed to create, as set up by "composer prepare-tests".
+PARALLEL="${WP_CLI_TEST_PARALLEL-}"
+if [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; then
+	if ! is_numeric "${PARALLEL}"; then
+		echo "Warning: WP_CLI_TEST_PARALLEL is not a number of workers, running the scenarios one after the other." >&2
+		PARALLEL=""
+	elif [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]]; then
+		echo "Code coverage is collected, running the scenarios one after the other." >&2
+		PARALLEL=""
+	elif [ "${WP_CLI_TEST_DBTYPE-}" != "sqlite" ] && ! ${DB_CLIENT} ${HOST_STRING} --user="${USER}" ${PASSWORD_ARG} --execute="CREATE DATABASE IF NOT EXISTS \`${DBNAME}_1\`; DROP DATABASE \`${DBNAME}_1\`;" 2>/dev/null; then
+		echo "Warning: The test user cannot create the databases of parallel workers, running the scenarios one after the other." >&2
+		echo "Run 'composer prepare-tests' once to allow it." >&2
+		PARALLEL=""
+	fi
+fi
+
+if [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; then
+	exec php "$WP_CLI_TESTS_ROOT"/utils/behat-parallel.php "${PARALLEL}" --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" -- "$@"
+fi
+
 vendor/bin/behat --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" "$@"
