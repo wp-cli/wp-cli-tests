@@ -274,6 +274,15 @@ done
 # Every worker but the first uses its own test database, which the test user needs
 # to be allowed to create, as set up by "composer prepare-tests".
 PARALLEL="${WP_CLI_TEST_PARALLEL-}"
+
+# A rerun after a parallel run covers exactly the scenarios that failed in it, which only the
+# parallel runner knows, whether or not WP_CLI_TEST_PARALLEL is set for the rerun as well.
+for arg in "$@"; do
+	if [ "$arg" = "--rerun" ] && [ -f "${TMPDIR:-/tmp}/wp-cli-test-parallel-failures.scenarios" ]; then
+		exec php "$WP_CLI_TESTS_ROOT"/utils/behat-parallel.php 1 --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" -- "$@"
+	fi
+done
+
 case "$(uname -s)" in
 	MINGW*|MSYS*|CYGWIN*)
 		PARALLEL="";;
