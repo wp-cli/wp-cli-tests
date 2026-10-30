@@ -469,6 +469,33 @@ Feature: Test that WP-CLI Behat steps work as expected
     # Background process should not block, continuing immediately
 
   @require-wp
+  Scenario: Run setup commands in a single process
+    Given a WP installation
+    And these setup commands:
+      | command                                                                                   | save     |
+      | wp eval 'echo wp_insert_post( [ "post_title" => "First", "post_status" => "publish" ] );' | POST_ID  |
+      | wp eval 'echo get_the_title( {POST_ID} );'                                                 | TITLE    |
+      | wp eval 'echo getmypid();'                                                                | FIRST    |
+      | wp eval 'echo getmypid();'                                                                | SECOND   |
+      | wp config set WP_CLI_TEST_CONSTANT "a value"                                              |          |
+
+    When I run `wp eval 'echo get_post_field( "post_title", {POST_ID} ) . "|{TITLE}";'`
+    Then STDOUT should be:
+      """
+      First|First
+      """
+
+    When I run `wp eval 'echo "{FIRST}" === "{SECOND}" ? "same process" : "different processes";'`
+    Then STDOUT should be:
+      """
+      same process
+      """
+    And the wp-config.php file should contain:
+      """
+      'WP_CLI_TEST_CONSTANT', 'a value'
+      """
+
+  @require-wp
   Scenario: Test custom wp-content directory
     Given a WP installation
     And a custom wp-content directory
