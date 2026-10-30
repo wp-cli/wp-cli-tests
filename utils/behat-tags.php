@@ -385,6 +385,86 @@ function os_tags( $features_folder = 'features' ) {
 }
 
 /**
+ * Whether a command is available in the environment.
+ *
+ * @param string $command
+ * @return bool
+ */
+function command_available( $command ) {
+	$check = 'Windows' === PHP_OS_FAMILY ? 'where ' . escapeshellarg( $command ) . ' 2> NUL' : 'command -v ' . escapeshellarg( $command ) . ' 2> /dev/null';
+	exec( $check, $output, $exit_code );
+	return 0 === $exit_code;
+}
+
+/**
+ * Tags for requirements on the environment beyond PHP extensions: commands, network access and opcache settings.
+ *
+ * @param string $features_folder The folder where the feature files are located.
+ * @return array
+ */
+function environment_tags( $features_folder = 'features' ) {
+	$skip_tags = array();
+
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+	$contents      = '';
+	foreach ( $feature_files ? $feature_files : array() as $feature_file ) {
+		$contents .= (string) file_get_contents( $feature_file ) . "\n";
+	}
+
+	// Commands a scenario needs, such as "@require-bin-svn".
+	if ( preg_match_all( '/@require-bin-([A-Za-z0-9_.+-]+)/', $contents, $matches ) ) {
+		foreach ( array_unique( $matches[1] ) as $command ) {
+			if ( ! command_available( $command ) ) {
+				$skip_tags[] = "@require-bin-{$command}";
+			}
+		}
+	}
+
+	if ( false !== strpos( $contents, '@require-composer' ) && ! command_available( 'composer' ) ) {
+		$skip_tags[] = '@require-composer';
+	}
+
+	if ( false !== strpos( $contents, '@require-download' ) ) {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A failed connection is the answer being looked for.
+		$connection = @fsockopen( 'downloads.wordpress.org', 443, $errno, $errstr, 5 );
+		if ( false === $connection ) {
+			$skip_tags[] = '@require-download';
+		} else {
+			fclose( $connection );
+		}
+	}
+
+	// WP-CLI reads the doc comments of commands, which opcache can be configured to drop.
+	if ( false !== strpos( $contents, '@require-opcache-save-comments' ) && extension_loaded( 'Zend OPcache' ) && ! ini_get( 'opcache.save_comments' ) ) {
+		$skip_tags[] = '@require-opcache-save-comments';
+	}
+
+	return $skip_tags;
+}
+
+/**
+ * Warn about requirement tags that the test framework does not know, and which therefore never filter anything.
+ *
+ * @param string $features_folder The folder where the feature files are located.
+ */
+function warn_about_unknown_requirement_tags( $features_folder = 'features' ) {
+	$known = '/^@(require-(wp|php|mysql|mariadb)-[0-9.]+|less-than-(wp|php|mysql|mariadb)-[0-9.]+|require-(mysql|mariadb|sqlite|mysql-or-mariadb|object-cache|wp-stable|mysql-socket|composer|download|opcache-save-comments|windows|macos|linux)|require-(extension|bin)-[A-Za-z0-9_.+-]+)$/';
+
+	$unknown = array();
+	foreach ( scenarios_with_tags( $features_folder ) as $scenario ) {
+		foreach ( $scenario['tags'] as $tag ) {
+			if ( preg_match( '/^@(require|less-than)-/', $tag ) && ! preg_match( $known, $tag ) ) {
+				$unknown[ $tag ][] = $scenario['path'];
+			}
+		}
+	}
+
+	foreach ( $unknown as $tag => $paths ) {
+		fwrite( STDERR, sprintf( "Warning: %s is not a known requirement and does not filter anything: %s\n", $tag, implode( ', ', array_unique( $paths ) ) ) );
+	}
+}
+
+/**
  * Get the scenarios of the feature files with the tags that apply to them.
  *
  * @param string $features_folder The folder where the feature files are located.
@@ -446,6 +526,22 @@ function scenarios_with_tags( $features_folder = 'features' ) {
 function describe_skip_tag( $tag, $context ) {
 	if ( preg_match( '/^@require-extension-(.+)$/', $tag, $matches ) ) {
 		return array( true, "the PHP extension \"{$matches[1]}\" is not loaded" );
+	}
+
+	if ( preg_match( '/^@require-bin-(.+)$/', $tag, $matches ) ) {
+		return array( true, "the command \"{$matches[1]}\" is not available" );
+	}
+
+	if ( '@require-composer' === $tag ) {
+		return array( true, 'the command "composer" is not available' );
+	}
+
+	if ( '@require-download' === $tag ) {
+		return array( true, 'downloads.wordpress.org cannot be reached' );
+	}
+
+	if ( '@require-opcache-save-comments' === $tag ) {
+		return array( true, 'opcache drops doc comments' );
 	}
 
 	if ( '@require-mysql-socket' === $tag ) {
@@ -574,6 +670,9 @@ function report_filtered_scenarios( $skip_tags, $features_folder, $context ) {
 
 $skip_tags = array_merge( $skip_tags, extension_tags( $features_folder ) );
 $skip_tags = array_merge( $skip_tags, os_tags( $features_folder ) );
+$skip_tags = array_merge( $skip_tags, environment_tags( $features_folder ) );
+
+warn_about_unknown_requirement_tags( $features_folder );
 
 $missing = report_filtered_scenarios(
 	$skip_tags,

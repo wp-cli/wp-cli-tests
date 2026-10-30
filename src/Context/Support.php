@@ -13,6 +13,30 @@ use SebastianBergmann\Diff\Output\UnifiedDiffOutputBuilder;
 trait Support {
 
 	/**
+	 * Explain how to declare a command that a command run by the scenario needed but could not find.
+	 *
+	 * @param string|null $stderr Error output to inspect. Defaults to the one of the last command run.
+	 * @return string Empty if no command was missing.
+	 */
+	protected function missing_command_hint( $stderr = null ): string {
+		if ( null === $stderr ) {
+			if ( ! isset( $this->result ) ) {
+				return '';
+			}
+			$stderr = (string) $this->result->stderr;
+		}
+
+		if (
+			! preg_match( '/\b(?:sh|bash|dash|zsh)(?:: line \d+|: \d+)?: ([A-Za-z0-9_.+-]+): (?:command )?not found/', $stderr, $matches )
+			&& ! preg_match( "/'([A-Za-z0-9_.+-]+)' is not recognized as an internal or external command/", $stderr, $matches )
+		) {
+			return '';
+		}
+
+		return "\n\nThe command `{$matches[1]}` was not found. If the scenario needs it, tag it with @require-bin-{$matches[1]}, so that environments without it report the scenario as not run instead of failing it.";
+	}
+
+	/**
 	 * @param string $regex
 	 * @param string $actual
 	 * @throws Exception
@@ -141,6 +165,7 @@ trait Support {
 			}
 
 			$message .= "\n\n" . $action_message . "\n" . $expected;
+			$message .= $this->missing_command_hint();
 
 			$diff = $this->generate_diff( $expected, rtrim( $output, "\n" ) );
 			if ( ! empty( $diff ) ) {
