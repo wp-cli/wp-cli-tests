@@ -431,6 +431,67 @@ FILE;
 	}
 
 	/**
+	 * Sets one or more options, or network options, in a single process.
+	 *
+	 * Columns are `name` and `value`, plus optionally `autoload` (`yes` or `no`) and `format` (`json` to decode the value).
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And these options:
+	 *     | name                          | value |
+	 *     | uploads_use_yearmonth_folders | 0     |
+	 *     | blog_public                   | 1     |
+	 *
+	 * Scenario: My multisite scenario
+	 *   Given a WP multisite installation
+	 *   And these site options:
+	 *     | name          | value                   | format |
+	 *     | illegal_names | ["www","admin","files"] | json   |
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given /^these (options|site options):$/
+	 *
+	 * @param string    $type  Either 'options' or 'site options'.
+	 * @param TableNode $table
+	 */
+	public function given_these_options( $type, TableNode $table ): void {
+		$options = [];
+		foreach ( $table->getHash() as $row ) {
+			if ( ! isset( $row['name'], $row['value'] ) ) {
+				throw new RuntimeException( 'The options table needs "name" and "value" columns.' );
+			}
+
+			$value = $this->replace_variables( $row['value'] );
+			if ( 'json' === ( $row['format'] ?? '' ) ) {
+				$value = json_decode( $value, true );
+				if ( JSON_ERROR_NONE !== json_last_error() ) {
+					throw new RuntimeException( "Invalid JSON value for option '{$row['name']}'." );
+				}
+			}
+
+			$autoload = null;
+			if ( isset( $row['autoload'] ) && '' !== $row['autoload'] ) {
+				$autoload = in_array( strtolower( $row['autoload'] ), [ 'yes', 'on', 'true', '1' ], true );
+			}
+
+			$options[] = [ $this->replace_variables( $row['name'] ), $value, $autoload ];
+		}
+
+		$function = 'site options' === $type ? 'update_site_option( $option[0], $option[1] )' : 'update_option( $option[0], $option[1], $option[2] )';
+		$file     = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-test-options-', true ) . '.php';
+		file_put_contents( $file, '<?php foreach ( ' . var_export( $options, true ) . " as \$option ) { $function; }\n" );
+
+		try {
+			$this->proc( Utils\esc_cmd( 'wp eval-file %s', $file ) )->run_check();
+		} finally {
+			unlink( $file );
+		}
+	}
+
+	/**
 	 * Configure a custom `wp-content` directory.
 	 *
 	 * Defines the `WP_CONTENT_DIR`, `WP_PLUGIN_DIR`, and `WPMU_PLUGIN_DIR` constants.

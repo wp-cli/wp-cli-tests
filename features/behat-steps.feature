@@ -469,6 +469,44 @@ Feature: Test that WP-CLI Behat steps work as expected
     # Background process should not block, continuing immediately
 
   @require-wp
+  Scenario: Set several options at once
+    Given a WP installation
+    And these options:
+      | name                          | value                | autoload | format |
+      | uploads_use_yearmonth_folders | 0                    |          |        |
+      | blogdescription               | Run in {RUN_DIR}     |          |        |
+      | wp_cli_test_array             | {"a":1,"b":["c"]}    | no       | json   |
+
+    When I run `wp eval 'echo get_option( "uploads_use_yearmonth_folders" ) . "|" . get_option( "blogdescription" );'`
+    Then STDOUT should be:
+      """
+      0|Run in {RUN_DIR}
+      """
+
+    When I run `wp eval 'echo json_encode( get_option( "wp_cli_test_array" ) );'`
+    Then STDOUT should be:
+      """
+      {"a":1,"b":["c"]}
+      """
+
+    When I run `wp eval 'global $wpdb; echo $wpdb->get_var( "SELECT autoload FROM $wpdb->options WHERE option_name = \"wp_cli_test_array\"" );'`
+    Then STDOUT should match /^(no|off)$/
+
+  @require-wp
+  Scenario: Set several network options at once
+    Given a WP multisite installation
+    And these site options:
+      | name               | value |
+      | wp_cli_test_option | first |
+      | registration       | user  |
+
+    When I run `wp eval 'echo get_site_option( "wp_cli_test_option" ) . "|" . get_site_option( "registration" );'`
+    Then STDOUT should be:
+      """
+      first|user
+      """
+
+  @require-wp
   Scenario: Test custom wp-content directory
     Given a WP installation
     And a custom wp-content directory
