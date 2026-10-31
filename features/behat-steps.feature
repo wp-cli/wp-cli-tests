@@ -471,6 +471,13 @@ Feature: Test that WP-CLI Behat steps work as expected
   @require-wp
   Scenario: Use the plugin and theme directories of a WP installation
     Given a WP installation
+    Then the {PLUGIN_DIR}/akismet directory should exist
+    And the {THEME_DIR} directory should exist
+
+  # Skipped on Windows because WordPress mixes path separators in these paths there.
+  @require-wp @skip-windows
+  Scenario: Plugin and theme directory variables match the WordPress constants
+    Given a WP installation
     When I run `wp eval 'echo WP_PLUGIN_DIR;'`
     Then STDOUT should be:
       """
@@ -482,8 +489,23 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
       {THEME_DIR}
       """
-    And the {PLUGIN_DIR}/akismet directory should exist
-    And the {THEME_DIR} directory should exist
+
+  # Skipped on Windows because WordPress mixes path separators in these paths there.
+  @require-wp @skip-windows
+  Scenario: Plugin and theme directory variables follow a custom wp-content directory
+    Given a WP installation
+    And a custom wp-content directory
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
 
   @require-wp
   Scenario: Test custom wp-content directory
@@ -496,18 +518,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
       WP_CONTENT_DIR
       """
-
-    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
-    Then STDOUT should be:
-      """
-      {PLUGIN_DIR}
-      """
-
-    When I run `wp eval 'echo get_theme_root();'`
-    Then STDOUT should be:
-      """
-      {THEME_DIR}
-      """
+    And the {PLUGIN_DIR} directory should exist
+    And the {THEME_DIR} directory should exist
 
   @require-wp
   Scenario: Test WP multisite installation
