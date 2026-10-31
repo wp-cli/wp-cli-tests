@@ -78,9 +78,10 @@ else
 
 		DBNAME=${WP_CLI_TEST_DBNAME:-wp_cli_test}
 
-		# We need to test the connection.
-		# Let's try to connect to the specific test database.
-		if ! ${DB_CLIENT} ${HOST_STRING} --user="${USER}" ${PASSWORD_ARG} --execute="USE \`${DBNAME}\`;" 2>/dev/null; then
+		# We need to test the connection, and that the test user may create the test database.
+		# The database itself does not need to exist, as the scenarios drop and create it, which
+		# is also why a rerun after a run in parallel workers usually finds it missing.
+		if ! ${DB_CLIENT} ${HOST_STRING} --user="${USER}" ${PASSWORD_ARG} --execute="CREATE DATABASE IF NOT EXISTS \`${DBNAME}\`;" 2>/dev/null; then
 			echo "Warning: Could not connect to the MySQL/MariaDB database."
 			echo "Please make sure the database is running and run 'composer prepare-tests' once to set it up."
 			echo "The tests will continue to be run, but with WP_CLI_TEST_DBTYPE=sqlite."
