@@ -2249,8 +2249,11 @@ class FeatureContext implements Context {
 	/**
 	 * List the files and directories within a directory, relative to it.
 	 *
+	 * Symbolic links are listed, but not followed.
+	 *
 	 * @param string $dir
-	 * @return array<string> Relative paths, directories after their contents. Empty if the directory does not exist.
+	 * @return array<string, bool> Whether each entry is a symbolic link, keyed by relative path, directories after
+	 *                             their contents. Empty if the directory does not exist.
 	 */
 	private static function list_dir( $dir ): array {
 		if ( ! is_dir( $dir ) ) {
@@ -2267,7 +2270,7 @@ class FeatureContext implements Context {
 		 * @var \SplFileInfo $item
 		 */
 		foreach ( $iterator as $item ) {
-			$paths[] = substr( $item->getPathname(), strlen( $dir ) + 1 );
+			$paths[ substr( $item->getPathname(), strlen( $dir ) + 1 ) ] = $item->isLink();
 		}
 
 		return $paths;
@@ -2276,14 +2279,19 @@ class FeatureContext implements Context {
 	/**
 	 * Remove the given files from a directory, as well as the given directories once they are empty.
 	 *
-	 * @param string        $dir
-	 * @param array<string> $paths Relative paths, directories after their contents.
+	 * A copy of what a symbolic link pointed to is removed with all its contents.
+	 *
+	 * @param string              $dir
+	 * @param array<string, bool> $paths Whether each entry was a symbolic link, keyed by relative path, directories
+	 *                                   after their contents.
 	 */
 	private static function remove_from_dir( $dir, array $paths ): void {
-		foreach ( $paths as $path ) {
+		foreach ( $paths as $path => $was_link ) {
 			$full_path = "{$dir}/{$path}";
 
-			if ( is_dir( $full_path ) && ! is_link( $full_path ) ) {
+			if ( $was_link && is_dir( $full_path ) && ! is_link( $full_path ) ) {
+				self::remove_dir( $full_path );
+			} elseif ( is_dir( $full_path ) && ! is_link( $full_path ) ) {
 				// Only succeeds for directories that are empty by now.
 				@rmdir( $full_path );
 			} elseif ( file_exists( $full_path ) || is_link( $full_path ) ) {
