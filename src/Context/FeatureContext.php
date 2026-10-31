@@ -2256,6 +2256,7 @@ class FeatureContext implements Context {
 	 *                             their contents. Empty if the directory does not exist.
 	 */
 	private static function list_dir( $dir ): array {
+		$dir = rtrim( $dir, '/\\' );
 		if ( ! is_dir( $dir ) ) {
 			return [];
 		}
