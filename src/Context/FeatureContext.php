@@ -1843,7 +1843,8 @@ class FeatureContext implements Context {
 
 		$dest_dir = rtrim( $this->variables['RUN_DIR'], '/\\' ) . ( $subdir ? DIRECTORY_SEPARATOR . $subdir : '' );
 
-		if ( $subdir ) {
+		// The scenario may have created files in the subdirectory already.
+		if ( $subdir && ! is_dir( $dest_dir ) ) {
 			mkdir( $dest_dir, 0777, true /*recursive*/ );
 		}
 
@@ -1937,6 +1938,11 @@ class FeatureContext implements Context {
 			$this->create_db();
 		}
 		$this->create_run_dir();
+
+		// Files the scenario created before installing belong to that scenario only, and must not
+		// end up in the installation cache that later scenarios are set up from.
+		$scenario_files = self::list_dir( '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'] );
+
 		$this->download_wp( $subdir, $version );
 		$this->create_config( $subdir, $config_extra_php );
 
@@ -1969,6 +1975,7 @@ class FeatureContext implements Context {
 			}
 
 			self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
+			self::remove_from_dir( $install_cache_path, $scenario_files );
 
 			if ( 'sqlite' !== self::$db_type ) {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
@@ -2235,6 +2242,61 @@ class FeatureContext implements Context {
 			if ( count( self::$scenario_run_times ) > self::$num_top_scenarios ) {
 				arsort( self::$scenario_run_times );
 				array_pop( self::$scenario_run_times );
+			}
+		}
+	}
+
+	/**
+	 * List the files and directories within a directory, relative to it.
+	 *
+	 * Symbolic links are listed, but not followed.
+	 *
+	 * @param string $dir
+	 * @return array<string, bool> Whether each entry is a symbolic link, keyed by relative path, directories after
+	 *                             their contents. Empty if the directory does not exist.
+	 */
+	private static function list_dir( $dir ): array {
+		$dir = rtrim( $dir, '/\\' );
+		if ( ! is_dir( $dir ) ) {
+			return [];
+		}
+
+		$paths    = [];
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::CHILD_FIRST
+		);
+
+		/**
+		 * @var \SplFileInfo $item
+		 */
+		foreach ( $iterator as $item ) {
+			$paths[ substr( $item->getPathname(), strlen( $dir ) + 1 ) ] = $item->isLink();
+		}
+
+		return $paths;
+	}
+
+	/**
+	 * Remove the given files from a directory, as well as the given directories once they are empty.
+	 *
+	 * A copy of what a symbolic link pointed to is removed with all its contents.
+	 *
+	 * @param string              $dir
+	 * @param array<string, bool> $paths Whether each entry was a symbolic link, keyed by relative path, directories
+	 *                                   after their contents.
+	 */
+	private static function remove_from_dir( $dir, array $paths ): void {
+		foreach ( $paths as $path => $was_link ) {
+			$full_path = "{$dir}/{$path}";
+
+			if ( $was_link && is_dir( $full_path ) && ! is_link( $full_path ) ) {
+				self::remove_dir( $full_path );
+			} elseif ( is_dir( $full_path ) && ! is_link( $full_path ) ) {
+				// Only succeeds for directories that are empty by now.
+				@rmdir( $full_path );
+			} elseif ( file_exists( $full_path ) || is_link( $full_path ) ) {
+				unlink( $full_path );
 			}
 		}
 	}
