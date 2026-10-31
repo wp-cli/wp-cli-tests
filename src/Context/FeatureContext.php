@@ -165,7 +165,7 @@ class FeatureContext implements Context {
 
 	/**
 	 * Array of variables available as {VARIABLE_NAME}. Some are always set: CORE_CONFIG_SETTINGS, DB_USER, DB_PASSWORD, DB_HOST, SRC_DIR, CACHE_DIR, WP_VERSION-version-latest.
-	 * Some are step-dependent: RUN_DIR, SUITE_CACHE_DIR, COMPOSER_LOCAL_REPOSITORY, PHAR_PATH. One is set on use: INVOKE_WP_CLI_WITH_PHP_ARGS-args.
+	 * Some are step-dependent: RUN_DIR, SUITE_CACHE_DIR, COMPOSER_LOCAL_REPOSITORY, PHAR_PATH, and PLUGIN_DIR and THEME_DIR for the WordPress files in RUN_DIR. One is set on use: INVOKE_WP_CLI_WITH_PHP_ARGS-args.
 	 * Scenarios can define their own variables using "Given save" steps. Variables are reset for each scenario.
 	 *
 	 * @var array<string, string>
@@ -1850,6 +1850,10 @@ class FeatureContext implements Context {
 
 		self::copy_dir( self::$cache_dir, $dest_dir );
 
+		if ( ! $subdir ) {
+			$this->set_content_dir_variables( $dest_dir . '/wp-content' );
+		}
+
 		if ( ! is_dir( $dest_dir . '/wp-content/mu-plugins' ) ) {
 			mkdir( $dest_dir . '/wp-content/mu-plugins', 0777, true /*recursive*/ );
 		}
@@ -2055,6 +2059,21 @@ class FeatureContext implements Context {
 		}
 
 		$this->proc( 'wp core install', $install_args )->run_check();
+
+		$this->set_content_dir_variables( $this->variables['RUN_DIR'] . '/WordPress/wp-content' );
+	}
+
+	/**
+	 * Expose the plugins and themes directories as {PLUGIN_DIR} and {THEME_DIR}.
+	 *
+	 * Matches the output of `wp plugin path` and `wp theme path`.
+	 *
+	 * @param string $content_dir
+	 * @param string $plugin_dir Defaults to the plugins directory inside $content_dir.
+	 */
+	public function set_content_dir_variables( $content_dir, $plugin_dir = '' ): void {
+		$this->variables['PLUGIN_DIR'] = $plugin_dir ?: $content_dir . '/plugins';
+		$this->variables['THEME_DIR']  = $content_dir . '/themes';
 	}
 
 	public function composer_add_wp_cli_local_repository(): void {

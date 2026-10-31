@@ -470,6 +470,8 @@ FILE;
 
 		file_put_contents( $wp_config_path, $wp_config_code );
 
+		$this->set_content_dir_variables( $this->variables['RUN_DIR'] . '/my-content', $this->variables['RUN_DIR'] . '/my-plugins' );
+
 		if ( 'sqlite' === self::$db_type ) {
 			$db_dropin = $this->variables['RUN_DIR'] . '/my-content/db.php';
 
