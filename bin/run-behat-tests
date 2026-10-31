@@ -276,6 +276,45 @@ done
 # to be allowed to create, as set up by "composer prepare-tests".
 PARALLEL="${WP_CLI_TEST_PARALLEL-}"
 
+# With WP_CLI_TEST_DOCKER set, the scenarios run in throwaway containers instead, every worker in
+# its own, with a database server of the same type and version, so they share nothing.
+# "auto" runs them without Docker where it cannot be used, "1" (or "yes", "true", "on") fails instead.
+case "${WP_CLI_TEST_DOCKER-}" in
+	""|0|no|false|off) DOCKER="";;
+	auto) DOCKER="auto";;
+	1|yes|true|on) DOCKER="force";;
+	*)
+		echo "Warning: WP_CLI_TEST_DOCKER is neither \"auto\" nor a yes or no, running the scenarios without Docker." >&2
+		DOCKER="";;
+esac
+
+without_docker() {
+	if [ "${DOCKER}" = "force" ]; then
+		echo "Error: $1 Set WP_CLI_TEST_DOCKER to \"auto\" to run the scenarios without Docker in that case." >&2
+		exit 1
+	fi
+	echo "$1 Running the scenarios without Docker." >&2
+	DOCKER=""
+}
+
+case "$(uname -s)" in
+	MINGW*|MSYS*|CYGWIN*)
+		PARALLEL=""
+		if [ -n "${DOCKER}" ]; then
+			without_docker "The scenarios cannot run in Docker containers on Windows."
+		fi;;
+esac
+
+if [ -n "${DOCKER}" ]; then
+	if ! command -v docker > /dev/null 2>&1 || ! docker info > /dev/null 2>&1; then
+		without_docker "Docker is not available."
+	elif [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]]; then
+		without_docker "Code coverage cannot be collected in Docker containers."
+	fi
+fi
+
+export WP_CLI_TEST_DOCKER="${DOCKER}"
+
 # A rerun after a parallel run covers exactly the scenarios that failed in it, which only the
 # parallel runner knows, whether or not WP_CLI_TEST_PARALLEL is set for the rerun as well.
 for arg in "$@"; do
@@ -284,24 +323,8 @@ for arg in "$@"; do
 	fi
 done
 
-case "$(uname -s)" in
-	MINGW*|MSYS*|CYGWIN*)
-		PARALLEL=""
-		unset WP_CLI_TEST_DOCKER;;
-esac
-
-# With WP_CLI_TEST_DOCKER set, every worker runs in its own throwaway containers instead,
-# with a database server of the same type and version, so they share nothing.
-if [ -n "${WP_CLI_TEST_DOCKER-}" ]; then
-	if ! docker info > /dev/null 2>&1; then
-		echo "Warning: WP_CLI_TEST_DOCKER is set, but Docker is not available. Running the scenarios without it." >&2
-		unset WP_CLI_TEST_DOCKER
-	elif [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]]; then
-		echo "Code coverage is collected, running the scenarios without Docker." >&2
-		unset WP_CLI_TEST_DOCKER
-	else
-		exec php "$WP_CLI_TESTS_ROOT"/utils/behat-parallel.php "${PARALLEL:-1}" --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" -- "$@"
-	fi
+if [ -n "${DOCKER}" ]; then
+	exec php "$WP_CLI_TESTS_ROOT"/utils/behat-parallel.php "${PARALLEL:-1}" --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" -- "$@"
 fi
 
 if [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; then
