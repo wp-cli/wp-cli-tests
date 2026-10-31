@@ -462,6 +462,78 @@ Feature: Test that WP-CLI Behat steps work as expected
       404 Not Found
       """
 
+  Scenario: Test "a PHP built-in web server" step without an index.php does not use the server-command router
+    Given an empty directory
+    And a vendor/wp-cli/server-command/router.php file:
+      """
+      <?php
+      // Like the router of wp-cli/server-command, send requests for missing files to index.php.
+      $root = (string) ( $_SERVER['DOCUMENT_ROOT'] ?? '' );
+      $path = (string) parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), PHP_URL_PATH );
+      if ( is_file( $root . $path ) ) {
+          return false;
+      }
+      echo 'Routed by router.php: ';
+      require $root . '/index.php';
+      """
+    And a fetch.php file:
+      """
+      <?php
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
+      """
+    And a PHP built-in web server
+
+    # The router would require a missing index.php, so the directory is served as-is.
+    When I run `php fetch.php http://localhost:8080/missing.html`
+    Then STDOUT should contain:
+      """
+      404 Not Found
+      """
+    And STDOUT should not contain:
+      """
+      Routed by router.php
+      """
+
+  Scenario: Test "a PHP built-in web server" step with an index.php uses the server-command router
+    Given an empty directory
+    And a vendor/wp-cli/server-command/router.php file:
+      """
+      <?php
+      // Like the router of wp-cli/server-command, send requests for missing files to index.php.
+      $root = (string) ( $_SERVER['DOCUMENT_ROOT'] ?? '' );
+      $path = (string) parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), PHP_URL_PATH );
+      if ( is_file( $root . $path ) ) {
+          return false;
+      }
+      echo 'Routed by router.php: ';
+      require $root . '/index.php';
+      """
+    And an index.php file:
+      """
+      <?php
+      echo 'Hello from index.php';
+      """
+    And a fetch.php file:
+      """
+      <?php
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
+      """
+    And a PHP built-in web server
+
+    When I run `php fetch.php http://localhost:8080/hello-world/`
+    Then STDOUT should contain:
+      """
+      200 OK
+      """
+    And STDOUT should contain:
+      """
+      Routed by router.php: Hello from index.php
+      """
+
   @require-wp
   Scenario: Test background process launch
     Given a WP installation

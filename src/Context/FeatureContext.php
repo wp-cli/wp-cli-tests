@@ -2350,10 +2350,12 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 
 		// Route requests through the router script of wp-cli/server-command when
 		// it is available, so that a WordPress installation gets pretty permalinks.
-		// Without a router, PHP's built-in web server serves the directory as-is,
-		// which is what a plain directory of static files needs. Passing a router
-		// path that does not exist would make every request fail with a fatal error.
-		$router = $this->get_php_server_router();
+		// The router sends every request for a missing file to index.php, so it is
+		// only used when the directory has one. Without a router, PHP's built-in
+		// web server serves the directory as-is, which is what a plain directory of
+		// static files needs, and a missing file is a 404. Passing a router path
+		// that does not exist would make every request fail with a fatal error.
+		$router = is_file( $dir . 'index.php' ) ? $this->get_php_server_router() : null;
 		if ( null !== $router ) {
 			$cmd .= ' ' . escapeshellarg( $router );
 		}
