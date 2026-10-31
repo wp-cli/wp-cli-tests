@@ -37,6 +37,22 @@ Feature: Test that WP-CLI loads.
       sqlite
       """
 
+  Scenario: Leave files a scenario created before installing out of the installation cache
+    Given an empty directory
+    And a scenario-files/wp-cli.yml file:
+      """
+      user: admin
+      """
+    And a WP installation in 'scenario-files'
+    Then the scenario-files/wp-cli.yml file should exist
+
+    When I run `php -r "rename('scenario-files', 'first');"`
+
+    # Reuse the subdirectory to select the same installation cache.
+    Given a WP installation in 'scenario-files'
+    Then the scenario-files/wp-config.php file should exist
+    And the scenario-files/wp-cli.yml file should not exist
+
   @require-sqlite
   Scenario: Restore independent SQLite databases from the installation cache
     Given a WP installation in 'cached'
