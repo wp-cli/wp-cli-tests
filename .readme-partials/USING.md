@@ -254,6 +254,17 @@ composer behat -- --stop-on-failure
 composer behat-rerun
 ```
 
+### Running scenarios in parallel
+
+Set `WP_CLI_TEST_PARALLEL` to a number of workers to spread the scenarios over that many Behat processes:
+```bash
+WP_CLI_TEST_PARALLEL=4 composer behat
+```
+
+Every worker but the first gets its own temporary directory, and with it its own home directory, caches and run directories, as well as its own test database, named after the test database with a numeric suffix (`wp_cli_test_1`, `wp_cli_test_2`, ...). Run `composer prepare-tests` once to allow the test user to create these databases. Without that permission, the scenarios are run one after the other, as they are on Windows, when collecting code coverage, or when selecting scenarios by path or name.
+
+Scenarios that rely on resources shared across the system, such as a fixed port or a fixed path in the system's temporary directory, are all run by the first worker, one after the other. `composer behat-rerun` re-runs exactly the scenarios that failed in the last parallel run.
+
 ### Linting the feature files
 
 `composer lint-gherkin` checks `features/` with
