@@ -507,8 +507,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       subdomain
       """
 
-    When I run `wp eval 'wp_insert_site( [ "domain" => "first.example.com", "path" => "/" ] );'`
-    And I run `wp eval 'echo get_sites( [ "count" => true ] );'`
+    When I run `wp eval 'wpmu_create_blog( "first.example.com", "/", "First", 1 );'`
+    And I run `wp eval 'echo get_sites( "count=1" );'`
     Then STDOUT should be:
       """
       2
@@ -523,7 +523,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       subdirectory
       """
 
-    When I run `wp eval 'echo get_sites( [ "count" => true ] );'`
+    When I run `wp eval 'echo get_sites( "count=1" );'`
     Then STDOUT should be:
       """
       1
@@ -538,7 +538,7 @@ Feature: Test that WP-CLI Behat steps work as expected
       subdomain
       """
 
-    When I run `wp eval 'echo get_sites( [ "count" => true ] );'`
+    When I run `wp eval 'echo get_sites( "count=1" );'`
     Then STDOUT should be:
       """
       1
