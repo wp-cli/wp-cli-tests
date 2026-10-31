@@ -489,8 +489,11 @@ Feature: Test that WP-CLI Behat steps work as expected
       {"a":1,"b":["c"]}
       """
 
-    When I run `wp eval 'global $wpdb; echo $wpdb->get_var( "SELECT autoload FROM $wpdb->options WHERE option_name = \"wp_cli_test_array\"" );'`
-    Then STDOUT should match /^(no|off)$/
+    When I run `wp eval 'echo array_key_exists( "wp_cli_test_array", wp_load_alloptions() ) ? "autoloaded" : "not autoloaded";'`
+    Then STDOUT should be:
+      """
+      not autoloaded
+      """
 
   @require-wp
   Scenario: Set several network options at once
