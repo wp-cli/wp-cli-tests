@@ -270,11 +270,11 @@ Set `WP_CLI_TEST_DOCKER` to run the scenarios in throwaway Docker containers ins
 WP_CLI_TEST_DOCKER=auto WP_CLI_TEST_PARALLEL=4 composer behat
 ```
 
-| `WP_CLI_TEST_DOCKER`      | Effect                                                                                           |
-|---------------------------|--------------------------------------------------------------------------------------------------|
-| not set, `0`, `no`, `off` | The scenarios run without Docker.                                                                |
-| `auto`                    | The scenarios run in containers where possible, and without Docker otherwise, which is reported. |
-| `1`, `yes`, `on`          | The scenarios run in containers, and the run fails where that is not possible.                   |
+| `WP_CLI_TEST_DOCKER`                | Effect                                                                                           |
+|-------------------------------------|--------------------------------------------------------------------------------------------------|
+| not set (default), `0`, `no`, `off` | The scenarios run without Docker.                                                                |
+| `auto`                              | The scenarios run in containers where possible, and without Docker otherwise, which is reported. |
+| `1`, `yes`, `on`                    | The scenarios run in containers, and the run fails where that is not possible.                   |
 
 Docker is not used on Windows, when collecting code coverage, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
 
