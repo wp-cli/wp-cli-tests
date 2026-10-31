@@ -150,6 +150,15 @@ class FeatureContext implements Context {
 	private static $mysql_binary = 'mysql';
 
 	/**
+	 * Connection used for the database operations of the test framework itself, so that they do
+	 * not need to start a `mysql` client process each time. False if no connection could be made,
+	 * in which case the `mysql` client is used instead.
+	 *
+	 * @var \mysqli|false|null
+	 */
+	private static $db_connection = null;
+
+	/**
 	 * Array of background process ids started by the current scenario. Used to terminate them at the end of the scenario.
 	 *
 	 * @var array<resource>
@@ -1583,7 +1592,12 @@ class FeatureContext implements Context {
 			return;
 		}
 
-		$dbname   = self::$db_settings['dbname'];
+		$dbname = self::$db_settings['dbname'];
+
+		if ( self::query_db( "CREATE DATABASE IF NOT EXISTS `$dbname`" ) ) {
+			return;
+		}
+
 		$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "CREATE DATABASE IF NOT EXISTS $dbname" ] );
 	}
@@ -1593,6 +1607,11 @@ class FeatureContext implements Context {
 	 */
 	public function test_connection(): void {
 		if ( 'sqlite' === self::$db_type ) {
+			return;
+		}
+
+		// An open connection has already proven that the database can be reached.
+		if ( self::get_db_connection() ) {
 			return;
 		}
 
@@ -1624,9 +1643,107 @@ class FeatureContext implements Context {
 		if ( 'sqlite' === self::$db_type ) {
 			return;
 		}
-		$dbname   = self::$db_settings['dbname'];
+		$dbname = self::$db_settings['dbname'];
+
+		if ( self::query_db( "DROP DATABASE IF EXISTS `$dbname`" ) ) {
+			return;
+		}
+
 		$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 		self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "DROP DATABASE IF EXISTS $dbname" ] );
+	}
+
+	/**
+	 * Get the connection for the database operations of the test framework itself.
+	 *
+	 * @return \mysqli|null Null if the mysqli extension is not available or the connection failed.
+	 */
+	private static function get_db_connection(): ?\mysqli {
+		if ( null !== self::$db_connection ) {
+			return self::$db_connection ?: null;
+		}
+
+		self::$db_connection = false;
+
+		if ( 'sqlite' === self::$db_type || ! function_exists( 'mysqli_init' ) ) {
+			return null;
+		}
+
+		// phpcs:ignore PHPCompatibility.Extensions.RemovedExtensions.mysql_DeprecatedRemoved -- WP-CLI helper, not the removed extension.
+		$host_args = Utils\mysql_host_to_cli_args( self::$db_settings['dbhost'] );
+
+		// phpcs:ignore WordPress.DB.RestrictedFunctions.mysql_mysqli_init -- The test framework manages the test database itself, there is no $wpdb.
+		$connection = mysqli_init();
+
+		if ( false === $connection ) {
+			return null;
+		}
+
+		try {
+			$connected = $connection->real_connect(
+				$host_args['host'],
+				self::$db_settings['dbuser'],
+				self::$db_settings['dbpass'],
+				null,
+				isset( $host_args['port'] ) ? (int) $host_args['port'] : null,
+				isset( $host_args['socket'] ) ? (string) $host_args['socket'] : null
+			);
+		} catch ( \mysqli_sql_exception $exception ) {
+			$connected = false;
+		}
+
+		if ( $connected ) {
+			self::$db_connection = $connection;
+		}
+
+		return self::$db_connection ?: null;
+	}
+
+	/**
+	 * Run one or more SQL statements over the connection of the test framework.
+	 *
+	 * @param string $sql      Statements to run.
+	 * @param bool   $use_db   Whether to run them in the test database.
+	 * @return bool False if there is no connection, so that the caller can fall back to the `mysql` client.
+	 */
+	private static function query_db( $sql, $use_db = false ): bool {
+		$connection = self::get_db_connection();
+
+		if ( null === $connection ) {
+			return false;
+		}
+
+		$start_time = microtime( true );
+
+		try {
+			if ( $use_db && ! $connection->select_db( self::$db_settings['dbname'] ) ) {
+				throw new RuntimeException( $connection->error );
+			}
+
+			if ( ! $connection->multi_query( $sql ) ) {
+				throw new RuntimeException( $connection->error );
+			}
+
+			// Every result has to be consumed before the connection can be used again.
+			do {
+				$result = $connection->store_result();
+				if ( $result instanceof \mysqli_result ) {
+					$result->free();
+				}
+			} while ( $connection->more_results() && $connection->next_result() );
+
+			if ( $connection->errno ) {
+				throw new RuntimeException( $connection->error );
+			}
+		} catch ( \mysqli_sql_exception $exception ) {
+			throw new RuntimeException( $exception->getMessage(), (int) $exception->getCode(), $exception );
+		}
+
+		if ( self::$log_run_times ) {
+			self::log_proc_method_run_time( 'query_db ' . strtok( $sql, "\n" ), $start_time );
+		}
+
+		return true;
 	}
 
 	/**
@@ -1965,7 +2082,9 @@ class FeatureContext implements Context {
 
 			if ( 'sqlite' !== self::$db_type ) {
 				$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
-				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
+				if ( ! self::query_db( (string) file_get_contents( "{$install_cache_path}.sql" ), true /*use_db*/ ) ) {
+					self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
+				}
 			}
 		} else {
 			$this->proc( 'wp core install', $install_args, $subdir )->run_check();
