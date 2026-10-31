@@ -351,6 +351,17 @@ they test.
   container and is only reachable over TCP. Set `WP_CLI_TEST_DBSOCKET` to point at the
   socket if it lives somewhere unusual.
 
+Before the scenarios run, the scenarios that are left out are listed together with the reason,
+separating the ones the environment cannot run, such as those needing a PHP extension that is
+not loaded, from the ones that are not part of the configuration being tested, such as those
+for another database or WordPress version. On GitHub Actions, the list is also added to the
+job summary.
+
+Set `WP_CLI_TEST_STRICT_REQUIREMENTS` where the environment is expected to provide everything
+the scenarios need, such as on CI. The run then stops before any scenario starts when some of
+them cannot run in the environment, or when the database cannot be reached, instead of leaving
+those scenarios out or falling back to SQLite.
+
 #### WP-CLI Binary
 
 You can run the tests against a specific WP-CLI binary, instead of using the one that has been built in your project's `vendor/bin` folder.

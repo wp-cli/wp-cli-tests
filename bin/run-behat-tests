@@ -41,6 +41,10 @@ else
 
 	if [ -z "${DB_CLIENT}" ]; then
 		echo "Warning: Could not find 'mysql' or 'mariadb' client."
+		if [ -n "${WP_CLI_TEST_STRICT_REQUIREMENTS-}" ]; then
+			echo "Stopping, as WP_CLI_TEST_STRICT_REQUIREMENTS is set."
+			exit 1
+		fi
 		echo "The tests will continue to be run, but with WP_CLI_TEST_DBTYPE=sqlite."
 		export WP_CLI_TEST_DBTYPE=sqlite
 	else
@@ -78,11 +82,15 @@ else
 
 		DBNAME=${WP_CLI_TEST_DBNAME:-wp_cli_test}
 
-		# We need to test the connection.
-		# Let's try to connect to the specific test database.
-		if ! ${DB_CLIENT} ${HOST_STRING} --user="${USER}" ${PASSWORD_ARG} --execute="USE \`${DBNAME}\`;" 2>/dev/null; then
+		# We need to test the connection, and that the test user may create the test database.
+		# The database itself does not need to exist, as the scenarios drop and create it.
+		if ! ${DB_CLIENT} ${HOST_STRING} --user="${USER}" ${PASSWORD_ARG} --execute="CREATE DATABASE IF NOT EXISTS \`${DBNAME}\`;" 2>/dev/null; then
 			echo "Warning: Could not connect to the MySQL/MariaDB database."
 			echo "Please make sure the database is running and run 'composer prepare-tests' once to set it up."
+			if [ -n "${WP_CLI_TEST_STRICT_REQUIREMENTS-}" ]; then
+				echo "Stopping, as WP_CLI_TEST_STRICT_REQUIREMENTS is set."
+				exit 1
+			fi
 			echo "The tests will continue to be run, but with WP_CLI_TEST_DBTYPE=sqlite."
 			export WP_CLI_TEST_DBTYPE=sqlite
 		fi
@@ -249,7 +257,8 @@ WP_CLI_TESTS_ROOT="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 export WP_CLI_TESTS_ROOT
 
 # Generate the tags to apply environment-specific filters.
-BEHAT_TAGS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-tags.php)
+# This also reports the scenarios that are left out, and stops when strict requirements are not met.
+BEHAT_TAGS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-tags.php) || exit $?
 
 BEHAT_EXTRA_ARGS=()
 if [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]] && vendor/bin/behat --help 2>/dev/null | grep -q 'xdebug'; then
