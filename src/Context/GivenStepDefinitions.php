@@ -431,6 +431,41 @@ FILE;
 	}
 
 	/**
+	 * Runs several setup commands in a single process.
+	 *
+	 * Avoids loading WordPress once per command when a scenario needs several fixtures. The `command`
+	 * column holds the WP-CLI commands, which all have to succeed. The optional `save` column names a
+	 * variable to save the command's STDOUT into, which later commands in the same table can use.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And these setup commands:
+	 *     | command                                                | save     |
+	 *     | wp post create --post_title="First post" --porcelain   | POST_ID  |
+	 *     | wp post meta add {POST_ID} color blue                  |          |
+	 *     | wp term create category Fruit --porcelain              | TERM_ID  |
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given these setup commands:
+	 *
+	 * @param TableNode $table
+	 */
+	public function given_these_setup_commands( TableNode $table ): void {
+		$commands = [];
+		foreach ( $table->getHash() as $row ) {
+			if ( ! isset( $row['command'] ) ) {
+				throw new RuntimeException( 'The setup commands table needs a "command" column.' );
+			}
+			$commands[] = [ $row['command'], trim( $row['save'] ?? '', '{} ' ) ];
+		}
+
+		$this->run_commands_in_single_process( $commands );
+	}
+
+	/**
 	 * Configure a custom `wp-content` directory.
 	 *
 	 * Defines the `WP_CONTENT_DIR`, `WP_PLUGIN_DIR`, and `WPMU_PLUGIN_DIR` constants.

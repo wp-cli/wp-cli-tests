@@ -1677,6 +1677,88 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Run several WP-CLI commands one after the other in a single `wp` process.
+	 *
+	 * Each command has to start with `wp `, and has to succeed. A command can use the
+	 * output saved by an earlier command in the same batch as a {VARIABLE}.
+	 *
+	 * @param array<array{0: string, 1: string}> $commands Pairs of command and the name of the variable to save its STDOUT into, or ''.
+	 */
+	public function run_commands_in_single_process( array $commands ): void {
+		$batch_variables = array_filter( array_column( $commands, 1 ) );
+
+		$rows = [];
+		foreach ( $commands as list( $command, $save ) ) {
+			// Variables saved within the batch are only known once the process runs.
+			$command = (string) preg_replace_callback(
+				'/\{([A-Z_][A-Z_0-9]*)\}/',
+				function ( $matches ) use ( $batch_variables ) {
+					return in_array( $matches[1], $batch_variables, true ) ? $matches[0] : $this->replace_variables( $matches[0] );
+				},
+				$command
+			);
+
+			if ( 0 !== strpos( $command, 'wp ' ) ) {
+				throw new RuntimeException( "Only WP-CLI commands can run in a single process, got: {$command}" );
+			}
+
+			// These change how WordPress is loaded, which has already happened for every command but the first.
+			if ( preg_match( '/(?:^|\s)--(?:require|path|url|skip-plugins|skip-themes|skip-packages|context|exec|ssh|http)(?:[=\s]|$)/', $command ) ) {
+				throw new RuntimeException( "Commands that change how WordPress is loaded cannot share a process, got: {$command}" );
+			}
+
+			$rows[] = [ substr( $command, 3 ), $save ];
+		}
+
+		$marker  = 'WP_CLI_TEST_SAVED_VARIABLES:';
+		$started = 'WP_CLI_TEST_STARTED_COMMAND:';
+		$code    = '<?php
+$wp_cli_test_saved = [];
+foreach ( ' . var_export( $rows, true ) . ' as $wp_cli_test_index => $wp_cli_test_row ) {
+	echo "\n' . $started . '{$wp_cli_test_index}\n";
+	$wp_cli_test_command = strtr( $wp_cli_test_row[0], $wp_cli_test_saved );
+	$wp_cli_test_result  = WP_CLI::runcommand( $wp_cli_test_command, [ "launch" => false, "return" => "all", "exit_error" => false ] );
+	if ( 0 !== $wp_cli_test_result->return_code ) {
+		fwrite( STDERR, "\$ wp {$wp_cli_test_command}\n{$wp_cli_test_result->stdout}\n{$wp_cli_test_result->stderr}\nexit status: {$wp_cli_test_result->return_code}\n" );
+		exit( 1 );
+	}
+	if ( "" !== $wp_cli_test_row[1] ) {
+		$wp_cli_test_saved[ "{" . $wp_cli_test_row[1] . "}" ] = trim( $wp_cli_test_result->stdout, "\n" );
+	}
+}
+echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
+';
+
+		$file = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-test-commands-', true ) . '.php';
+		file_put_contents( $file, $code );
+
+		try {
+			$result = $this->proc( Utils\esc_cmd( 'wp eval-file %s', $file ) )->run();
+		} finally {
+			unlink( $file );
+		}
+
+		if ( 0 !== $result->return_code ) {
+			$stdout = trim( (string) preg_replace( '/^' . $started . '\d+$/m', '', $result->stdout ) );
+			throw new RuntimeException( "Running the commands in a single process failed:\n{$result->stderr}\n{$stdout}" );
+		}
+
+		$position = strrpos( $result->stdout, $marker );
+		$saved    = false !== $position ? json_decode( trim( substr( $result->stdout, $position + strlen( $marker ) ) ), true ) : null;
+		if ( ! is_array( $saved ) ) {
+			$last = preg_match_all( '/^' . $started . '(\d+)$/m', $result->stdout, $matches ) ? (int) end( $matches[1] ) : null;
+			if ( null !== $last ) {
+				throw new RuntimeException( "The process ended while running `wp {$rows[ $last ][0]}`. A command that exits on its own cannot share a process with other commands." );
+			}
+			throw new RuntimeException( "Could not read the saved variables from the output:\n{$result->stdout}" );
+		}
+
+		foreach ( $saved as $placeholder => $value ) {
+			$this->variables[ trim( $placeholder, '{}' ) ] = $value;
+		}
+	}
+
+	/**
 	 * Start a background process. Will automatically be closed when the tests finish.
 	 *
 	 * @param string $cmd
