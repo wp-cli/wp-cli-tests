@@ -405,6 +405,37 @@ FILE;
 	}
 
 	/**
+	 * Removes all themes and installs, and optionally activates, the listed ones instead.
+	 *
+	 * Takes the same lines as `Given these installed themes:`. This replaces running
+	 * `wp theme delete --all --force` followed by one or more `wp theme install` commands.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And only these installed themes:
+	 *     """
+	 *     twentysixteen
+	 *     twentyseventeen
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given /^only these installed (themes|and active themes):$/
+	 *
+	 * @param string       $kind Either 'themes' or 'and active themes'.
+	 * @param PyStringNode $stream
+	 */
+	public function given_only_these_installed_themes( $kind, PyStringNode $stream ): void {
+		$lines    = array_filter( array_map( 'trim', explode( "\n", $this->replace_variables( (string) $stream ) ) ) );
+		$activate = 'and active themes' === $kind;
+
+		$this->remove_all_themes();
+		$this->install_extensions( 'theme', $lines, $activate );
+	}
+
+	/**
 	 * Installs and optionally activates one or more plugins or themes.
 	 *
 	 * Plugins and themes from WordPress.org are downloaded once and copied from a local cache
