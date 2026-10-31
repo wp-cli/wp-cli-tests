@@ -27,6 +27,30 @@ Feature: Test that WP-CLI Behat steps work as expected
     Given a non-existent test-dir directory
     Then the test-dir directory should not exist
 
+  Scenario: Always run the current version of files created by a scenario
+    Given an empty directory
+    And a script.php file:
+      """
+      <?php echo 'first';
+      """
+
+    When I run `wp --require=script.php --skip-wordpress eval ";"`
+    Then STDOUT should be:
+      """
+      first
+      """
+
+    Given a script.php file:
+      """
+      <?php echo 'other';
+      """
+
+    When I run `wp --require=script.php --skip-wordpress eval ";"`
+    Then STDOUT should be:
+      """
+      other
+      """
+
   Scenario: Test "Given an empty cache" step
     Given a WP installation
     And an empty cache

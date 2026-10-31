@@ -506,6 +506,8 @@ class FeatureContext implements Context {
 			$env['WP_CLI_REQUIRE'] = $updated;
 		}
 
+		$env = array_merge( $env, self::get_php_tuning_env_variables() );
+
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
 		if ( false !== $config_path ) {
 			$env['WP_CLI_CONFIG_PATH'] = $config_path;
@@ -551,6 +553,65 @@ class FeatureContext implements Context {
 		if ( false !== $github_token ) {
 			$env['GITHUB_TOKEN'] = $github_token;
 		}
+
+		return $env;
+	}
+
+	/**
+	 * Get the environment variables that make the PHP processes launched by the tests cheaper.
+	 *
+	 * Xdebug is switched off unless code coverage is collected or a mode or session is requested
+	 * explicitly. The code of WP-CLI and of the project under test is kept in a file-based opcode
+	 * cache shared by all processes. Everything below the temporary directory is excluded from that
+	 * cache, as scenarios create and rewrite PHP files there and must always run the current version.
+	 *
+	 * Set WP_CLI_TEST_PHP_TUNING=off to launch the processes with the PHP configuration as it is.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function get_php_tuning_env_variables(): array {
+		if ( 'off' === getenv( 'WP_CLI_TEST_PHP_TUNING' ) || self::running_with_code_coverage() ) {
+			return [];
+		}
+
+		$env = [];
+
+		if ( false === getenv( 'XDEBUG_MODE' ) && false === getenv( 'XDEBUG_SESSION' ) && false === getenv( 'XDEBUG_CONFIG' ) ) {
+			$env['XDEBUG_MODE'] = 'off';
+		}
+
+		// The file cache cannot be used on its own on Windows.
+		if ( Utils\is_windows() ) {
+			return $env;
+		}
+
+		$temp_dir   = rtrim( sys_get_temp_dir(), '/' );
+		$config_dir = "{$temp_dir}/wp-cli-test-php-config";
+		$cache_dir  = "{$temp_dir}/wp-cli-test-opcache";
+
+		foreach ( [ $config_dir, $cache_dir ] as $dir ) {
+			if ( ! is_dir( $dir ) && ! @mkdir( $dir, 0777, true ) && ! is_dir( $dir ) ) {
+				return $env;
+			}
+		}
+
+		$excluded = array_unique( array_filter( [ $temp_dir, realpath( $temp_dir ) ] ) );
+		file_put_contents( "{$config_dir}/opcache-blacklist.txt", implode( "/\n", $excluded ) . "/\n" );
+
+		$ini = [
+			'opcache.enable_cli=1',
+			"opcache.file_cache={$cache_dir}",
+			'opcache.file_cache_only=1',
+			"opcache.blacklist_filename={$config_dir}/opcache-blacklist.txt",
+		];
+		file_put_contents( "{$config_dir}/wp-cli-tests.ini", implode( "\n", $ini ) . "\n" );
+
+		// Add to the directories PHP scans for configuration files rather than replacing them.
+		$scan_dirs = getenv( 'PHP_INI_SCAN_DIR' );
+		if ( false === $scan_dirs ) {
+			$scan_dirs = PHP_CONFIG_FILE_SCAN_DIR;
+		}
+		$env['PHP_INI_SCAN_DIR'] = ( '' !== $scan_dirs ? $scan_dirs . PATH_SEPARATOR : '' ) . $config_dir;
 
 		return $env;
 	}
