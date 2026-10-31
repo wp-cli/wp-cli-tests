@@ -469,6 +469,178 @@ Feature: Test that WP-CLI Behat steps work as expected
     # Background process should not block, continuing immediately
 
   @require-wp
+  Scenario: Install plugins and themes from WordPress.org
+    Given a WP installation
+    And these installed themes:
+      """
+      twentysixteen
+      """
+    And these installed and active plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    Then the wp-content/themes/twentysixteen/style.css file should exist
+
+    When I run `wp plugin get wordpress-importer --fields=status,version --format=csv`
+    Then STDOUT should contain:
+      """
+      status,active
+      version,0.8
+      """
+
+  @require-wp
+  Scenario: Install cached plugins and themes without requests to WordPress.org
+    Given a WP installation
+    And these installed themes:
+      """
+      twentysixteen
+      oceanly-green
+      """
+    And these installed plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    And a non-existent wp-content/themes/twentysixteen directory
+    And a non-existent wp-content/themes/oceanly-green directory
+    And a non-existent wp-content/themes/oceanly directory
+    And a non-existent wp-content/plugins/wordpress-importer directory
+    And a wp-content/mu-plugins/block-http-requests.php file:
+      """
+      <?php
+      add_filter(
+          'pre_http_request',
+          static function () {
+              return new WP_Error( 'http_request_blocked', 'HTTP requests are blocked.' );
+          }
+      );
+      """
+
+    When these installed themes:
+      """
+      oceanly-green
+      """
+    And these installed and active themes:
+      """
+      twentysixteen
+      """
+    And these installed and active plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    And I run `wp theme list --status=active --field=name`
+    Then STDOUT should be:
+      """
+      twentysixteen
+      """
+
+    When I run `wp plugin get wordpress-importer --fields=status,version --format=csv`
+    Then STDOUT should contain:
+      """
+      status,active
+      version,0.8
+      """
+    And the wp-content/themes/oceanly-green/style.css file should exist
+    And the wp-content/themes/oceanly/style.css file should exist
+
+  @require-wp
+  Scenario: Keep only the listed themes
+    Given a WP installation
+    And only these installed themes:
+      """
+      twentysixteen
+      twentyseventeen
+      """
+
+    When I run `wp theme list --format=count`
+    Then STDOUT should be:
+      """
+      2
+      """
+    And the wp-content/themes/twentysixteen/style.css file should exist
+    And the wp-content/themes/twentyseventeen/style.css file should exist
+
+  @require-wp
+  Scenario: Keep only the listed theme and activate it
+    Given a WP installation
+    And only these installed and active themes:
+      """
+      twentysixteen
+      """
+
+    When I run `wp theme list --fields=name,status --format=csv`
+    Then STDOUT should be:
+      """
+      name,status
+      twentysixteen,active
+      """
+
+  @require-wp
+  Scenario: Run setup commands in a single process
+    Given a WP installation
+    And these setup commands:
+      | command                                                                                   | save     |
+      | wp eval 'echo wp_insert_post( [ "post_title" => "First", "post_status" => "publish" ] );' | POST_ID  |
+      | wp eval 'echo get_the_title( {POST_ID} );'                                                 | TITLE    |
+      | wp eval 'echo getmypid();'                                                                | FIRST    |
+      | wp eval 'echo getmypid();'                                                                | SECOND   |
+      | wp config set WP_CLI_TEST_CONSTANT "a value"                                              |          |
+
+    When I run `wp eval 'echo get_post_field( "post_title", {POST_ID} ) . "|{TITLE}";'`
+    Then STDOUT should be:
+      """
+      First|First
+      """
+
+    When I run `wp eval 'echo "{FIRST}" === "{SECOND}" ? "same process" : "different processes";'`
+    Then STDOUT should be:
+      """
+      same process
+      """
+    And the wp-config.php file should contain:
+      """
+      'WP_CLI_TEST_CONSTANT', 'a value'
+      """
+
+  @require-wp
+  Scenario: Use the plugin and theme directories of a WP installation
+    Given a WP installation
+    Then the {PLUGIN_DIR}/akismet directory should exist
+    And the {THEME_DIR} directory should exist
+
+  # Skipped on Windows because WordPress mixes path separators in these paths there.
+  @require-wp @skip-windows
+  Scenario: Plugin and theme directory variables match the WordPress constants
+    Given a WP installation
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
+
+  # Skipped on Windows because WordPress mixes path separators in these paths there.
+  @require-wp @skip-windows
+  Scenario: Plugin and theme directory variables follow a custom wp-content directory
+    Given a WP installation
+    And a custom wp-content directory
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
+
+  @require-wp
   Scenario: Test custom wp-content directory
     Given a WP installation
     And a custom wp-content directory
@@ -479,6 +651,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
       WP_CONTENT_DIR
       """
+    And the {PLUGIN_DIR} directory should exist
+    And the {THEME_DIR} directory should exist
 
   @require-wp
   Scenario: Test WP multisite installation
@@ -524,6 +698,18 @@ Feature: Test that WP-CLI Behat steps work as expected
     And the vendor directory should exist
     When I run `wp core version`
     Then STDOUT should not be empty
+
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
 
   # Skipped on Windows because of curl getaddrinfo() errors.
   @require-wp @require-composer @skip-windows
