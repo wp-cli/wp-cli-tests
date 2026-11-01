@@ -481,7 +481,9 @@ class FeatureContext implements Context {
 
 		$env = array_merge( $_ENV, $env );
 
-		foreach ( [ 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
+		// Keep the launched processes in the same temporary directory as the tests, which differs per
+		// parallel worker. WordPress saves downloads under fixed names there, which would clash otherwise.
+		foreach ( [ 'TMPDIR', 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
 			$value = getenv( $key );
 			if ( false !== $value ) {
 				$env[ $key ] = $value;
