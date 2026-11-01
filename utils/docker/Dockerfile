@@ -32,7 +32,7 @@ RUN if dpkg --compare-versions "$(dpkg-query -W -f '${Version}' libsqlite3-0)" l
 		&& [ "$(openssl dgst -sha3-256 -r sqlite.tar.gz | cut -d' ' -f1)" = "${SQLITE_SHA3_256}" ] \
 		&& tar xzf sqlite.tar.gz \
 		&& cd "sqlite-autoconf-${SQLITE_VERSION}" \
-		&& CFLAGS="-O2 -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_SECURE_DELETE" \
+		&& CFLAGS="-O2 -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_SECURE_DELETE" \
 			./configure --prefix=/usr/local --disable-static > /dev/null \
 		&& make -j"$(nproc)" > /dev/null \
 		&& make install > /dev/null \
