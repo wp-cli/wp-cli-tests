@@ -265,6 +265,28 @@ Every worker but the first gets its own temporary directory, and with it its own
 
 Scenarios that rely on resources shared across the system, such as a fixed port or a fixed path in the system's temporary directory, are all run by the first worker, one after the other. `composer behat-rerun` re-runs exactly the scenarios that failed in the last parallel run.
 
+Set `WP_CLI_TEST_DOCKER` to run the scenarios in throwaway Docker containers instead, every worker in its own:
+```bash
+WP_CLI_TEST_DOCKER=auto WP_CLI_TEST_PARALLEL=4 composer behat
+```
+
+| `WP_CLI_TEST_DOCKER`                | Effect                                                                                           |
+|-------------------------------------|--------------------------------------------------------------------------------------------------|
+| not set (default), `0`, `no`, `off` | The scenarios run without Docker.                                                                |
+| `auto`                              | The scenarios run in containers where possible, and without Docker otherwise, which is reported. |
+| `1`, `yes`, `on`                    | The scenarios run in containers, and the run fails where that is not possible.                   |
+
+Docker is not used on Windows, when collecting code coverage, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
+
+Each worker gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. Scenarios selected by path or name run in a single container.
+
+The containers run the same PHP version as the host, unless `WP_CLI_TEST_DOCKER_PHP` sets another one:
+```bash
+WP_CLI_TEST_DOCKER=1 WP_CLI_TEST_DOCKER_PHP=7.4 WP_CLI_TEST_PARALLEL=4 composer behat
+```
+
+The project's Composer dependencies are then installed for that PHP version in a separate directory, the way CI installs them without a lock file, and refreshed once a day. Dependencies that are linked to local checkouts, as in `wp-cli/wp-cli-dev`, come from their published versions in that case, which is reported.
+
 ### Linting the feature files
 
 `composer lint-gherkin` checks `features/` with
