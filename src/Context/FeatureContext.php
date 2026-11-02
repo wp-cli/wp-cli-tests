@@ -514,6 +514,15 @@ class FeatureContext implements Context {
 			}
 		}
 
+		// An ImageMagick that is not installed where it was built, like the one setup-php provides on
+		// macOS, is pointed at its coders and configuration through these. Without them, Imagick
+		// supports none of the formats that ImageMagick provides as modules, PDF among them.
+		foreach ( (array) getenv() as $key => $value ) {
+			if ( 0 === strpos( (string) $key, 'MAGICK_' ) ) {
+				$env[ $key ] = $value;
+			}
+		}
+
 		if ( self::running_with_code_coverage() ) {
 			$has_coverage_driver = ( new Runtime() )->hasXdebug() || ( new Runtime() )->hasPCOV();
 
