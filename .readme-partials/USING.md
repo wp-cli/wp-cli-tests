@@ -278,7 +278,7 @@ WP_CLI_TEST_DOCKER=auto WP_CLI_TEST_PARALLEL=4 composer behat
 
 Docker is not used on Windows, when collecting code coverage, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
 
-Each worker gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. Scenarios selected by path or name run in a single container.
+Each worker gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`, so that the host needs neither a database server nor a client). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. Scenarios selected by path or name run in a single container.
 
 The containers run the same PHP version as the host, unless `WP_CLI_TEST_DOCKER_PHP` sets another one:
 ```bash

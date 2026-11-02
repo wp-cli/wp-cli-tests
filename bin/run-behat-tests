@@ -27,9 +27,50 @@ is_numeric() {
 	esac
 }
 
+# With WP_CLI_TEST_DOCKER set, the scenarios run in throwaway containers instead, every worker in
+# its own, with a database server of the same type and version, so they share nothing.
+# "auto" runs them without Docker where it cannot be used, "1" (or "yes", "true", "on") fails instead.
+case "${WP_CLI_TEST_DOCKER-}" in
+	""|0|no|false|off) DOCKER="";;
+	auto) DOCKER="auto";;
+	1|yes|true|on) DOCKER="force";;
+	*)
+		echo "Warning: WP_CLI_TEST_DOCKER is neither \"auto\" nor a yes or no, running the scenarios without Docker." >&2
+		DOCKER="";;
+esac
+
+without_docker() {
+	if [ "${DOCKER}" = "force" ]; then
+		echo "Error: $1 Set WP_CLI_TEST_DOCKER to \"auto\" to run the scenarios without Docker in that case." >&2
+		exit 1
+	fi
+	echo "$1 Running the scenarios without Docker." >&2
+	DOCKER=""
+}
+
+case "$(uname -s)" in
+	MINGW*|MSYS*|CYGWIN*)
+		if [ -n "${DOCKER}" ]; then
+			without_docker "The scenarios cannot run in Docker containers on Windows."
+		fi;;
+esac
+
+if [ -n "${DOCKER}" ]; then
+	if ! command -v docker > /dev/null 2>&1 || ! docker info > /dev/null 2>&1; then
+		without_docker "Docker is not available."
+	elif [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]]; then
+		without_docker "Code coverage cannot be collected in Docker containers."
+	fi
+fi
+
+export WP_CLI_TEST_DOCKER="${DOCKER}"
+
 # If DB type is already set to SQLite, there's nothing to do.
+# Neither is there when the containers bring their own database server of a given image.
 if [ "${WP_CLI_TEST_DBTYPE-}" = "sqlite" ]; then
 	echo "WP_CLI_TEST_DBTYPE is set to 'sqlite', skipping database check."
+elif [ -n "${DOCKER}" ] && [ -n "${WP_CLI_TEST_DOCKER_DB-}" ]; then
+	echo "The database servers run in Docker containers of ${WP_CLI_TEST_DOCKER_DB}, skipping database check."
 else
 	# Check for database client and connectivity.
 	DB_CLIENT=""
@@ -89,6 +130,9 @@ else
 		fi
 	fi
 fi
+
+# The version as requested, before it is resolved below, for a run that starts over without Docker.
+export WP_CLI_TEST_REQUESTED_WP_VERSION="${WP_VERSION-}"
 
 # When installing from an arbitrary archive, there is no version to resolve against
 # WordPress.org. Default to "trunk" so that no @require-wp tags are filtered out, as
@@ -276,44 +320,10 @@ done
 # to be allowed to create, as set up by "composer prepare-tests".
 PARALLEL="${WP_CLI_TEST_PARALLEL-}"
 
-# With WP_CLI_TEST_DOCKER set, the scenarios run in throwaway containers instead, every worker in
-# its own, with a database server of the same type and version, so they share nothing.
-# "auto" runs them without Docker where it cannot be used, "1" (or "yes", "true", "on") fails instead.
-case "${WP_CLI_TEST_DOCKER-}" in
-	""|0|no|false|off) DOCKER="";;
-	auto) DOCKER="auto";;
-	1|yes|true|on) DOCKER="force";;
-	*)
-		echo "Warning: WP_CLI_TEST_DOCKER is neither \"auto\" nor a yes or no, running the scenarios without Docker." >&2
-		DOCKER="";;
-esac
-
-without_docker() {
-	if [ "${DOCKER}" = "force" ]; then
-		echo "Error: $1 Set WP_CLI_TEST_DOCKER to \"auto\" to run the scenarios without Docker in that case." >&2
-		exit 1
-	fi
-	echo "$1 Running the scenarios without Docker." >&2
-	DOCKER=""
-}
-
 case "$(uname -s)" in
-	MINGW*|MSYS*|CYGWIN*)
-		PARALLEL=""
-		if [ -n "${DOCKER}" ]; then
-			without_docker "The scenarios cannot run in Docker containers on Windows."
-		fi;;
+	MINGW*|MSYS*|CYGWIN*) PARALLEL="";;
 esac
 
-if [ -n "${DOCKER}" ]; then
-	if ! command -v docker > /dev/null 2>&1 || ! docker info > /dev/null 2>&1; then
-		without_docker "Docker is not available."
-	elif [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]]; then
-		without_docker "Code coverage cannot be collected in Docker containers."
-	fi
-fi
-
-export WP_CLI_TEST_DOCKER="${DOCKER}"
 
 # A rerun after a parallel run covers exactly the scenarios that failed in it, which only the
 # parallel runner knows, whether or not WP_CLI_TEST_PARALLEL is set for the rerun as well.
