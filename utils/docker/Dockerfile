@@ -6,7 +6,7 @@ FROM php:${PHP_VERSION}-cli
 # Images of older PHP versions are based on Debian releases whose packages have moved to the archive.
 RUN install_packages() { \
 		apt-get update && apt-get install -y --no-install-recommends \
-			curl git jq less mariadb-client procps subversion unzip vim-tiny zip \
+			curl git jq less mariadb-client procps sqlite3 subversion unzip vim-tiny zip \
 			libfreetype6-dev libjpeg-dev libpng-dev libzip-dev; \
 	} \
 	&& ( install_packages || { \
