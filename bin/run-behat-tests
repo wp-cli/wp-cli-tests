@@ -131,6 +131,9 @@ else
 	fi
 fi
 
+# The version as requested, before it is resolved below, for a run that starts over without Docker.
+export WP_CLI_TEST_REQUESTED_WP_VERSION="${WP_VERSION-}"
+
 # When installing from an arbitrary archive, there is no version to resolve against
 # WordPress.org. Default to "trunk" so that no @require-wp tags are filtered out, as
 # such an archive is usually a development build. Set WP_VERSION explicitly alongside

@@ -86,6 +86,8 @@ function wp_cli_tests_restart_without_docker( array $user_args, $rerun_paths ) {
 		$user_args[] = '--rerun';
 	}
 
+	$wp_version = getenv( 'WP_CLI_TEST_REQUESTED_WP_VERSION' );
+	putenv( false === $wp_version || '' === $wp_version ? 'WP_VERSION' : "WP_VERSION={$wp_version}" );
 	putenv( 'WP_CLI_TEST_DOCKER=0' );
 	passthru( escapeshellarg( dirname( __DIR__ ) . '/bin/run-behat-tests' ) . ' ' . implode( ' ', array_map( 'escapeshellarg', $user_args ) ), $exit_code );
 	exit( $exit_code );
