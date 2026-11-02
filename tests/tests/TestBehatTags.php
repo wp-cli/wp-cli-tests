@@ -600,4 +600,87 @@ class TestBehatTags extends TestCase {
 		$this->assertStringNotContainsString( '@require-wp-stable', (string) $output );
 		$this->assertStringNotContainsString( '@require-mysql-socket', (string) $output );
 	}
+
+	/**
+	 * Run the script and capture its output streams and exit code.
+	 *
+	 * @param array<string, string> $env Additional environment variables.
+	 * @return array{stdout: string, stderr: string, exit_code: int}
+	 */
+	private function run_behat_tags_script_with_streams( array $env = array() ): array {
+		$behat_tags = dirname( dirname( __DIR__ ) ) . DIRECTORY_SEPARATOR . 'utils' . DIRECTORY_SEPARATOR . 'behat-tags.php';
+		$command    = escapeshellarg( PHP_BINARY ) . ' -n ' . escapeshellarg( $behat_tags );
+
+		$env = array_merge(
+			getenv(),
+			array( 'BEHAT_FEATURES_FOLDER' => $this->temp_dir . DIRECTORY_SEPARATOR . 'features' ),
+			$env
+		);
+
+		$process = proc_open(
+			$command,
+			array(
+				1 => array( 'pipe', 'w' ),
+				2 => array( 'pipe', 'w' ),
+			),
+			$pipes,
+			$this->temp_dir,
+			$env
+		);
+		$this->assertIsResource( $process );
+
+		$stdout = (string) stream_get_contents( $pipes[1] );
+		$stderr = (string) stream_get_contents( $pipes[2] );
+		fclose( $pipes[1] );
+		fclose( $pipes[2] );
+
+		return array(
+			'stdout'    => $stdout,
+			'stderr'    => $stderr,
+			'exit_code' => proc_close( $process ),
+		);
+	}
+
+	public function test_filtered_scenarios_are_reported(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'report.feature',
+			"Feature: Report\n\n  @require-extension-wpclinonexistent\n  Scenario: Needs an extension\n    Given a step\n\n  @broken\n  Scenario: Broken\n    Given a step\n\n  Scenario: Runs\n    Given a step\n      \"\"\"\n      Scenario: Not a scenario of this file\n      \"\"\"\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams();
+
+		$this->assertSame( 0, $result['exit_code'] );
+		$this->assertStringContainsString( '~@require-extension-wpclinonexistent', $result['stdout'] );
+		$this->assertStringContainsString( 'Not running 2 of 3 scenarios:', $result['stderr'] );
+		$this->assertStringContainsString( 'Not available in this environment:', $result['stderr'] );
+		$this->assertStringContainsString( '@require-extension-wpclinonexistent, as the PHP extension "wpclinonexistent" is not loaded: ', $result['stderr'] );
+		$this->assertStringContainsString( 'report.feature:4', $result['stderr'] );
+		$this->assertStringContainsString( 'Not part of this configuration:', $result['stderr'] );
+		$this->assertStringContainsString( 'report.feature:8', $result['stderr'] );
+	}
+
+	public function test_strict_requirements_stop_before_the_run(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'strict.feature',
+			"Feature: Strict\n\n  @require-extension-wpclinonexistent\n  Scenario: Needs an extension\n    Given a step\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams( array( 'WP_CLI_TEST_STRICT_REQUIREMENTS' => '1' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertSame( '', $result['stdout'] );
+		$this->assertStringContainsString( 'Stopping, as WP_CLI_TEST_STRICT_REQUIREMENTS is set and 1 scenarios cannot run in this environment.', $result['stderr'] );
+	}
+
+	public function test_strict_requirements_allow_other_configurations(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'strict.feature',
+			"Feature: Strict\n\n  @broken\n  Scenario: Broken\n    Given a step\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams( array( 'WP_CLI_TEST_STRICT_REQUIREMENTS' => '1' ) );
+
+		$this->assertSame( 0, $result['exit_code'] );
+		$this->assertStringContainsString( '~@broken', $result['stdout'] );
+	}
 }

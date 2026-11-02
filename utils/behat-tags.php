@@ -393,8 +393,213 @@ function os_tags( $features_folder = 'features' ) {
 	return $skip_tags;
 }
 
+/**
+ * Get the scenarios of the feature files with the tags that apply to them.
+ *
+ * @param string $features_folder The folder where the feature files are located.
+ * @return array<array{path: string, tags: array<string>}>
+ */
+function scenarios_with_tags( $features_folder = 'features' ) {
+	$scenarios     = array();
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+
+	foreach ( $feature_files ? $feature_files : array() as $feature_file ) {
+		$lines        = file( $feature_file, FILE_IGNORE_NEW_LINES );
+		$feature_tags = array();
+		$pending_tags = array();
+		$doc_string   = null;
+
+		foreach ( $lines ? $lines : array() as $index => $line ) {
+			$line = trim( $line );
+
+			// Doc strings can hold whole feature files, as written by scenarios for scaffolding.
+			if ( null !== $doc_string ) {
+				if ( 0 === strpos( $line, $doc_string ) ) {
+					$doc_string = null;
+				}
+				continue;
+			}
+			if ( 0 === strpos( $line, '"""' ) || 0 === strpos( $line, '```' ) ) {
+				$doc_string = substr( $line, 0, 3 );
+				continue;
+			}
+
+			if ( 0 === strpos( $line, '@' ) ) {
+				preg_match_all( '/@[^\s@]+/', $line, $matches );
+				$pending_tags = array_merge( $pending_tags, $matches[0] );
+			} elseif ( preg_match( '/^Feature:/', $line ) ) {
+				$feature_tags = $pending_tags;
+				$pending_tags = array();
+			} elseif ( preg_match( '/^(Scenario|Scenario Outline|Scenario Template|Example):/', $line ) ) {
+				$scenarios[]  = array(
+					'path' => $feature_file . ':' . ( $index + 1 ),
+					'tags' => array_merge( $feature_tags, $pending_tags ),
+				);
+				$pending_tags = array();
+			} elseif ( '' !== $line && 0 !== strpos( $line, '#' ) ) {
+				$pending_tags = array();
+			}
+		}
+	}
+
+	return $scenarios;
+}
+
+/**
+ * Describe why scenarios carrying a skip tag are not run.
+ *
+ * @param string $tag     The tag, without the leading tilde.
+ * @param array  $context What the environment provides: wp, php, db and os.
+ * @return array{0: bool, 1: string} Whether the environment lacks something, and the reason.
+ */
+function describe_skip_tag( $tag, $context ) {
+	if ( preg_match( '/^@require-extension-(.+)$/', $tag, $matches ) ) {
+		return array( true, "the PHP extension \"{$matches[1]}\" is not loaded" );
+	}
+
+	if ( '@require-mysql-socket' === $tag ) {
+		return array( true, 'the database server cannot be reached through a socket' );
+	}
+
+	if ( preg_match( '/^@(require|less-than)-wp-/', $tag ) || '@require-wp-stable' === $tag || '@broken-trunk' === $tag ) {
+		return array( false, "WordPress {$context['wp']} is used" );
+	}
+
+	if ( preg_match( '/^@(require|less-than)-php-/', $tag ) ) {
+		return array( false, "PHP {$context['php']} is used" );
+	}
+
+	if ( preg_match( '/^@(require|less-than|skip)-(mysql|mariadb|sqlite)/', $tag ) ) {
+		return array( false, "the database is {$context['db']}" );
+	}
+
+	if ( preg_match( '/^@(require|skip)-(windows|macos|linux)$/', $tag ) ) {
+		return array( false, "the operating system is {$context['os']}" );
+	}
+
+	if ( '@github-api' === $tag ) {
+		return array( false, 'GITHUB_TOKEN is not set' );
+	}
+
+	if ( '@require-object-cache' === $tag || '@skip-object-cache' === $tag ) {
+		return array( false, 'WP_CLI_TEST_OBJECT_CACHE is ' . ( getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ? 'set' : 'not set' ) );
+	}
+
+	if ( '@broken' === $tag ) {
+		return array( false, 'they are known to be broken' );
+	}
+
+	return array( false, 'it is excluded' );
+}
+
+/**
+ * Report the scenarios that the tag filter leaves out, and why.
+ *
+ * Scenarios that the environment cannot run are listed separately from the ones that are
+ * not part of the configuration being tested, such as another database or WordPress version.
+ *
+ * @param array<string> $skip_tags
+ * @param string        $features_folder
+ * @param array         $context
+ * @return int Number of scenarios left out because the environment lacks something.
+ */
+function report_filtered_scenarios( $skip_tags, $features_folder, $context ) {
+	$scenarios = scenarios_with_tags( $features_folder );
+	$groups    = array();
+
+	foreach ( $scenarios as $scenario ) {
+		$matching = array_values( array_intersect( $skip_tags, $scenario['tags'] ) );
+		if ( $matching ) {
+			$groups[ $matching[0] ][] = $scenario['path'];
+		}
+	}
+
+	if ( ! $groups ) {
+		return 0;
+	}
+
+	$sections = array(
+		true  => array(),
+		false => array(),
+	);
+	$missing  = 0;
+	$total    = 0;
+
+	foreach ( $groups as $tag => $paths ) {
+		list( $lacks, $reason ) = describe_skip_tag( $tag, $context );
+		$sections[ $lacks ][]   = array( $tag, $reason, $paths );
+		$total                 += count( $paths );
+		if ( $lacks ) {
+			$missing += count( $paths );
+		}
+	}
+
+	$titles = array(
+		true  => 'Not available in this environment',
+		false => 'Not part of this configuration',
+	);
+
+	$text     = sprintf( "Not running %d of %d scenarios:\n", $total, count( $scenarios ) );
+	$markdown = sprintf( "### Behat: %d of %d scenarios not run\n", $total, count( $scenarios ) );
+
+	foreach ( array( true, false ) as $lacks ) {
+		if ( ! $sections[ $lacks ] ) {
+			continue;
+		}
+		$text     .= "  {$titles[ $lacks ]}:\n";
+		$markdown .= "\n**{$titles[ $lacks ]}**\n\n";
+		foreach ( $sections[ $lacks ] as $section ) {
+			list( $tag, $reason, $paths ) = $section;
+
+			$text     .= sprintf( "    %s, as %s: %s\n", $tag, $reason, implode( ', ', $paths ) );
+			$markdown .= sprintf(
+				"- `%s`, as %s (%d): %s\n",
+				$tag,
+				$reason,
+				count( $paths ),
+				implode(
+					', ',
+					array_map(
+						function ( $path ) {
+							return "`{$path}`";
+						},
+						$paths
+					)
+				)
+			);
+		}
+	}
+
+	fwrite( STDERR, $text );
+
+	// Add the report to the summary of a GitHub Actions job, once per run.
+	$summary = getenv( 'GITHUB_STEP_SUMMARY' );
+	if ( $summary && ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
+		file_put_contents( $summary, $markdown . "\n", FILE_APPEND );
+	}
+
+	return $missing;
+}
+
 $skip_tags = array_merge( $skip_tags, extension_tags( $features_folder ) );
 $skip_tags = array_merge( $skip_tags, os_tags( $features_folder ) );
+
+$missing = report_filtered_scenarios(
+	$skip_tags,
+	$features_folder,
+	array(
+		'wp'  => $wp_version ? $wp_version : 'latest',
+		'php' => PHP_VERSION,
+		'db'  => trim( ( 'sqlite' === $db_type ? 'SQLite' : ( 'mariadb' === $db_type ? 'MariaDB' : 'MySQL' ) ) . ' ' . ( 'sqlite' === $db_type ? '' : $db_version ) ),
+		'os'  => PHP_OS_FAMILY,
+	)
+);
+
+// With strict requirements, everything the scenarios need has to be available.
+if ( $missing && getenv( 'WP_CLI_TEST_STRICT_REQUIREMENTS' ) ) {
+	fwrite( STDERR, "Stopping, as WP_CLI_TEST_STRICT_REQUIREMENTS is set and {$missing} scenarios cannot run in this environment.\n" );
+	exit( 1 );
+}
 
 if ( ! empty( $skip_tags ) ) {
 	echo '--tags=~' . implode( '&&~', $skip_tags );
