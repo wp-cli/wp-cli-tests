@@ -1129,7 +1129,7 @@ class FeatureContext implements Context {
 			$is_ci    = getenv( 'CI' );
 			$is_debug = getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' );
 			if ( $scope->getTestResult()->getResultCode() <= 10 || ( $is_ci && ! $is_debug ) ) {
-				self::remove_dir( self::$run_dir );
+				self::remove_dir_in_background( self::$run_dir );
 			}
 			self::$run_dir = null;
 		}
@@ -1141,7 +1141,7 @@ class FeatureContext implements Context {
 
 		// Remove SUITE_CACHE_DIR if any.
 		if ( self::$suite_cache_dir ) {
-			self::remove_dir( self::$suite_cache_dir );
+			self::remove_dir_in_background( self::$suite_cache_dir );
 			self::$suite_cache_dir = null;
 		}
 
@@ -1850,13 +1850,20 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 			];
 		}
 
+		// If something else is already listening on the port, the process failing to bind to it
+		// would go unnoticed when waiting for the port, so fall back to waiting the full second.
+		$port = self::get_listening_port( $cmd );
+		if ( null !== $port && self::is_port_open( $port ) ) {
+			$port = null;
+		}
+
 		$proc = proc_open( $cmd, $descriptors, $pipes, $this->variables['RUN_DIR'], self::get_process_env_variables() );
 
 		if ( Utils\is_windows() ) {
 			fclose( $pipes[0] );
 		}
 
-		sleep( 1 );
+		self::wait_for_background_proc( $proc, $port );
 
 		$status = proc_get_status( $proc );
 
@@ -1879,6 +1886,61 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 			$this->temp_files[] = $stdout_file;
 			$this->temp_files[] = $stderr_file;
 		}
+	}
+
+	/**
+	 * Give a background process up to a second to start.
+	 *
+	 * Returns early once the process accepts connections on the given port.
+	 *
+	 * @param resource $proc
+	 * @param int|null $port Port the process is expected to listen on, if known.
+	 */
+	private static function wait_for_background_proc( $proc, $port ): void {
+		$deadline = microtime( true ) + 1;
+
+		while ( microtime( true ) < $deadline ) {
+			$status = proc_get_status( $proc );
+
+			if ( ! $status['running'] || ( null !== $port && self::is_port_open( $port ) ) ) {
+				return;
+			}
+
+			usleep( 50000 );
+		}
+	}
+
+	/**
+	 * Get the local port a background command is going to listen on, if it can be told from the command.
+	 *
+	 * @param string $cmd
+	 * @return int|null
+	 */
+	private static function get_listening_port( $cmd ): ?int {
+		if ( preg_match( '/(?:localhost|127\.0\.0\.1):(\d+)/', $cmd, $matches ) || preg_match( '/--port[= ](\d+)/', $cmd, $matches ) ) {
+			return (int) $matches[1];
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether a local port accepts connections.
+	 *
+	 * @param int $port
+	 * @return bool
+	 */
+	private static function is_port_open( $port ): bool {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A refused connection is the expected answer for a closed port.
+		$connection = @fsockopen( 'localhost', $port, $errno, $errstr, 0.1 );
+
+		if ( false === $connection ) {
+			return false;
+		}
+
+		fclose( $connection );
+
+		return true;
 	}
 
 	/**
@@ -1935,6 +1997,22 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 		}
 
 		@rmdir( $dir );
+	}
+
+	/**
+	 * Remove a directory without waiting for it to be gone.
+	 *
+	 * Only meant for directories with a unique name, which no later scenario is going to use.
+	 *
+	 * @param string $dir
+	 */
+	private static function remove_dir_in_background( $dir ): void {
+		if ( Utils\is_windows() || ! is_dir( $dir ) ) {
+			self::remove_dir( $dir );
+			return;
+		}
+
+		exec( 'rm -rf ' . escapeshellarg( $dir ) . ' > /dev/null 2>&1 &' );
 	}
 
 	/**
