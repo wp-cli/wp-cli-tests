@@ -501,6 +501,8 @@ function wp_cli_tests_docker_mounts( $base_dir, $vendor = null ) {
 	// Give the containers the PHP settings of the host for how errors are reported, as test
 	// outcomes depend on them. WP-CLI, for example, only reports deprecations while testing
 	// when error_reporting is exactly E_ALL, which a missing php.ini leads to, but not -1.
+	// They take the place of the php.ini, as on the host, so that a process started with a
+	// configuration file of its own, such as `php -c` by `wp server --config`, does not get them.
 	$settings = [];
 	foreach ( [ 'error_reporting', 'display_errors', 'display_startup_errors', 'log_errors', 'html_errors', 'zend.assertions', 'memory_limit', 'date.timezone' ] as $name ) {
 		$value = ini_get( $name );
@@ -511,7 +513,7 @@ function wp_cli_tests_docker_mounts( $base_dir, $vendor = null ) {
 	}
 	$ini = "{$base_dir}/php-host.ini";
 	file_put_contents( $ini, implode( "\n", $settings ) . "\n" );
-	$mounts[ $ini ] = '/usr/local/etc/php/conf.d/zz-wp-cli-tests-host.ini';
+	$mounts[ $ini ] = '/usr/local/etc/php/php.ini';
 
 	return $mounts;
 }
