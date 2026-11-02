@@ -508,7 +508,12 @@ class FeatureContext implements Context {
 			$env['WP_CLI_REQUIRE'] = $updated;
 		}
 
-		$env = array_merge( $env, self::get_php_tuning_env_variables() );
+		$env = array_filter(
+			array_merge( $env, self::get_php_tuning_env_variables() ),
+			static function ( $value ) {
+				return null !== $value;
+			}
+		);
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
 		if ( false !== $config_path ) {
@@ -569,7 +574,7 @@ class FeatureContext implements Context {
 	 *
 	 * Set WP_CLI_TEST_PHP_TUNING=off to launch the processes with the PHP configuration as it is.
 	 *
-	 * @return array<string, string>
+	 * @return array<string, string|null> Null for variables to leave out.
 	 */
 	private static function get_php_tuning_env_variables(): array {
 		if ( 'off' === getenv( 'WP_CLI_TEST_PHP_TUNING' ) || self::running_with_code_coverage() ) {
@@ -587,9 +592,13 @@ class FeatureContext implements Context {
 			return $env;
 		}
 
+		// The directories are named after the settings, so that a cache written with other settings,
+		// such as by an older version of this package, is never used, nor its configuration file.
+		$settings   = [ 'opcache.enable_cli=1', 'opcache.file_cache_only=1', 'opcache.optimization_level=0' ];
+		$key        = substr( md5( implode( "\n", $settings ) ), 0, 8 );
 		$temp_dir   = rtrim( sys_get_temp_dir(), '/' );
-		$config_dir = "{$temp_dir}/wp-cli-test-php-config";
-		$cache_dir  = "{$temp_dir}/wp-cli-test-opcache";
+		$config_dir = "{$temp_dir}/wp-cli-test-php-config-{$key}";
+		$cache_dir  = "{$temp_dir}/wp-cli-test-opcache-{$key}";
 
 		foreach ( [ $config_dir, $cache_dir ] as $dir ) {
 			if ( ! is_dir( $dir ) && ! @mkdir( $dir, 0777, true ) && ! is_dir( $dir ) ) {
@@ -600,16 +609,32 @@ class FeatureContext implements Context {
 		$excluded = array_unique( array_filter( [ $temp_dir, realpath( $temp_dir ) ] ) );
 		file_put_contents( "{$config_dir}/opcache-blacklist.txt", implode( "/\n", $excluded ) . "/\n" );
 
-		$ini = [
-			'opcache.enable_cli=1',
-			"opcache.file_cache={$cache_dir}",
-			'opcache.file_cache_only=1',
-			"opcache.blacklist_filename={$config_dir}/opcache-blacklist.txt",
-		];
+		// The optimizer bakes in what it finds at compile time, such as whether a function exists,
+		// which differs between processes with other settings, such as disabled functions.
+		$ini = array_merge(
+			$settings,
+			[
+				"opcache.file_cache={$cache_dir}",
+				"opcache.blacklist_filename={$config_dir}/opcache-blacklist.txt",
+			]
+		);
 		file_put_contents( "{$config_dir}/wp-cli-tests.ini", implode( "\n", $ini ) . "\n" );
 
 		// Add to the directories PHP scans for configuration files rather than replacing them.
 		$scan_dirs = getenv( 'PHP_INI_SCAN_DIR' );
+
+		// Behat and Composer restart without Xdebug through composer/xdebug-handler, which clears
+		// the directories, and keeps the original ones in its settings, with "*" if there were none.
+		// The configuration file it points PHPRC to holds the scanned files already, so restore that too.
+		$restart_settings = getenv( 'XDEBUG_HANDLER_SETTINGS' );
+		if ( '' === $scan_dirs && is_string( $restart_settings ) ) {
+			$restart = explode( '|', $restart_settings );
+			if ( isset( $restart[2], $restart[3] ) ) {
+				$scan_dirs    = '*' === $restart[2] ? false : $restart[2];
+				$env['PHPRC'] = '*' === $restart[3] ? null : $restart[3];
+			}
+		}
+
 		if ( false === $scan_dirs ) {
 			$scan_dirs = PHP_CONFIG_FILE_SCAN_DIR;
 		}
