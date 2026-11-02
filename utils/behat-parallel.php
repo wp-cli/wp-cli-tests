@@ -452,6 +452,65 @@ function wp_cli_tests_docker_mounts( $base_dir, $vendor = null ) {
 }
 
 /**
+ * Get the label value that marks the Docker containers of this run, by host and process.
+ *
+ * @return string
+ */
+function wp_cli_tests_docker_owner() {
+	return php_uname( 'n' ) . ':' . getmypid();
+}
+
+/**
+ * Get whether a process still runs.
+ *
+ * @param int $pid
+ * @return bool|null Null if that cannot be told.
+ */
+function wp_cli_tests_process_exists( $pid ) {
+	if ( function_exists( 'posix_kill' ) ) {
+		// A process of another user cannot be signalled, but exists.
+		return posix_kill( $pid, 0 ) || ( function_exists( 'posix_get_last_error' ) && 1 === posix_get_last_error() );
+	}
+
+	if ( is_dir( '/proc/self' ) ) {
+		return is_dir( "/proc/{$pid}" );
+	}
+
+	return null;
+}
+
+/**
+ * Remove the containers that earlier runs on this host left behind, such as when they were killed.
+ *
+ * Only containers labelled by a run whose process is gone are removed, so runs that are still
+ * going keep theirs, as do containers this script did not start.
+ */
+function wp_cli_tests_docker_remove_abandoned() {
+	exec( 'docker ps -a --filter label=wp-cli-tests.owner --format ' . escapeshellarg( '{{.ID}} {{.Label "wp-cli-tests.owner"}}' ) . ' 2>/dev/null', $lines, $exit_code );
+	if ( 0 !== $exit_code ) {
+		return;
+	}
+
+	$host      = php_uname( 'n' );
+	$abandoned = [];
+	foreach ( $lines as $line ) {
+		$parts = explode( ' ', trim( $line ), 2 );
+		if ( 2 !== count( $parts ) || ! preg_match( '/^(.+):(\d+)$/', $parts[1], $matches ) || $host !== $matches[1] || getmypid() === (int) $matches[2] ) {
+			continue;
+		}
+
+		if ( false === wp_cli_tests_process_exists( (int) $matches[2] ) ) {
+			$abandoned[] = $parts[0];
+		}
+	}
+
+	if ( $abandoned ) {
+		exec( 'docker rm -f ' . implode( ' ', array_map( 'escapeshellarg', $abandoned ) ) . ' > /dev/null 2>&1' );
+		fwrite( STDERR, sprintf( "Removed %d Docker containers that earlier runs left behind.\n", count( $abandoned ) ) );
+	}
+}
+
+/**
  * Start the containers of a worker and get the command that runs its scenarios.
  *
  * @param string      $name     Name prefix of the worker's containers.
@@ -464,10 +523,11 @@ function wp_cli_tests_docker_mounts( $base_dir, $vendor = null ) {
  */
 function wp_cli_tests_docker_worker_command( $name, $php_image, $db_image, array $mounts, array $user_args, $scenario_list ) {
 	$network = '';
+	$label   = ' --label ' . escapeshellarg( 'wp-cli-tests.owner=' . wp_cli_tests_docker_owner() );
 
 	if ( null !== $db_image ) {
 		exec(
-			'docker run -d --rm --name ' . escapeshellarg( "{$name}-db" )
+			'docker run -d --rm --name ' . escapeshellarg( "{$name}-db" ) . $label
 			. ' --tmpfs /var/lib/mysql'
 			. ' -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=wp_cli_test -e MYSQL_PASSWORD=password1'
 			. ' ' . escapeshellarg( $db_image ) . ' ' . wp_cli_tests_docker_db_options( $db_image ) . ' 2>&1'
@@ -489,7 +549,7 @@ function wp_cli_tests_docker_worker_command( $name, $php_image, $db_image, array
 		}
 	}
 
-	$command = 'docker run --rm --name ' . escapeshellarg( $name ) . $network
+	$command = 'docker run --rm --name ' . escapeshellarg( $name ) . $label . $network
 		. ' --tmpfs /tmp:exec,mode=1777'
 		. ' -u ' . escapeshellarg( getmyuid() . ':' . getmygid() )
 		. ' -w ' . escapeshellarg( (string) getcwd() );
@@ -596,6 +656,28 @@ if ( $docker ) {
 	}
 }
 
+if ( $docker ) {
+	wp_cli_tests_docker_remove_abandoned();
+
+	// Ending the run through exit() on Ctrl+C or a termination signal removes its containers.
+	if ( function_exists( 'pcntl_async_signals' ) ) {
+		pcntl_async_signals( true );
+		$exit_codes = [
+			SIGINT  => 130,
+			SIGTERM => 143,
+			SIGHUP  => 129,
+		];
+		foreach ( $exit_codes as $signal => $code ) {
+			pcntl_signal(
+				$signal,
+				static function () use ( $code ) {
+					exit( $code );
+				}
+			);
+		}
+	}
+}
+
 // Kept between runs, so that the workers' caches stay warm and failed scenarios can be inspected.
 $base_dir = sys_get_temp_dir() . '/wp-cli-test-parallel-' . substr( md5( (string) getcwd() ), 0, 8 );
 
@@ -610,8 +692,16 @@ if ( $docker && $selects_scenarios && null === $rerun_paths ) {
 			exec( 'docker rm -f ' . escapeshellarg( $name ) . ' ' . escapeshellarg( "{$name}-db" ) . ' > /dev/null 2>&1' );
 		}
 	);
-	passthru( wp_cli_tests_docker_worker_command( $name, (string) $php_image, $db_image, wp_cli_tests_docker_mounts( $base_dir, $vendor ), $user_args, null ), $exit_code );
-	exit( $exit_code );
+	// Waiting in PHP rather than in passthru() lets the signal handlers run.
+	$proc = proc_open( wp_cli_tests_docker_worker_command( $name, (string) $php_image, $db_image, wp_cli_tests_docker_mounts( $base_dir, $vendor ), $user_args, null ), [ STDIN, STDOUT, STDERR ], $pipes );
+	if ( ! is_resource( $proc ) ) {
+		exit( 1 );
+	}
+	do {
+		usleep( 200000 );
+		$status = proc_get_status( $proc );
+	} while ( $status['running'] );
+	exit( $status['exitcode'] );
 }
 
 require getcwd() . '/vendor/autoload.php';
