@@ -364,7 +364,15 @@ class TestBehatTags extends TestCase {
 		}
 		$expecteds = array( '~@require-mysql', '~@require-sqlite', '~@skip-mariadb', '~@require-mariadb-11.4', '~@less-than-mariadb-10.5' );
 		$expected  = '--tags=' . implode( '&&', array_merge( $base_expecteds, $expecteds ) );
-		$output    = $this->run_behat_tags_script( 'WP_CLI_TEST_DBTYPE=mysql WP_CLI_TEST_DOCKER=force WP_CLI_TEST_DOCKER_DB=mariadb:10.11' );
+		$output    = $this->run_with_env(
+			array(
+				'GITHUB_TOKEN'          => null,
+				'WP_VERSION'            => null,
+				'WP_CLI_TEST_DBTYPE'    => 'mysql',
+				'WP_CLI_TEST_DOCKER'    => 'force',
+				'WP_CLI_TEST_DOCKER_DB' => 'mariadb:10.11',
+			)
+		);
 		$this->assertSame( $expected, $output );
 	}
 

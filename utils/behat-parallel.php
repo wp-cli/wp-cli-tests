@@ -72,6 +72,26 @@ function wp_cli_tests_without_docker( $reason ) {
 }
 
 /**
+ * Start the run over without Docker and exit with its exit code.
+ *
+ * The database check and the scenario selection were made for the containers,
+ * so run-behat-tests has to make them again for the host.
+ *
+ * @param array<string>      $user_args
+ * @param array<string>|null $rerun_paths Scenarios of a rerun, which are put back for it.
+ */
+function wp_cli_tests_restart_without_docker( array $user_args, $rerun_paths ) {
+	if ( null !== $rerun_paths ) {
+		file_put_contents( wp_cli_tests_failures_file(), implode( "\n", $rerun_paths ) . "\n" );
+		$user_args[] = '--rerun';
+	}
+
+	putenv( 'WP_CLI_TEST_DOCKER=0' );
+	passthru( escapeshellarg( dirname( __DIR__ ) . '/bin/run-behat-tests' ) . ' ' . implode( ' ', array_map( 'escapeshellarg', $user_args ) ), $exit_code );
+	exit( $exit_code );
+}
+
+/**
  * Run Behat in the current process' environment and exit with its exit code.
  *
  * @param array<string> $args
@@ -567,15 +587,10 @@ if ( $docker ) {
 
 	if ( null === $php_image ) {
 		wp_cli_tests_without_docker( 'The containers could not be prepared.' );
+		wp_cli_tests_restart_without_docker( $user_args, $rerun_paths );
 	} elseif ( null === $db_image && 'sqlite' !== getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
 		wp_cli_tests_without_docker( 'The type and version of the database server could not be identified, set WP_CLI_TEST_DOCKER_DB to its Docker image.' );
-	}
-
-	if ( null === $php_image || ( null === $db_image && 'sqlite' !== getenv( 'WP_CLI_TEST_DBTYPE' ) ) ) {
-		$docker = false;
-		if ( $workers < 2 || null !== $rerun_paths || $selects_scenarios ) {
-			wp_cli_tests_run_behat_and_exit( $all_args );
-		}
+		wp_cli_tests_restart_without_docker( $user_args, $rerun_paths );
 	}
 }
 
