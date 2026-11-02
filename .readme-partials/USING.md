@@ -280,6 +280,8 @@ Docker is not used on Windows, when collecting code coverage, when Docker is not
 
 Each worker gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`, so that the host needs neither a database server nor a client). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. Scenarios selected by path or name run in a single container.
 
+The containers are removed when the run ends, also when it is stopped with Ctrl+C or a termination signal (with the `pcntl` extension). Containers of a run that was killed outright are removed by the next run on the same host, which only removes those whose run is no longer going.
+
 The containers run the same PHP version as the host, unless `WP_CLI_TEST_DOCKER_PHP` sets another one:
 ```bash
 WP_CLI_TEST_DOCKER=1 WP_CLI_TEST_DOCKER_PHP=7.4 WP_CLI_TEST_PARALLEL=4 composer behat
