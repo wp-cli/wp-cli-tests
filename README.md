@@ -272,16 +272,9 @@ Set `WP_CLI_TEST_PARALLEL` to a number of workers to spread the scenarios over t
 WP_CLI_TEST_PARALLEL=4 composer behat
 ```
 
-Every worker but the first gets its own temporary directory, and with it its own home directory, caches and run directories, as well as its own test database, named after the test database with a numeric suffix (`wp_cli_test_1`, `wp_cli_test_2`, ...). Run `composer prepare-tests` once to allow the test user to create these databases. Without that permission, the scenarios are run one after the other, as they are on Windows or when selecting scenarios by path or name. When collecting code coverage, every worker writes a report of its own to `build/logs`.
+Every worker but the first gets its own temporary directory, and with it its own home directory, caches and run directories, as well as its own test database, named after the test database with a numeric suffix (`wp_cli_test_1`, `wp_cli_test_2`, ...). Run `composer prepare-tests` once to allow the test user to create these databases. Without that permission, the scenarios are run one after the other, as they are on Windows, when collecting code coverage, or when selecting scenarios by path or name.
 
 Scenarios that rely on resources shared across the system, such as a fixed port or a fixed path in the system's temporary directory, are all run by the first worker, one after the other. `composer behat-rerun` re-runs exactly the scenarios that failed in the last parallel run.
-
-Set `WP_CLI_TEST_SHARD` to `<index>/<total>` to run only that share of the scenarios, to split them across several machines:
-```bash
-WP_CLI_TEST_SHARD=2/4 WP_CLI_TEST_PARALLEL=4 composer behat
-```
-
-Every machine spreads the scenarios over the shards by their expected cost in the same way, so that together they run every scenario once and finish at about the same time. Selecting scenarios by path or name runs them regardless of the shard.
 
 Set `WP_CLI_TEST_DOCKER` to run the scenarios in throwaway Docker containers instead, every worker in its own:
 ```bash
@@ -297,6 +290,8 @@ WP_CLI_TEST_DOCKER=auto WP_CLI_TEST_PARALLEL=4 composer behat
 Docker is not used on Windows, when collecting code coverage, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
 
 Each worker gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`, so that the host needs neither a database server nor a client). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. Scenarios selected by path or name run in a single container.
+
+The containers are removed when the run ends, also when it is stopped with Ctrl+C or a termination signal (with the `pcntl` extension). Containers of a run that was killed outright are removed by the next run on the same host, which only removes those whose run is no longer going.
 
 The containers run the same PHP version as the host, unless `WP_CLI_TEST_DOCKER_PHP` sets another one:
 ```bash
