@@ -80,10 +80,12 @@
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<exclude-pattern>*/utils/behat-tags\.php$</exclude-pattern>
 		<exclude-pattern>*/utils/behat-parallel\.php$</exclude-pattern>
+		<exclude-pattern>*/utils/check-required-tools\.php$</exclude-pattern>
 	</rule>
 	<rule ref="WordPress.WP.GlobalVariablesOverride">
 		<exclude-pattern>*/utils/behat-tags\.php$</exclude-pattern>
 		<exclude-pattern>*/utils/behat-parallel\.php$</exclude-pattern>
+		<exclude-pattern>*/utils/check-required-tools\.php$</exclude-pattern>
 	</rule>
 
 	<!-- This is a procedural stand-alone file that is adding polyfills when

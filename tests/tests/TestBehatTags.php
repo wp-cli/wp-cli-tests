@@ -683,4 +683,29 @@ class TestBehatTags extends TestCase {
 		$this->assertSame( 0, $result['exit_code'] );
 		$this->assertStringContainsString( '~@broken', $result['stdout'] );
 	}
+
+	public function test_missing_commands_are_filtered_out_and_reported(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'commands.feature',
+			"Feature: Commands\n\n  @require-bin-wpclinonexistentcommand\n  Scenario: Needs a missing command\n    Given a step\n\n  @require-bin-php\n  Scenario: Needs PHP\n    Given a step\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams();
+
+		$this->assertStringContainsString( '~@require-bin-wpclinonexistentcommand', $result['stdout'] );
+		$this->assertStringNotContainsString( '@require-bin-php', $result['stdout'] );
+		$this->assertStringContainsString( '@require-bin-wpclinonexistentcommand, as the command "wpclinonexistentcommand" is not available: ', $result['stderr'] );
+	}
+
+	public function test_unknown_requirement_tags_are_warned_about(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'unknown.feature',
+			"Feature: Unknown\n\n  @require-wpclinonexistent\n  Scenario: Has an unknown requirement\n    Given a step\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams();
+
+		$this->assertStringContainsString( 'Warning: @require-wpclinonexistent is not a known requirement and does not filter anything: ', $result['stderr'] );
+		$this->assertStringContainsString( 'unknown.feature:4', $result['stderr'] );
+	}
 }

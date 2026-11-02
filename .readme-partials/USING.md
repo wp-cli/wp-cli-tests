@@ -383,6 +383,18 @@ they test.
   skipped when there is none, which is the case when the database server runs in a
   container and is only reachable over TCP. Set `WP_CLI_TEST_DBSOCKET` to point at the
   socket if it lives somewhere unusual.
+* `@require-bin-<name>` — the scenario runs a command that is not always installed, such as
+  `@require-bin-svn` or `@require-bin-ex` for one using `ex` as its editor. It is skipped
+  where the command is not available. `@require-composer` does the same for Composer.
+* `@require-extension-<name>` — the scenario needs a PHP extension, such as
+  `@require-extension-imagick`. It is skipped where the extension is not loaded.
+* `@require-download` — the scenario downloads files from WordPress.org. It is skipped where
+  WordPress.org cannot be reached.
+
+Requirement tags the test framework does not know are reported with a warning, as they would
+not filter anything. When a command fails because a command it runs does not exist, the
+failure names the tag to add, and `composer lint-gherkin` lists the scenarios that run
+commands which are not always installed without declaring them.
 
 Before the scenarios run, the scenarios that are left out are listed together with the reason,
 separating the ones the environment cannot run, such as those needing a PHP extension that is
