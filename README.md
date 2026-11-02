@@ -272,9 +272,16 @@ Set `WP_CLI_TEST_PARALLEL` to a number of workers to spread the scenarios over t
 WP_CLI_TEST_PARALLEL=4 composer behat
 ```
 
-Every worker but the first gets its own temporary directory, and with it its own home directory, caches and run directories, as well as its own test database, named after the test database with a numeric suffix (`wp_cli_test_1`, `wp_cli_test_2`, ...). Run `composer prepare-tests` once to allow the test user to create these databases. Without that permission, the scenarios are run one after the other, as they are on Windows, when collecting code coverage, or when selecting scenarios by path or name.
+Every worker but the first gets its own temporary directory, and with it its own home directory, caches and run directories, as well as its own test database, named after the test database with a numeric suffix (`wp_cli_test_1`, `wp_cli_test_2`, ...). Run `composer prepare-tests` once to allow the test user to create these databases. Without that permission, the scenarios are run one after the other, as they are on Windows or when selecting scenarios by path or name. When collecting code coverage, every worker writes a report of its own to `build/logs`.
 
 Scenarios that rely on resources shared across the system, such as a fixed port or a fixed path in the system's temporary directory, are all run by the first worker, one after the other. `composer behat-rerun` re-runs exactly the scenarios that failed in the last parallel run.
+
+Set `WP_CLI_TEST_SHARD` to `<index>/<total>` to run only that share of the scenarios, to split them across several machines:
+```bash
+WP_CLI_TEST_SHARD=2/4 WP_CLI_TEST_PARALLEL=4 composer behat
+```
+
+Every machine spreads the scenarios over the shards by their expected cost in the same way, so that together they run every scenario once and finish at about the same time. Selecting scenarios by path or name runs them regardless of the shard.
 
 Set `WP_CLI_TEST_DOCKER` to run the scenarios in throwaway Docker containers instead, every worker in its own:
 ```bash
