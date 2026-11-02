@@ -3,10 +3,18 @@
 ARG PHP_VERSION=8.3
 FROM php:${PHP_VERSION}-cli
 
+# The MariaDB client of Debian 10 cannot log in to MySQL 8 with every authentication method it
+# offers for unknown users, so the image of PHP 7.2 gets a newer one from MariaDB.
+RUN . /etc/os-release \
+	&& if [ "${VERSION_CODENAME}" = buster ]; then \
+		curl -fsSL -o /etc/apt/trusted.gpg.d/mariadb.asc https://mariadb.org/mariadb_release_signing_key.pgp \
+		&& echo 'deb https://archive.mariadb.org/mariadb-10.6.27/repo/debian buster main' > /etc/apt/sources.list.d/mariadb.list; \
+	fi
+
 # Images of older PHP versions are based on Debian releases whose packages have moved to the archive.
 RUN install_packages() { \
 		apt-get update && apt-get install -y --no-install-recommends \
-			curl git jq less mariadb-client procps sqlite3 subversion unzip vim-tiny zip \
+			curl git jq less libmariadb3 mariadb-client procps sqlite3 subversion unzip vim-tiny zip \
 			libfreetype6-dev libjpeg-dev libpng-dev libzip-dev; \
 	} \
 	&& ( install_packages || { \
@@ -32,7 +40,7 @@ RUN if dpkg --compare-versions "$(dpkg-query -W -f '${Version}' libsqlite3-0)" l
 		&& [ "$(openssl dgst -sha3-256 -r sqlite.tar.gz | cut -d' ' -f1)" = "${SQLITE_SHA3_256}" ] \
 		&& tar xzf sqlite.tar.gz \
 		&& cd "sqlite-autoconf-${SQLITE_VERSION}" \
-		&& CFLAGS="-O2 -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_SECURE_DELETE" \
+		&& CFLAGS="-O2 -DSQLITE_ALLOW_ROWID_IN_VIEW -DSQLITE_ENABLE_COLUMN_METADATA=1 -DSQLITE_ENABLE_DBPAGE_VTAB -DSQLITE_ENABLE_DBSTAT_VTAB -DSQLITE_ENABLE_FTS3 -DSQLITE_ENABLE_FTS3_PARENTHESIS -DSQLITE_ENABLE_FTS3_TOKENIZER -DSQLITE_ENABLE_FTS4 -DSQLITE_ENABLE_FTS5 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_MATH_FUNCTIONS -DSQLITE_ENABLE_PREUPDATE_HOOK -DSQLITE_ENABLE_RTREE -DSQLITE_ENABLE_SESSION -DSQLITE_ENABLE_STMTVTAB -DSQLITE_ENABLE_UNLOCK_NOTIFY -DSQLITE_ENABLE_UPDATE_DELETE_LIMIT -DSQLITE_LIKE_DOESNT_MATCH_BLOBS -DSQLITE_MAX_SCHEMA_RETRY=25 -DSQLITE_SECURE_DELETE -DSQLITE_SOUNDEX -DSQLITE_USE_URI=1" \
 			./configure --prefix=/usr/local --disable-static > /dev/null \
 		&& make -j"$(nproc)" > /dev/null \
 		&& make install > /dev/null \
