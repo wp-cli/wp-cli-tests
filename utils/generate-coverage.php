@@ -96,7 +96,10 @@ register_shutdown_function(
 		$feature_suffix  = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $feature ) );
 		$scenario_suffix = preg_replace( '/[^a-z0-9]+/', '-', strtolower( $scenario ) );
 		$db_type         = strtolower( getenv( 'WP_CLI_TEST_DBTYPE' ) );
-		$destination     = "$project_dir/build/logs/$feature_suffix-$scenario_suffix-$step_line-$db_type.cov";
+		// Parallel workers each collect into a directory of their own, see FeatureContext::merge_coverage_reports().
+		$coverage_id  = preg_replace( '/[^A-Za-z0-9_-]+/', '-', (string) getenv( 'WP_CLI_TEST_COVERAGE_ID' ) );
+		$coverage_dir = '' !== $coverage_id ? "$project_dir/build/logs/behat-$coverage_id" : "$project_dir/build/logs";
+		$destination  = "$coverage_dir/$feature_suffix-$scenario_suffix-$step_line-$db_type.cov";
 
 		$dir = dirname( $destination );
 		if ( ! file_exists( $dir ) ) {
