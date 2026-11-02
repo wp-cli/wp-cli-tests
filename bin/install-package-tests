@@ -150,6 +150,8 @@ install_mysql_db_8_0_plus() {
 	${CLIENT_BINARY} -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED WITH caching_sha2_password BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	# The databases of parallel test workers, named after the test database with a numeric suffix.
+	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\\_%\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	{ set +ex; } 2> /dev/null # stop printing the commands
 }
 
@@ -159,6 +161,8 @@ install_mysql_db_lower_than_8_0() {
 	${CLIENT_BINARY} -e "CREATE DATABASE IF NOT EXISTS \`${TEST_DB}\`;" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	${CLIENT_BINARY} -e "GRANT ALL ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	${CLIENT_BINARY} -e "GRANT ALL ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	# The databases of parallel test workers, named after the test database with a numeric suffix.
+	${CLIENT_BINARY} -e "GRANT ALL ON \`${TEST_DB}\\_%\`.* TO '${TEST_USER}'@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	{ set +ex; } 2> /dev/null # stop printing the commands
 }
 
@@ -169,6 +173,8 @@ install_mariadb() {
 	${CLIENT_BINARY} -e "CREATE USER IF NOT EXISTS \`${TEST_USER}\`@'%' IDENTIFIED BY '${TEST_PASSWORD}'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}_scaffold\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
+	# The databases of parallel test workers, named after the test database with a numeric suffix.
+	${CLIENT_BINARY} -e "GRANT ALL PRIVILEGES ON \`${TEST_DB}\\_%\`.* TO '${TEST_USER}'@'%'" ${HOST_STRING} -u"${USER}" "${PASSWORD_STRING}"
 }
 
 if [ "${TYPE}" = "MariaDB" ]; then

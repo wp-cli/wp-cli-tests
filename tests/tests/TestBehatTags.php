@@ -349,6 +349,33 @@ class TestBehatTags extends TestCase {
 		$this->assertSame( $expected, $output );
 	}
 
+	public function test_behat_tags_docker_db_image(): void {
+		if ( Utils\is_windows() ) {
+			$this->markTestSkipped( 'The scenarios do not run in Docker containers on Windows.' );
+		}
+
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'db.feature', '@require-mysql @require-mariadb-10.6 @require-mariadb-11.4 @less-than-mariadb-10.5 @less-than-mariadb-11' );
+
+		$base_expecteds = array( '~@github-api', '~@broken' );
+		if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			$base_expecteds[] = '~@require-object-cache';
+		} else {
+			$base_expecteds[] = '~@skip-object-cache';
+		}
+		$expecteds = array( '~@require-mysql', '~@require-sqlite', '~@skip-mariadb', '~@require-mariadb-11.4', '~@less-than-mariadb-10.5' );
+		$expected  = '--tags=' . implode( '&&', array_merge( $base_expecteds, $expecteds ) );
+		$output    = $this->run_with_env(
+			array(
+				'GITHUB_TOKEN'          => null,
+				'WP_VERSION'            => null,
+				'WP_CLI_TEST_DBTYPE'    => 'mysql',
+				'WP_CLI_TEST_DOCKER'    => 'force',
+				'WP_CLI_TEST_DOCKER_DB' => 'mariadb:10.11',
+			)
+		);
+		$this->assertSame( $expected, $output );
+	}
+
 	public function test_behat_tags_os(): void {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
