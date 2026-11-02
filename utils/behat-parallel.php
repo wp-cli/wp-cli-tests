@@ -157,6 +157,12 @@ function wp_cli_tests_collect_scenarios( $features_folder, $tags ) {
 	$filter    = '' !== $tags ? new TagFilter( $tags ) : null;
 	$scenarios = [];
 
+	// With code coverage, building a Phar of the bundle itself rewrites its Composer autoloader
+	// for the duration of the build, which would break the scenarios of the other workers.
+	$phar_shared = in_array( (string) getenv( 'WP_CLI_TEST_COVERAGE' ), [ 'true', '1' ], true )
+		&& ! file_exists( 'vendor/wp-cli/wp-cli-bundle/utils/make-phar.php' )
+		&& file_exists( 'utils/make-phar.php' );
+
 	$files = glob( $features_folder . '/*.feature' );
 	sort( $files );
 
@@ -188,7 +194,8 @@ function wp_cli_tests_collect_scenarios( $features_folder, $tags ) {
 			$scenarios[] = [
 				'path'   => $file . ':' . $scenario->getLine(),
 				'cost'   => $cost,
-				'shared' => (bool) preg_match( WP_CLI_TESTS_SHARED_RESOURCES, $text ),
+				'shared' => (bool) preg_match( WP_CLI_TESTS_SHARED_RESOURCES, $text )
+					|| ( $phar_shared && preg_match( '/^a new Phar/m', $text ) ),
 			];
 		}
 	}
