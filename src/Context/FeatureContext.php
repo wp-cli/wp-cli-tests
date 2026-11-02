@@ -320,7 +320,18 @@ class FeatureContext implements Context {
 			$filter
 		);
 
-		foreach ( new DirectoryIterator( self::$behat_run_dir . '/build/logs' ) as $file ) {
+		// Parallel workers each merge the coverage they collected into a report of their own,
+		// as they would otherwise merge, and remove, each other's files while those are written.
+		$coverage_id = self::get_coverage_id();
+		$logs_dir    = self::$behat_run_dir . '/build/logs';
+		$source_dir  = '' !== $coverage_id ? "{$logs_dir}/behat-{$coverage_id}" : $logs_dir;
+		$report      = '' !== $coverage_id ? "{$logs_dir}/behat-coverage-{$coverage_id}.xml" : "{$logs_dir}/behat-coverage.xml";
+
+		if ( ! is_dir( $source_dir ) ) {
+			return;
+		}
+
+		foreach ( new DirectoryIterator( $source_dir ) as $file ) {
 			if ( ! $file->isFile() || 'cov' !== $file->getExtension() ) {
 				continue;
 			}
@@ -329,7 +340,20 @@ class FeatureContext implements Context {
 			unlink( $file->getPathname() );
 		}
 
-		( new Clover() )->process( $coverage, self::$behat_run_dir . '/build/logs/behat-coverage.xml' );
+		( new Clover() )->process( $coverage, $report );
+
+		if ( $source_dir !== $logs_dir ) {
+			@rmdir( $source_dir );
+		}
+	}
+
+	/**
+	 * Get the identifier of the parallel worker the code coverage is collected for, if any.
+	 *
+	 * @return string
+	 */
+	private static function get_coverage_id() {
+		return (string) preg_replace( '/[^A-Za-z0-9_-]+/', '-', (string) getenv( 'WP_CLI_TEST_COVERAGE_ID' ) );
 	}
 
 	/**
@@ -506,6 +530,11 @@ class FeatureContext implements Context {
 			$current               = getenv( 'WP_CLI_REQUIRE' );
 			$updated               = $current ? "{$current},{$coverage_require_file}" : $coverage_require_file;
 			$env['WP_CLI_REQUIRE'] = $updated;
+
+			$coverage_id = self::get_coverage_id();
+			if ( '' !== $coverage_id ) {
+				$env['WP_CLI_TEST_COVERAGE_ID'] = $coverage_id;
+			}
 		}
 
 		$env = array_merge( $env, self::get_php_tuning_env_variables() );

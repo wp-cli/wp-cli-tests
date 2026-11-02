@@ -240,6 +240,64 @@ function wp_cli_tests_distribute( array $scenarios, $workers ) {
 }
 
 /**
+ * Get the share of the scenarios to run, as set through WP_CLI_TEST_SHARD to "<index>/<total>".
+ *
+ * @return array{int, int}|null One-based index and total number of shards, or null to run all of them.
+ */
+function wp_cli_tests_shard() {
+	$value = trim( (string) getenv( 'WP_CLI_TEST_SHARD' ) );
+
+	if ( '' === $value ) {
+		return null;
+	}
+
+	if ( ! preg_match( '#^(\d+)/(\d+)$#', $value, $matches ) || (int) $matches[1] < 1 || (int) $matches[1] > (int) $matches[2] ) {
+		fwrite( STDERR, "Warning: WP_CLI_TEST_SHARD is not of the form <index>/<total>, like 2/3, running all scenarios.\n" );
+		return null;
+	}
+
+	return [ (int) $matches[1], (int) $matches[2] ];
+}
+
+/**
+ * Pick one shard of the scenarios, out of a cost-balanced distribution over all shards.
+ *
+ * Scenarios that rely on shared resources are spread over the shards as well, as every shard runs
+ * on a machine of its own. The distribution only depends on the scenarios, so every shard computes
+ * the same one and together they run every scenario exactly once.
+ *
+ * @param array<array{path: string, cost: int, shared: bool}> $scenarios
+ * @param int $index One-based.
+ * @param int $total
+ * @return array<array{path: string, cost: int, shared: bool}>
+ */
+function wp_cli_tests_pick_shard( array $scenarios, $index, $total ) {
+	$order = array_keys( $scenarios );
+
+	usort(
+		$order,
+		static function ( $a, $b ) use ( $scenarios ) {
+			return ( $scenarios[ $b ]['cost'] - $scenarios[ $a ]['cost'] ) ?: ( $a - $b );
+		}
+	);
+
+	$load   = array_fill( 0, $total, 0 );
+	$picked = [];
+
+	foreach ( $order as $key ) {
+		$shard           = (int) array_search( min( $load ), $load, true );
+		$load[ $shard ] += $scenarios[ $key ]['cost'];
+		if ( $shard === $index - 1 ) {
+			$picked[ $key ] = $scenarios[ $key ];
+		}
+	}
+
+	ksort( $picked );
+
+	return array_values( $picked );
+}
+
+/**
  * Get the Docker image of the database server the tests run against on the host, so that the
  * containers test against the same type and version of database server.
  *
@@ -568,7 +626,9 @@ foreach ( $user_args as $arg ) {
 	}
 }
 
-if ( ( $workers < 2 && ! $docker ) || DIRECTORY_SEPARATOR === '\\' || ( $selects_scenarios && null === $rerun_paths && ! $docker ) ) {
+$shard = $selects_scenarios || null !== $rerun_paths ? null : wp_cli_tests_shard();
+
+if ( ( $workers < 2 && ! $docker && null === $shard ) || DIRECTORY_SEPARATOR === '\\' || ( $selects_scenarios && null === $rerun_paths && ! $docker ) ) {
 	wp_cli_tests_run_behat_and_exit( $all_args );
 }
 
@@ -647,10 +707,28 @@ if ( null !== $rerun_paths ) {
 	$scenarios = wp_cli_tests_collect_scenarios( $features_folder, $tags );
 }
 
+if ( null !== $shard ) {
+	$all_scenarios = count( $scenarios );
+	$scenarios     = wp_cli_tests_pick_shard( $scenarios, $shard[0], $shard[1] );
+	printf( "Running shard %d of %d, with %d of %d scenarios.\n", $shard[0], $shard[1], count( $scenarios ), $all_scenarios );
+}
+
 $workers = min( max( 1, $workers ), max( 1, count( $scenarios ) ) );
 
 if ( $workers < 2 && ! $docker ) {
-	wp_cli_tests_run_behat_and_exit( $all_args );
+	if ( null === $shard ) {
+		wp_cli_tests_run_behat_and_exit( $all_args );
+	}
+
+	if ( ! is_dir( $base_dir ) ) {
+		mkdir( $base_dir, 0777, true );
+	}
+	$list = "{$base_dir}/shard.scenarios";
+	file_put_contents( $list, implode( "\n", array_column( $scenarios, 'path' ) ) . "\n" );
+	if ( count( $scenarios ) > 0 ) {
+		wp_cli_tests_run_behat_and_exit( array_merge( $all_args, [ $list ] ) );
+	}
+	exit( 0 );
 }
 
 // Containers do not share ports or temporary directories, so any of them can run any scenario.
@@ -687,6 +765,9 @@ foreach ( $shards as $index => $paths ) {
 	file_put_contents( $list, implode( "\n", $paths ) . "\n" );
 
 	$env = getenv();
+
+	// Every worker merges the code coverage of its own scenarios into a report of its own.
+	$env['WP_CLI_TEST_COVERAGE_ID'] = ( null !== $shard ? "shard-{$shard[0]}-" : '' ) . "worker-{$index}";
 
 	if ( $index > 0 ) {
 		$env['TMPDIR']             = "{$base_dir}/worker-{$index}";

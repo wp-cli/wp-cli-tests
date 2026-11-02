@@ -341,9 +341,6 @@ if [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; then
 	if ! is_numeric "${PARALLEL}"; then
 		echo "Warning: WP_CLI_TEST_PARALLEL is not a number of workers, running the scenarios one after the other." >&2
 		PARALLEL=""
-	elif [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]]; then
-		echo "Code coverage is collected, running the scenarios one after the other." >&2
-		PARALLEL=""
 	elif [ "${WP_CLI_TEST_DBTYPE-}" != "sqlite" ] && ! ${DB_CLIENT} ${HOST_STRING} --user="${USER}" ${PASSWORD_ARG} --execute="CREATE DATABASE IF NOT EXISTS \`${DBNAME}_1\`; DROP DATABASE \`${DBNAME}_1\`;" 2>/dev/null; then
 		echo "Warning: The test user cannot create the databases of parallel workers, running the scenarios one after the other." >&2
 		echo "Run 'composer prepare-tests' once to allow it." >&2
@@ -351,8 +348,11 @@ if [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; then
 	fi
 fi
 
-if [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; then
-	exec php "$WP_CLI_TESTS_ROOT"/utils/behat-parallel.php "${PARALLEL}" --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" -- "$@"
+# WP_CLI_TEST_SHARD set to "<index>/<total>", for example "2/3", runs only that share of the
+# scenarios, so that the suite can be split across several machines. Every share is picked
+# from the same cost-balanced distribution, so together they cover every scenario exactly once.
+if [ -n "${WP_CLI_TEST_SHARD-}" ] || { [ -n "${PARALLEL}" ] && [ "${PARALLEL}" != "1" ]; }; then
+	exec php "$WP_CLI_TESTS_ROOT"/utils/behat-parallel.php "${PARALLEL:-1}" --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" -- "$@"
 fi
 
 vendor/bin/behat --snippets-for="WP_CLI\Tests\Context\FeatureContext" "${FORMAT_ARGS[@]}" "$BEHAT_TAGS" --strict "${BEHAT_EXTRA_ARGS[@]}" "$@"
