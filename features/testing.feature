@@ -208,3 +208,14 @@ Feature: Test that WP-CLI loads.
       C:\Windows
       """
 
+
+  @skip-windows
+  Scenario: Run WP-CLI with a disabled function after it ran without
+    Given an empty directory
+    When I run `wp cli version`
+    And I try `{INVOKE_WP_CLI_WITH_PHP_ARGS--ddisable_functions=ini_set} cli info`
+    Then the return code should be 0
+    And STDOUT should contain:
+      """
+      PHP binary
+      """

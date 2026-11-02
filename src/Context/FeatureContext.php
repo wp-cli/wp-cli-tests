@@ -600,16 +600,30 @@ class FeatureContext implements Context {
 		$excluded = array_unique( array_filter( [ $temp_dir, realpath( $temp_dir ) ] ) );
 		file_put_contents( "{$config_dir}/opcache-blacklist.txt", implode( "/\n", $excluded ) . "/\n" );
 
+		// The optimizer bakes in what it finds at compile time, such as whether a function exists,
+		// which differs between processes with other settings, such as disabled functions.
 		$ini = [
 			'opcache.enable_cli=1',
 			"opcache.file_cache={$cache_dir}",
 			'opcache.file_cache_only=1',
+			'opcache.optimization_level=0',
 			"opcache.blacklist_filename={$config_dir}/opcache-blacklist.txt",
 		];
 		file_put_contents( "{$config_dir}/wp-cli-tests.ini", implode( "\n", $ini ) . "\n" );
 
 		// Add to the directories PHP scans for configuration files rather than replacing them.
 		$scan_dirs = getenv( 'PHP_INI_SCAN_DIR' );
+
+		// Behat and Composer restart without Xdebug through composer/xdebug-handler, which clears
+		// the directories, and keeps the original ones in its settings, with "*" if there were none.
+		$restart_settings = getenv( 'XDEBUG_HANDLER_SETTINGS' );
+		if ( '' === $scan_dirs && is_string( $restart_settings ) ) {
+			$settings = explode( '|', $restart_settings );
+			if ( isset( $settings[2] ) ) {
+				$scan_dirs = '*' === $settings[2] ? false : $settings[2];
+			}
+		}
+
 		if ( false === $scan_dirs ) {
 			$scan_dirs = PHP_CONFIG_FILE_SCAN_DIR;
 		}
