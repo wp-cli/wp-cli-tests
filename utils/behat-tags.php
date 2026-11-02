@@ -48,6 +48,15 @@ function version_tags(
 }
 
 function get_db_type_and_version() {
+	// Docker workers run their own database server of the given image, so it decides.
+	$docker_db = getenv( 'WP_CLI_TEST_DOCKER_DB' );
+	if ( getenv( 'WP_CLI_TEST_DOCKER' ) && is_string( $docker_db ) && preg_match( '@^(?:[^/]+/)*(mysql|mariadb)(?::([0-9]+(?:\.[0-9]+)*))?@', $docker_db, $matches ) ) {
+		return array(
+			'type'    => $matches[1],
+			'version' => isset( $matches[2] ) ? $matches[2] : '',
+		);
+	}
+
 	// Detect which client binary is available.
 	$client_binary = null;
 	$output        = array();

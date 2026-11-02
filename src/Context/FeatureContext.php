@@ -481,7 +481,9 @@ class FeatureContext implements Context {
 
 		$env = array_merge( $_ENV, $env );
 
-		foreach ( [ 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
+		// Keep the launched processes in the same temporary directory as the tests, which differs per
+		// parallel worker. WordPress saves downloads under fixed names there, which would clash otherwise.
+		foreach ( [ 'TMPDIR', 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
 			$value = getenv( $key );
 			if ( false !== $value ) {
 				$env[ $key ] = $value;
@@ -505,6 +507,8 @@ class FeatureContext implements Context {
 			$updated               = $current ? "{$current},{$coverage_require_file}" : $coverage_require_file;
 			$env['WP_CLI_REQUIRE'] = $updated;
 		}
+
+		$env = array_merge( $env, self::get_php_tuning_env_variables() );
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
 		if ( false !== $config_path ) {
@@ -551,6 +555,65 @@ class FeatureContext implements Context {
 		if ( false !== $github_token ) {
 			$env['GITHUB_TOKEN'] = $github_token;
 		}
+
+		return $env;
+	}
+
+	/**
+	 * Get the environment variables that make the PHP processes launched by the tests cheaper.
+	 *
+	 * Xdebug is switched off unless code coverage is collected or a mode or session is requested
+	 * explicitly. The code of WP-CLI and of the project under test is kept in a file-based opcode
+	 * cache shared by all processes. Everything below the temporary directory is excluded from that
+	 * cache, as scenarios create and rewrite PHP files there and must always run the current version.
+	 *
+	 * Set WP_CLI_TEST_PHP_TUNING=off to launch the processes with the PHP configuration as it is.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function get_php_tuning_env_variables(): array {
+		if ( 'off' === getenv( 'WP_CLI_TEST_PHP_TUNING' ) || self::running_with_code_coverage() ) {
+			return [];
+		}
+
+		$env = [];
+
+		if ( false === getenv( 'XDEBUG_MODE' ) && false === getenv( 'XDEBUG_SESSION' ) && false === getenv( 'XDEBUG_CONFIG' ) ) {
+			$env['XDEBUG_MODE'] = 'off';
+		}
+
+		// The file cache cannot be used on its own on Windows.
+		if ( Utils\is_windows() ) {
+			return $env;
+		}
+
+		$temp_dir   = rtrim( sys_get_temp_dir(), '/' );
+		$config_dir = "{$temp_dir}/wp-cli-test-php-config";
+		$cache_dir  = "{$temp_dir}/wp-cli-test-opcache";
+
+		foreach ( [ $config_dir, $cache_dir ] as $dir ) {
+			if ( ! is_dir( $dir ) && ! @mkdir( $dir, 0777, true ) && ! is_dir( $dir ) ) {
+				return $env;
+			}
+		}
+
+		$excluded = array_unique( array_filter( [ $temp_dir, realpath( $temp_dir ) ] ) );
+		file_put_contents( "{$config_dir}/opcache-blacklist.txt", implode( "/\n", $excluded ) . "/\n" );
+
+		$ini = [
+			'opcache.enable_cli=1',
+			"opcache.file_cache={$cache_dir}",
+			'opcache.file_cache_only=1',
+			"opcache.blacklist_filename={$config_dir}/opcache-blacklist.txt",
+		];
+		file_put_contents( "{$config_dir}/wp-cli-tests.ini", implode( "\n", $ini ) . "\n" );
+
+		// Add to the directories PHP scans for configuration files rather than replacing them.
+		$scan_dirs = getenv( 'PHP_INI_SCAN_DIR' );
+		if ( false === $scan_dirs ) {
+			$scan_dirs = PHP_CONFIG_FILE_SCAN_DIR;
+		}
+		$env['PHP_INI_SCAN_DIR'] = ( '' !== $scan_dirs ? $scan_dirs . PATH_SEPARATOR : '' ) . $config_dir;
 
 		return $env;
 	}
@@ -1066,7 +1129,7 @@ class FeatureContext implements Context {
 			$is_ci    = getenv( 'CI' );
 			$is_debug = getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' );
 			if ( $scope->getTestResult()->getResultCode() <= 10 || ( $is_ci && ! $is_debug ) ) {
-				self::remove_dir( self::$run_dir );
+				self::remove_dir_in_background( self::$run_dir );
 			}
 			self::$run_dir = null;
 		}
@@ -1078,7 +1141,7 @@ class FeatureContext implements Context {
 
 		// Remove SUITE_CACHE_DIR if any.
 		if ( self::$suite_cache_dir ) {
-			self::remove_dir( self::$suite_cache_dir );
+			self::remove_dir_in_background( self::$suite_cache_dir );
 			self::$suite_cache_dir = null;
 		}
 
@@ -1440,11 +1503,16 @@ class FeatureContext implements Context {
 
 		$line = $scenario_feature->getLine();
 
-		if ( ! method_exists( $scenario_feature, 'getFile' ) ) {
-			return null;
+		if ( method_exists( $scenario_feature, 'getFile' ) ) {
+			return $scenario_feature->getFile();
 		}
 
-		return $scenario_feature->getFile();
+		// Scenario nodes do not know their file, but the feature they belong to does.
+		if ( method_exists( $scope, 'getFeature' ) ) {
+			return $scope->getFeature()->getFile();
+		}
+
+		return null;
 	}
 
 	/**
@@ -1782,13 +1850,20 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 			];
 		}
 
+		// If something else is already listening on the port, the process failing to bind to it
+		// would go unnoticed when waiting for the port, so fall back to waiting the full second.
+		$port = self::get_listening_port( $cmd );
+		if ( null !== $port && self::is_port_open( $port ) ) {
+			$port = null;
+		}
+
 		$proc = proc_open( $cmd, $descriptors, $pipes, $this->variables['RUN_DIR'], self::get_process_env_variables() );
 
 		if ( Utils\is_windows() ) {
 			fclose( $pipes[0] );
 		}
 
-		sleep( 1 );
+		self::wait_for_background_proc( $proc, $port );
 
 		$status = proc_get_status( $proc );
 
@@ -1811,6 +1886,61 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 			$this->temp_files[] = $stdout_file;
 			$this->temp_files[] = $stderr_file;
 		}
+	}
+
+	/**
+	 * Give a background process up to a second to start.
+	 *
+	 * Returns early once the process accepts connections on the given port.
+	 *
+	 * @param resource $proc
+	 * @param int|null $port Port the process is expected to listen on, if known.
+	 */
+	private static function wait_for_background_proc( $proc, $port ): void {
+		$deadline = microtime( true ) + 1;
+
+		while ( microtime( true ) < $deadline ) {
+			$status = proc_get_status( $proc );
+
+			if ( ! $status['running'] || ( null !== $port && self::is_port_open( $port ) ) ) {
+				return;
+			}
+
+			usleep( 50000 );
+		}
+	}
+
+	/**
+	 * Get the local port a background command is going to listen on, if it can be told from the command.
+	 *
+	 * @param string $cmd
+	 * @return int|null
+	 */
+	private static function get_listening_port( $cmd ): ?int {
+		if ( preg_match( '/(?:localhost|127\.0\.0\.1):(\d+)/', $cmd, $matches ) || preg_match( '/--port[= ](\d+)/', $cmd, $matches ) ) {
+			return (int) $matches[1];
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether a local port accepts connections.
+	 *
+	 * @param int $port
+	 * @return bool
+	 */
+	private static function is_port_open( $port ): bool {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A refused connection is the expected answer for a closed port.
+		$connection = @fsockopen( 'localhost', $port, $errno, $errstr, 0.1 );
+
+		if ( false === $connection ) {
+			return false;
+		}
+
+		fclose( $connection );
+
+		return true;
 	}
 
 	/**
@@ -1867,6 +1997,22 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 		}
 
 		@rmdir( $dir );
+	}
+
+	/**
+	 * Remove a directory without waiting for it to be gone.
+	 *
+	 * Only meant for directories with a unique name, which no later scenario is going to use.
+	 *
+	 * @param string $dir
+	 */
+	private static function remove_dir_in_background( $dir ): void {
+		if ( Utils\is_windows() || ! is_dir( $dir ) ) {
+			self::remove_dir( $dir );
+			return;
+		}
+
+		exec( 'rm -rf ' . escapeshellarg( $dir ) . ' > /dev/null 2>&1 &' );
 	}
 
 	/**
@@ -2703,7 +2849,9 @@ echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
 		if ( 'error_log' === self::$output_to ) {
 			error_log( $log );
 		} else {
-			echo PHP_EOL . $log;
+			// Behat buffers what hooks echo and only prints it for failed scenarios,
+			// so write to the stream directly to get the report in every run.
+			fwrite( STDOUT, PHP_EOL . $log . PHP_EOL );
 		}
 	}
 
