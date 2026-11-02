@@ -49,3 +49,11 @@ RUN if dpkg --compare-versions "$(dpkg-query -W -f '${Version}' libsqlite3-0)" l
 	fi
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Debian releases before 12 keep commands such as `more` in /bin only, where the GitHub runners
+# have them in /usr/bin as well, and scenarios refer to them there.
+RUN for command in more; do \
+		[ -e "/usr/bin/${command}" ] || [ ! -e "/bin/${command}" ] || ln -s "/bin/${command}" "/usr/bin/${command}"; \
+	done
+
+COPY mariadb /usr/local/bin/mariadb
