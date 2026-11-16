@@ -89,8 +89,9 @@ function wp_cli_tests_legacy_interface( array $only = [] ) {
 					continue;
 				}
 
-				$instance = $attribute->newInstance();
-				$argument = $instance instanceof Definition ? $instance->getPattern() : $instance->getFilterString();
+				// Public properties in every Behat version, which the getters are not.
+				$values   = get_object_vars( $attribute->newInstance() );
+				$argument = $values['pattern'] ?? $values['filterString'] ?? null;
 				$name     = substr( (string) strrchr( $attribute->getName(), '\\' ), 1 );
 
 				if ( null !== $argument && ( false !== strpos( $argument, '*/' ) || false !== strpos( $argument, "\n" ) ) ) {

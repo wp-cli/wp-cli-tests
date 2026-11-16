@@ -6,6 +6,8 @@
  * BEHAT_PARAMS environment variable, in every version. Printing the profile in that form lets a
  * project keep a single behat.yml for all the Behat versions it is tested with.
  *
+ * What BEHAT_PARAMS already holds is merged over the profile, as Behat 3 does with behat.yml.
+ *
  * Prints nothing when Behat reads behat.yml by itself.
  *
  * Usage: php behat-config.php [<path to behat.yml>]
@@ -52,4 +54,18 @@ if ( count( $wp_cli_tests_config ) > 1 ) {
 	fwrite( STDERR, "Warning: Behat {$wp_cli_tests_behat_version} does not read YAML, so only the \"default\" profile of {$wp_cli_tests_config_file} is used, not: {$wp_cli_tests_ignored}. Add a behat.php for those.\n" );
 }
 
-echo json_encode( $wp_cli_tests_config['default'], JSON_UNESCAPED_SLASHES );
+$wp_cli_tests_params = $wp_cli_tests_config['default'];
+$wp_cli_tests_env    = getenv( 'BEHAT_PARAMS' );
+
+if ( is_string( $wp_cli_tests_env ) && '' !== $wp_cli_tests_env ) {
+	$wp_cli_tests_overrides = json_decode( $wp_cli_tests_env, true );
+
+	if ( ! is_array( $wp_cli_tests_overrides ) ) {
+		fwrite( STDERR, "Error: BEHAT_PARAMS should contain valid JSON, but it is set to `{$wp_cli_tests_env}`.\n" );
+		exit( 1 );
+	}
+
+	$wp_cli_tests_params = array_replace_recursive( $wp_cli_tests_params, $wp_cli_tests_overrides );
+}
+
+echo json_encode( $wp_cli_tests_params, JSON_UNESCAPED_SLASHES );
