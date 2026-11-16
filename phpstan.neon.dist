@@ -10,12 +10,16 @@ parameters:
     # Templates are copied into the test run directory and executed by the
     # child WP-CLI process, where Requests v1 classes may still exist.
     - src/Context/templates
+    # Generated, and declaring the interface that src/Context/LegacyAnnotations.php
+    # declares empty where the attributes are read.
+    - src/Context/legacy
   scanDirectories:
     - vendor/wp-cli/wp-cli
     - vendor/phpunit/php-code-coverage
     - vendor/behat/behat
   scanFiles:
     - tests/phpstan/scan-files.php
+    - utils/generate-legacy-annotations.php
   treatPhpDocTypesAsCertain: false
   dynamicConstantNames:
     - WP_DEBUG

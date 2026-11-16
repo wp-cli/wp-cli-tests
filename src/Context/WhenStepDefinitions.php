@@ -2,6 +2,7 @@
 
 namespace WP_CLI\Tests\Context;
 
+use Behat\Step\When;
 use WP_CLI\Process;
 use Exception;
 
@@ -65,10 +66,9 @@ trait WhenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @When /^I launch in the background `([^`]+)`$/
-	 *
 	 * @param string $cmd Command to run.
 	 */
+	#[When( '/^I launch in the background `([^`]+)`$/' )]
 	public function when_i_launch_in_the_background( $cmd ): void {
 		$this->background_proc( $cmd );
 	}
@@ -99,11 +99,10 @@ trait WhenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @When /^I (run|try) `([^`]+)`$/
-	 *
 	 * @param string $mode Mode, either 'run' or 'try'.
 	 * @param string $cmd  Command to execute.
 	 */
+	#[When( '/^I (run|try) `([^`]+)`$/' )]
 	public function when_i_run( $mode, $cmd ): void {
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd ), $mode );
@@ -126,12 +125,11 @@ trait WhenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @When /^I (run|try) `([^`]+)` from '([^\s]+)'$/
-	 *
 	 * @param string $mode   Mode, either 'run' or 'try'.
 	 * @param string $cmd    Command to execute.
 	 * @param string $subdir Directory.
 	 */
+	#[When( '/^I (run|try) `([^`]+)` from \'([^\s]+)\'$/' )]
 	public function when_i_run_from_a_subfolder( $mode, $cmd, $subdir ): void {
 		$cmd          = $this->replace_variables( $cmd );
 		$this->result = $this->wpcli_tests_invoke_proc( $this->proc( $cmd, array(), $subdir ), $mode );
@@ -160,10 +158,9 @@ trait WhenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @When /^I (run|try) the previous command again$/
-	 *
 	 * @param string $mode Mode, either 'run' or 'try'
 	 */
+	#[When( '/^I (run|try) the previous command again$/' )]
 	public function when_i_run_the_previous_command_again( $mode ): void {
 		if ( ! isset( $this->result ) ) {
 			throw new Exception( 'No previous command.' );

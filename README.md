@@ -116,6 +116,33 @@ You can use the following commands to control the tests:
 * `composer phpunit` - Run only the unit test suite.
 * `composer behat` - Run only the functional test suite.
 
+### Behat 3 and Behat 4
+
+The testing framework works with both Behat 3 and Behat 4. Composer installs Behat 4 on PHP 8.2 and
+later, and Behat 3 on older PHP versions, and a package that only uses the steps of the framework
+does not need to change anything for either.
+
+Behat 4 dropped a few things that the framework bridges, within limits:
+
+* Behat 4 only reads its configuration from a `behat.php` (or `behat.dist.php`) file. For a package
+  that only has a `behat.yml`, `composer behat` hands the `default` profile of that file to Behat 4
+  through the `BEHAT_PARAMS` environment variable. Other profiles and `imports` are not carried
+  over; a package that needs those adds a `behat.php` next to its `behat.yml`.
+* Behat 4 only reads step definitions and hooks from attributes (`#[Given( '...' )]`), not from
+  annotations (`@Given ...`) anymore. This matters to packages with a context class of their own.
+  Behat 3 reads attributes as well, but only on PHP 8, and it defines a step twice, which is an
+  error, when a method has both. A context that has to run on PHP 7 too can do what
+  `WP_CLI\Tests\Context\FeatureContext` does: declare everything with attributes, and repeat the
+  declarations as annotations on an interface that the context only implements on PHP 7.
+* Behat 4 fails a step whose regular expression captures more values than its method has
+  parameters, where Behat 3 dropped the extra ones. Use non-capturing groups (`(?:...)`) for those.
+
+To keep a package on Behat 3 for the time being, require it explicitly:
+
+```bash
+composer require --dev behat/behat:^3.15
+```
+
 ### Analysing the PHP blocks in feature files
 
 Feature files embed PHP snippets in docstrings, which none of the static analysis tools normally

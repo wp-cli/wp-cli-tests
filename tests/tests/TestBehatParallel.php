@@ -209,7 +209,16 @@ class TestBehatParallel extends TestCase {
 				'BEHAT_FEATURES_FOLDER' => 'features',
 			]
 		);
-		unset( $env['WP_CLI_TEST_COVERAGE'] );
+		unset( $env['WP_CLI_TEST_COVERAGE'], $env['BEHAT_PARAMS'] );
+
+		// As run-behat-tests does for a Behat that does not read behat.yml.
+		$params = shell_exec(
+			'cd ' . escapeshellarg( $this->temp_dir ) . ' && ' . escapeshellarg( PHP_BINARY ) . ' '
+			. escapeshellarg( dirname( dirname( __DIR__ ) ) . '/utils/behat-config.php' )
+		);
+		if ( is_string( $params ) && '' !== $params ) {
+			$env['BEHAT_PARAMS'] = $params;
+		}
 
 		$process = proc_open(
 			implode( ' ', array_map( 'escapeshellarg', $command ) ) . ' 2>&1',

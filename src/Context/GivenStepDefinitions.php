@@ -4,6 +4,7 @@ namespace WP_CLI\Tests\Context;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
+use Behat\Step\Given;
 use RuntimeException;
 use WP_CLI\Utils;
 use WP_CLI\Path;
@@ -20,9 +21,8 @@ trait GivenStepDefinitions {
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given an empty directory
 	 */
+	#[Given( 'an empty directory' )]
 	public function given_an_empty_directory(): void {
 		$this->create_run_dir();
 	}
@@ -39,11 +39,10 @@ trait GivenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Given /^an? (empty|non-existent) ([^\s]+) directory$/
-	 *
 	 * @param string $empty_or_nonexistent
 	 * @param string $dir
 	 */
+	#[Given( '/^an? (empty|non-existent) ([^\s]+) directory$/' )]
 	public function given_a_specific_directory( $empty_or_nonexistent, $dir ): void {
 		$dir = $this->replace_variables( $dir );
 		if ( ! Path::is_absolute( $dir ) ) {
@@ -95,9 +94,8 @@ trait GivenStepDefinitions {
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given an empty cache
 	 */
+	#[Given( 'an empty cache' )]
 	public function given_an_empty_cache(): void {
 		$this->variables['SUITE_CACHE_DIR'] = FeatureContext::create_cache_dir();
 	}
@@ -120,12 +118,11 @@ trait GivenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Given /^an? ("[^"]+"|[^\s]+) (file|cache file):$/
-	 *
 	 * @param string $path
 	 * @param string $type
 	 * @param PyStringNode $content
 	 */
+	#[Given( '/^an? ("[^"]+"|[^\s]+) (file|cache file):$/' )]
 	public function given_a_specific_file( $path, $type, PyStringNode $content ): void {
 		$path      = trim( $this->replace_variables( (string) $path ), '"' );
 		$content   = $this->replace_variables( (string) $content ) . "\n";
@@ -150,12 +147,11 @@ trait GivenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Given /^"([^"]+)" replaced with "([^"]+)" in the ([^\s]+) file$/
-	 *
 	 * @param string $search
 	 * @param string $replace
 	 * @param string $path
 	 */
+	#[Given( '/^"([^"]+)" replaced with "([^"]+)" in the ([^\s]+) file$/' )]
 	public function given_string_replaced_with_string_in_a_specific_file( $search, $replace, $path ): void {
 		$full_path = $this->variables['RUN_DIR'] . "/$path";
 		$contents  = file_get_contents( $full_path );
@@ -179,11 +175,10 @@ trait GivenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Given /^that HTTP requests to (.*?) will respond with:$/
-	 *
 	 * @param string $url_or_pattern
 	 * @param PyStringNode $content
 	 */
+	#[Given( '/^that HTTP requests to (.*?) will respond with:$/' )]
 	public function given_a_request_to_a_url_respond_with_file( $url_or_pattern, PyStringNode $content ): void {
 		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
 			$this->create_run_dir();
@@ -228,9 +223,8 @@ FILE;
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given WP files
 	 */
+	#[Given( 'WP files' )]
 	public function given_wp_files(): void {
 		$this->download_wp();
 	}
@@ -246,9 +240,8 @@ FILE;
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given wp-config.php
 	 */
+	#[Given( 'wp-config.php' )]
 	public function given_wp_config_php(): void {
 		$this->create_config();
 	}
@@ -265,9 +258,8 @@ FILE;
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given a database
 	 */
+	#[Given( 'a database' )]
 	public function given_a_database(): void {
 		$this->create_db();
 	}
@@ -291,10 +283,9 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^a WP( \d[^\s]+)? install(?:ation)?$/
-	 *
 	 * @param string $version Optional version number (may include leading space)
 	 */
+	#[Given( '/^a WP( \d[^\s]+)? install(?:ation)?$/' )]
 	public function given_a_wp_installation( $version = '' ): void {
 		$this->install_wp( '', trim( $version ) );
 	}
@@ -318,11 +309,10 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^a WP( [^\s]+)? install(?:ation)? in ['"]?([^'"]+)['"]?$/
-	 *
 	 * @param string $version Optional version number (may include leading space)
 	 * @param string $subdir
 	 */
+	#[Given( '/^a WP( [^\s]+)? install(?:ation)? in [\'"]?([^\'"]+)[\'"]?$/' )]
 	public function given_a_wp_installation_in_a_specific_folder( $version = '', $subdir = '' ): void {
 		$this->install_wp( $subdir, trim( $version ) );
 	}
@@ -341,9 +331,8 @@ FILE;
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given a WP install(ation) with Composer
 	 */
+	#[Given( 'a WP install(ation) with Composer' )]
 	public function given_a_wp_installation_with_composer(): void {
 		$this->install_wp_with_composer();
 	}
@@ -363,10 +352,9 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given a WP install(ation) with Composer and a custom vendor directory :vendor_directory
-	 *
 	 * @param string $vendor_directory
 	 */
+	#[Given( 'a WP install(ation) with Composer and a custom vendor directory :vendor_directory' )]
 	public function given_a_wp_installation_with_composer_and_a_custom_vendor_folder( $vendor_directory ): void {
 		$this->install_wp_with_composer( $vendor_directory );
 	}
@@ -388,10 +376,9 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^a WP multisite (subdirectory|subdomain)?\s?(install|installation)$/
-	 *
 	 * @param string $type Multisite installation type.
 	 */
+	#[Given( '/^a WP multisite (subdirectory|subdomain)?\s?(?:install|installation)$/' )]
 	public function given_a_wp_multisite_installation( $type = 'subdirectory' ): void {
 		$this->install_wp();
 		$subdomains = ! empty( $type ) && 'subdomain' === $type ? 1 : 0;
@@ -422,11 +409,10 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^only these installed (themes|and active themes):$/
-	 *
 	 * @param string       $kind Either 'themes' or 'and active themes'.
 	 * @param PyStringNode $stream
 	 */
+	#[Given( '/^only these installed (themes|and active themes):$/' )]
 	public function given_only_these_installed_themes( $kind, PyStringNode $stream ): void {
 		$lines    = array_filter( array_map( 'trim', explode( "\n", $this->replace_variables( (string) $stream ) ) ) );
 		$activate = 'and active themes' === $kind;
@@ -463,12 +449,11 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^these installed (and active )?(plugins|themes):$/
-	 *
 	 * @param string       $active
 	 * @param string       $type
 	 * @param PyStringNode $stream
 	 */
+	#[Given( '/^these installed (and active )?(plugins|themes):$/' )]
 	public function given_these_installed_plugins_or_themes( $active, $type, PyStringNode $stream ): void {
 		$lines    = array_filter( array_map( 'trim', explode( "\n", $this->replace_variables( (string) $stream ) ) ) );
 		$type     = 'plugins' === $type ? 'plugin' : 'theme';
@@ -496,10 +481,9 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given these setup commands:
-	 *
 	 * @param TableNode $table
 	 */
+	#[Given( 'these setup commands:' )]
 	public function given_these_setup_commands( TableNode $table ): void {
 		$commands = [];
 		foreach ( $table->getHash() as $row ) {
@@ -524,9 +508,8 @@ FILE;
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given a custom wp-content directory
 	 */
+	#[Given( 'a custom wp-content directory' )]
 	public function given_a_custom_wp_directory(): void {
 		$wp_config_path = $this->variables['RUN_DIR'] . '/wp-config.php';
 
@@ -580,9 +563,8 @@ FILE;
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given download:
 	 */
+	#[Given( 'download:' )]
 	public function given_a_download( TableNode $table ): void {
 		foreach ( $table->getHash() as $row ) {
 			$path = $this->replace_variables( $row['path'] );
@@ -613,12 +595,11 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^save (STDOUT|STDERR) ([\'].+[^\'])?\s?as \{(\w+)\}$/
-	 *
 	 * @param string $stream
 	 * @param string $output_filter
 	 * @param string $key
 	 */
+	#[Given( '/^save (STDOUT|STDERR) ([\'].+[^\'])?\s?as \{(\w+)\}$/' )]
 	public function given_saved_stdout_stderr( $stream, $output_filter, $key ): void {
 		$stream = strtolower( $stream );
 
@@ -646,10 +627,9 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^a new Phar with (?:the same version|version "([^"]+)")$/
-	 *
 	 * @param string $version
 	 */
+	#[Given( '/^a new Phar with (?:the same version|version "([^"]+)")$/' )]
 	public function given_a_new_phar_with_a_specific_version( $version = 'same' ): void {
 		$this->build_phar( $version );
 	}
@@ -669,10 +649,9 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^a downloaded Phar with (?:the same version|version "([^"]+)")$/
-	 *
 	 * @param string $version
 	 */
+	#[Given( '/^a downloaded Phar with (?:the same version|version "([^"]+)")$/' )]
 	public function given_a_downloaded_phar_with_a_specific_version( $version = 'same' ): void {
 		$this->download_phar( $version );
 	}
@@ -688,12 +667,11 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given /^save the (.+) file ([\'].+[^\'])?as \{(\w+)\}$/
-	 *
 	 * @param string $filepath
 	 * @param string $output_filter
 	 * @param string $key
 	 */
+	#[Given( '/^save the (.+) file ([\'].+[^\'])?as \{(\w+)\}$/' )]
 	public function given_saved_a_specific_file( $filepath, $output_filter, $key ): void {
 		$full_file = file_get_contents( $this->replace_variables( $filepath ) );
 
@@ -720,9 +698,8 @@ FILE;
 	 *  ```
 	 *
 	 * @access public
-	 *
-	 * @Given a misconfigured WP_CONTENT_DIR constant directory
 	 */
+	#[Given( 'a misconfigured WP_CONTENT_DIR constant directory' )]
 	public function given_a_misconfigured_wp_content_dir_constant_directory(): void {
 		$wp_config_path = $this->variables['RUN_DIR'] . '/wp-config.php';
 
@@ -746,9 +723,8 @@ FILE;
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given a dependency on current wp-cli
 	 */
+	#[Given( 'a dependency on current wp-cli' )]
 	public function given_a_dependency_on_wp_cli(): void {
 		$this->composer_require_current_wp_cli();
 	}
@@ -763,9 +739,8 @@ FILE;
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Given a PHP built-in web server
 	 */
+	#[Given( 'a PHP built-in web server' )]
 	public function given_a_php_built_in_web_server(): void {
 		$this->start_php_server();
 	}
@@ -781,10 +756,9 @@ FILE;
 	 *
 	 * @access public
 	 *
-	 * @Given a PHP built-in web server to serve :subdir
-	 *
 	 * @param string $subdir
 	 */
+	#[Given( 'a PHP built-in web server to serve :subdir' )]
 	public function given_a_php_built_in_web_server_to_serve_a_specific_folder( $subdir ): void {
 		$this->start_php_server( $subdir );
 	}
