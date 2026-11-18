@@ -33,6 +33,11 @@ use Behat\Gherkin\Parser;
 const WP_CLI_TESTS_SHARED_RESOURCES = '#localhost:\d+|127\.0\.0\.1:\d+|built-in web server|launch in the background|\bwp server\b|_scaffold\b|install-wp-tests|/tmp/#';
 
 /**
+ * Directory in which the database container of a Docker worker puts its socket, in both of its containers.
+ */
+const WP_CLI_TESTS_DOCKER_SOCKET_DIR = '/run/wp-cli-tests-mysqld';
+
+/**
  * Get the file that holds the scenarios which failed in the last parallel run.
  *
  * @return string
@@ -592,23 +597,40 @@ function wp_cli_tests_docker_worker_command( $name, $php_image, $db_image, array
 	$network = '';
 	$label   = ' --label ' . escapeshellarg( 'wp-cli-tests.owner=' . wp_cli_tests_docker_owner() );
 
-	if ( null !== $db_image ) {
-		exec(
-			'docker run -d --rm --name ' . escapeshellarg( "{$name}-db" ) . $label
-			. ' --tmpfs /var/lib/mysql'
-			. ' -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=wp_cli_test -e MYSQL_PASSWORD=password1'
-			. ' ' . escapeshellarg( $db_image ) . ' ' . wp_cli_tests_docker_db_options( $db_image ) . ' 2>&1'
-		);
-		// Share the database container's network, so the server is at 127.0.0.1 and nothing else is.
-		$network = ' --network ' . escapeshellarg( "container:{$name}-db" );
-	}
-
 	$env = [
 		'HOME'                   => '/tmp/home',
 		'WP_CLI_TEST_DBHOST'     => '127.0.0.1:3306',
 		'WP_CLI_TEST_DBROOTUSER' => 'root',
 		'WP_CLI_TEST_DBROOTPASS' => 'root',
 	];
+
+	if ( null !== $db_image ) {
+		// The server's socket is shared with the worker through a directory of the host that both mount,
+		// so that scenarios can connect through the socket as well as over TCP.
+		$socket_dir = sys_get_temp_dir() . "/{$name}-mysqld";
+		// The server takes the directory over, so it is left as it is when it is there from an earlier run.
+		if ( ! is_dir( $socket_dir ) ) {
+			mkdir( $socket_dir, 0777, true );
+			chmod( $socket_dir, 0777 );
+		}
+		$socket = WP_CLI_TESTS_DOCKER_SOCKET_DIR . '/mysqld.sock';
+
+		exec(
+			'docker run -d --rm --name ' . escapeshellarg( "{$name}-db" ) . $label
+			. ' --tmpfs /var/lib/mysql'
+			. ' -v ' . escapeshellarg( $socket_dir . ':' . WP_CLI_TESTS_DOCKER_SOCKET_DIR )
+			. ' -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=wp_cli_test -e MYSQL_PASSWORD=password1'
+			. ' ' . escapeshellarg( $db_image ) . ' ' . wp_cli_tests_docker_db_options( $db_image )
+			. ' --socket=' . escapeshellarg( $socket ) . ' 2>&1'
+		);
+		// Share the database container's network, so the server is at 127.0.0.1 and nothing else is.
+		$network = ' --network ' . escapeshellarg( "container:{$name}-db" );
+
+		// The settings the GitHub Actions workflows pass for the server of the runner, adapted to the container's.
+		$env['MYSQL_HOST']           = '127.0.0.1';
+		$env['MYSQL_TCP_PORT']       = '3306';
+		$env['WP_CLI_TEST_DBSOCKET'] = $socket;
+	}
 
 	foreach ( getenv() as $key => $value ) {
 		if ( preg_match( '/^(WP_VERSION|NO_COLOR|CI|GITHUB_TOKEN|WP_CLI_TEST_(DBTYPE|OBJECT_CACHE|CORE_ZIP|QUIET|LOG_RUN_TIMES|PHP_TUNING|WP_VERSION_CACHE_TTL))$/', $key ) ) {
@@ -627,6 +649,10 @@ function wp_cli_tests_docker_worker_command( $name, $php_image, $db_image, array
 		} else {
 			$command .= ' -v ' . escapeshellarg( "{$source}:{$target}:ro" );
 		}
+	}
+
+	if ( null !== $db_image ) {
+		$command .= ' -v ' . escapeshellarg( sys_get_temp_dir() . "/{$name}-mysqld:" . WP_CLI_TESTS_DOCKER_SOCKET_DIR );
 	}
 
 	foreach ( $env as $key => $value ) {
