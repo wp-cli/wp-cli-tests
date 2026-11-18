@@ -12,6 +12,8 @@ RUN . /etc/os-release \
 	fi
 
 # Images of older PHP versions are based on Debian releases whose packages have moved to the archive.
+# The extensions match those the PHP builds of shivammathur/setup-php have on the GitHub runners,
+# such as pcntl, which the official images leave out.
 RUN install_packages() { \
 		apt-get update && apt-get install -y --no-install-recommends \
 			curl git jq less libmariadb3 mariadb-client procps sqlite3 subversion unzip vim-tiny zip \
@@ -24,7 +26,7 @@ RUN install_packages() { \
 	} ) \
 	&& ( docker-php-ext-configure gd --with-freetype --with-jpeg \
 		|| docker-php-ext-configure gd --with-freetype-dir=/usr --with-jpeg-dir=/usr ) \
-	&& docker-php-ext-install exif gd mysqli pdo_mysql zip \
+	&& docker-php-ext-install exif gd mysqli pcntl pdo_mysql zip \
 	&& ( php -m | grep -qi '^zend opcache$' || docker-php-ext-install opcache ) \
 	&& rm -rf /var/lib/apt/lists/*
 
