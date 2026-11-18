@@ -144,8 +144,10 @@ if ( isset( $argv[0] ) && realpath( $argv[0] ) === __FILE__ ) {
 
 		if ( $wp_cli_tests_check ) {
 			fwrite( STDERR, "{$wp_cli_tests_file} is out of date, run `php utils/generate-legacy-annotations.php`.\n" );
+		} elseif ( strlen( $wp_cli_tests_contents ) !== file_put_contents( $wp_cli_tests_file, $wp_cli_tests_contents ) ) {
+			fwrite( STDERR, "Error: Could not write {$wp_cli_tests_file}.\n" );
+			exit( 1 );
 		} else {
-			file_put_contents( $wp_cli_tests_file, $wp_cli_tests_contents );
 			echo "Wrote {$wp_cli_tests_file}\n";
 		}
 	}

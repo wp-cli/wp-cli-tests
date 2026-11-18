@@ -16,6 +16,67 @@
 use Composer\InstalledVersions;
 use Symfony\Component\Yaml\Yaml;
 
+/**
+ * Move the settings a suite lists next to its reserved keys into its "settings", as Behat does.
+ *
+ * Behat accepts both forms, and lets the first one win. Merging two profiles that each use another
+ * form would otherwise keep both, and the one that is meant to be overridden could be that winner.
+ *
+ * @param array<mixed> $profile
+ * @return array<mixed>
+ */
+function wp_cli_tests_normalize_suites( array $profile ) {
+	if ( ! isset( $profile['suites'] ) || ! is_array( $profile['suites'] ) ) {
+		return $profile;
+	}
+
+	foreach ( $profile['suites'] as $name => $suite ) {
+		if ( ! is_array( $suite ) ) {
+			continue;
+		}
+
+		$settings = isset( $suite['settings'] ) && is_array( $suite['settings'] ) ? $suite['settings'] : [];
+
+		foreach ( $suite as $key => $value ) {
+			if ( ! in_array( $key, [ 'enabled', 'type', 'settings' ], true ) ) {
+				$settings[ $key ] = $value;
+				unset( $suite[ $key ] );
+			}
+		}
+
+		if ( $settings ) {
+			$suite['settings'] = $settings;
+		}
+
+		$profile['suites'][ $name ] = $suite;
+	}
+
+	return $profile;
+}
+
+/**
+ * Merge overrides into a profile: maps key by key, anything else, lists included, as a whole.
+ *
+ * @param array<mixed> $base
+ * @param array<mixed> $overrides
+ * @return array<mixed>
+ */
+function wp_cli_tests_merge_params( array $base, array $overrides ) {
+	foreach ( $overrides as $key => $value ) {
+		$is_map = static function ( $candidate ) {
+			return is_array( $candidate ) && $candidate && array_keys( $candidate ) !== range( 0, count( $candidate ) - 1 );
+		};
+
+		if ( isset( $base[ $key ] ) && $is_map( $base[ $key ] ) && $is_map( $value ) ) {
+			$base[ $key ] = wp_cli_tests_merge_params( $base[ $key ], $value );
+		} else {
+			$base[ $key ] = $value;
+		}
+	}
+
+	return $base;
+}
+
 $wp_cli_tests_autoloader = getcwd() . '/vendor/autoload.php';
 
 if ( ! file_exists( $wp_cli_tests_autoloader ) ) {
@@ -65,7 +126,10 @@ if ( is_string( $wp_cli_tests_env ) && '' !== $wp_cli_tests_env ) {
 		exit( 1 );
 	}
 
-	$wp_cli_tests_params = array_replace_recursive( $wp_cli_tests_params, $wp_cli_tests_overrides );
+	$wp_cli_tests_params = wp_cli_tests_merge_params(
+		wp_cli_tests_normalize_suites( $wp_cli_tests_params ),
+		wp_cli_tests_normalize_suites( $wp_cli_tests_overrides )
+	);
 }
 
 echo json_encode( $wp_cli_tests_params, JSON_UNESCAPED_SLASHES );

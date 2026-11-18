@@ -136,7 +136,11 @@ Behat 4 dropped a few things that the framework bridges, within limits:
   `WP_CLI\Tests\Context\FeatureContext` does: declare everything with attributes, and repeat the
   declarations as annotations on an interface that the context only implements on PHP 7. Behat
   3.15, the last release for PHP 8.0, has no attributes for the `BeforeSuite` and `AfterSuite`
-  hooks yet, so there the interface still has to carry the annotations of those two.
+  hooks yet. There the context implements a second interface instead, which only carries the
+  annotations of those two hooks; implementing the full one would define every step twice.
+* A class extending `WP_CLI\Tests\Context\FeatureContext` that overrides one of its steps or hooks
+  keeps the definition without repeating the attribute, except with Behat 3.15 to 3.17 on PHP 8,
+  which do not look at the method that is overridden. In practice that is PHP 8.0.
 * Behat 4 fails a step whose regular expression captures more values than its method has
   parameters, where Behat 3 dropped the extra ones. Use non-capturing groups (`(?:...)`) for those.
 

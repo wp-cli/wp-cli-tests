@@ -2,6 +2,7 @@
 
 namespace WP_CLI\Tests\Tests;
 
+use WP_CLI\Tests\Context\FeatureContext;
 use WP_CLI\Tests\TestCase;
 
 class TestLegacyAnnotations extends TestCase {
@@ -20,6 +21,26 @@ class TestLegacyAnnotations extends TestCase {
 				file_get_contents( $file ),
 				basename( $file ) . ' is out of date, run `php utils/generate-legacy-annotations.php`.'
 			);
+		}
+	}
+
+	/**
+	 * Behat reads the attributes of the method an override replaces, from 3.18 on. That only finds
+	 * them as long as no interface declares the method where the attributes are read.
+	 */
+	public function test_overrides_keep_their_definitions(): void {
+		if ( PHP_VERSION_ID < 80100 || ! class_exists( 'Behat\Hook\BeforeSuite' ) ) {
+			$this->markTestSkipped( 'Reading the attributes needs PHP 8.1 and a Behat that has all of them.' );
+		}
+
+		require_once dirname( __DIR__ ) . '/data/overriding_context.php';
+
+		foreach ( [ 'beforeScenario', 'given_an_empty_directory' ] as $name ) {
+			$method = new \ReflectionMethod( 'WP_CLI\Tests\Tests\Overriding_Context', $name );
+
+			$this->assertCount( 0, $method->getAttributes() );
+			$this->assertSame( FeatureContext::class, $method->getPrototype()->getDeclaringClass()->getName() );
+			$this->assertCount( 1, $method->getPrototype()->getAttributes() );
 		}
 	}
 
