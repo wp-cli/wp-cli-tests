@@ -405,7 +405,43 @@ FILE;
 	}
 
 	/**
-	 * Installs and activates one or more plugins.
+	 * Removes all themes and installs, and optionally activates, the listed ones instead.
+	 *
+	 * Takes the same lines as `Given these installed themes:`. This replaces running
+	 * `wp theme delete --all --force` followed by one or more `wp theme install` commands.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And only these installed themes:
+	 *     """
+	 *     twentysixteen
+	 *     twentyseventeen
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given /^only these installed (themes|and active themes):$/
+	 *
+	 * @param string       $kind Either 'themes' or 'and active themes'.
+	 * @param PyStringNode $stream
+	 */
+	public function given_only_these_installed_themes( $kind, PyStringNode $stream ): void {
+		$lines    = array_filter( array_map( 'trim', explode( "\n", $this->replace_variables( (string) $stream ) ) ) );
+		$activate = 'and active themes' === $kind;
+
+		$this->remove_all_themes();
+		$this->install_extensions( 'theme', $lines, $activate );
+	}
+
+	/**
+	 * Installs and optionally activates one or more plugins or themes.
+	 *
+	 * Plugins and themes from WordPress.org are downloaded once and copied from a local cache
+	 * afterwards. Each line holds a slug, optionally followed by `--version=<version>` and `--force`. Other
+	 * lines, like a URL or a path to a ZIP file, are installed with `wp plugin install` or
+	 * `wp theme install` every time.
 	 *
 	 * ```
 	 * Scenario: My example scenario
@@ -415,19 +451,65 @@ FILE;
 	 *     akismet
 	 *     wordpress-importer
 	 *     """
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP installation
+	 *   And these installed themes:
+	 *     """
+	 *     twentysixteen
+	 *     twentyseventeen --version=1.0
+	 *     """
 	 * ```
 	 *
 	 * @access public
 	 *
-	 * @Given these installed and active plugins:
+	 * @Given /^these installed (and active )?(plugins|themes):$/
 	 *
-	 * @param string $stream
+	 * @param string       $active
+	 * @param string       $type
+	 * @param PyStringNode $stream
 	 */
-	public function given_these_installed_and_active_plugins( $stream ): void {
-		$plugins = implode( ' ', array_map( 'trim', explode( PHP_EOL, (string) $stream ) ) );
-		$plugins = $this->replace_variables( $plugins );
+	public function given_these_installed_plugins_or_themes( $active, $type, PyStringNode $stream ): void {
+		$lines    = array_filter( array_map( 'trim', explode( "\n", $this->replace_variables( (string) $stream ) ) ) );
+		$type     = 'plugins' === $type ? 'plugin' : 'theme';
+		$activate = '' !== trim( $active );
 
-		$this->proc( "wp plugin install $plugins --activate" )->run_check();
+		$this->install_extensions( $type, $lines, $activate );
+	}
+
+	/**
+	 * Runs several setup commands in a single process.
+	 *
+	 * Avoids loading WordPress once per command when a scenario needs several fixtures. The `command`
+	 * column holds the WP-CLI commands, which all have to succeed. The optional `save` column names a
+	 * variable to save the command's STDOUT into, which later commands in the same table can use.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And these setup commands:
+	 *     | command                                                | save     |
+	 *     | wp post create --post_title="First post" --porcelain   | POST_ID  |
+	 *     | wp post meta add {POST_ID} color blue                  |          |
+	 *     | wp term create category Fruit --porcelain              | TERM_ID  |
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given these setup commands:
+	 *
+	 * @param TableNode $table
+	 */
+	public function given_these_setup_commands( TableNode $table ): void {
+		$commands = [];
+		foreach ( $table->getHash() as $row ) {
+			if ( ! isset( $row['command'] ) ) {
+				throw new RuntimeException( 'The setup commands table needs a "command" column.' );
+			}
+			$commands[] = [ $row['command'], trim( $row['save'] ?? '', '{} ' ) ];
+		}
+
+		$this->run_commands_in_single_process( $commands );
 	}
 
 	/**
@@ -469,6 +551,8 @@ FILE;
 		);
 
 		file_put_contents( $wp_config_path, $wp_config_code );
+
+		$this->set_content_dir_variables( $this->variables['RUN_DIR'] . '/my-content', $this->variables['RUN_DIR'] . '/my-plugins' );
 
 		if ( 'sqlite' === self::$db_type ) {
 			$db_dropin = $this->variables['RUN_DIR'] . '/my-content/db.php';

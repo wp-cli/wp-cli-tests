@@ -35,7 +35,7 @@ trait ThenStepDefinitions {
 			( ! $not && (int) $return_code !== $this->result->return_code )
 			|| ( $not && (int) $return_code === $this->result->return_code )
 		) {
-			throw new RuntimeException( $this->result );
+			throw new RuntimeException( $this->result . $this->missing_command_hint() );
 		}
 	}
 
