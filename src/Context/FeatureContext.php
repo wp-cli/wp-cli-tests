@@ -13,6 +13,13 @@ use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
 use Behat\Behat\Hook\Scope\AfterFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeStepScope;
+use Behat\Hook\AfterFeature;
+use Behat\Hook\AfterScenario;
+use Behat\Hook\AfterSuite;
+use Behat\Hook\BeforeFeature;
+use Behat\Hook\BeforeScenario;
+use Behat\Hook\BeforeStep;
+use Behat\Hook\BeforeSuite;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Driver\Xdebug;
@@ -31,7 +38,7 @@ use WP_CLI\WpOrgApi;
 /**
  * Features context.
  */
-class FeatureContext implements Context {
+class FeatureContext implements Context, LegacyAnnotations {
 
 	use GivenStepDefinitions;
 	use ThenStepDefinitions;
@@ -261,38 +268,28 @@ class FeatureContext implements Context {
 	 */
 	private $step_line = 0;
 
-	/**
-	 * @BeforeFeature
-	 */
+	#[BeforeFeature]
 	public static function store_feature( BeforeFeatureScope $scope ): void {
 		self::$feature = $scope->getFeature();
 	}
 
-	/**
-	 * @BeforeScenario
-	 */
+	#[BeforeScenario]
 	public function store_scenario( BeforeScenarioScope $scope ): void {
 		$this->scenario = $scope->getScenario();
 	}
 
-	/**
-	 * @BeforeStep
-	 */
+	#[BeforeStep]
 	public function store_step( BeforeStepScope $scope ): void {
 		$this->step_line = $scope->getStep()->getLine();
 	}
 
-	/**
-	 * @AfterScenario
-	 */
+	#[AfterScenario]
 	public function forget_scenario( AfterScenarioScope $scope ): void {
 		$this->step_line = 0;
 		$this->scenario  = null;
 	}
 
-	/**
-	 * @AfterFeature
-	 */
+	#[AfterFeature]
 	public static function forget_feature( AfterFeatureScope $scope ): void {
 		self::$feature = null;
 	}
@@ -1105,9 +1102,7 @@ class FeatureContext implements Context {
 		self::$cache_dir = $cache_dir;
 	}
 
-	/**
-	 * @BeforeSuite
-	 */
+	#[BeforeSuite]
 	public static function prepare( BeforeSuiteScope $scope ): void {
 		self::bootstrap_feature_context();
 
@@ -1141,9 +1136,7 @@ class FeatureContext implements Context {
 		}
 	}
 
-	/**
-	 * @AfterSuite
-	 */
+	#[AfterSuite]
 	public static function afterSuite( AfterSuiteScope $scope ): void {
 		if ( self::$composer_local_repository ) {
 			self::remove_dir( self::$composer_local_repository );
@@ -1157,9 +1150,7 @@ class FeatureContext implements Context {
 		self::merge_coverage_reports();
 	}
 
-	/**
-	 * @BeforeScenario
-	 */
+	#[BeforeScenario]
 	public function beforeScenario( BeforeScenarioScope $scope ): void {
 		if ( self::$log_run_times ) {
 			self::log_run_times_before_scenario( $scope );
@@ -1182,9 +1173,7 @@ class FeatureContext implements Context {
 		}
 	}
 
-	/**
-	 * @AfterScenario
-	 */
+	#[AfterScenario]
 	public function afterScenario( AfterScenarioScope $scope ): void {
 
 		if ( self::$run_dir ) {
