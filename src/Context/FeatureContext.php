@@ -165,7 +165,7 @@ class FeatureContext implements Context {
 
 	/**
 	 * Array of variables available as {VARIABLE_NAME}. Some are always set: CORE_CONFIG_SETTINGS, DB_USER, DB_PASSWORD, DB_HOST, SRC_DIR, CACHE_DIR, WP_VERSION-version-latest.
-	 * Some are step-dependent: RUN_DIR, SUITE_CACHE_DIR, COMPOSER_LOCAL_REPOSITORY, PHAR_PATH. One is set on use: INVOKE_WP_CLI_WITH_PHP_ARGS-args.
+	 * Some are step-dependent: RUN_DIR, SUITE_CACHE_DIR, COMPOSER_LOCAL_REPOSITORY, PHAR_PATH, and PLUGIN_DIR and THEME_DIR for the WordPress files in RUN_DIR. One is set on use: INVOKE_WP_CLI_WITH_PHP_ARGS-args.
 	 * Scenarios can define their own variables using "Given save" steps. Variables are reset for each scenario.
 	 *
 	 * @var array<string, string>
@@ -320,7 +320,18 @@ class FeatureContext implements Context {
 			$filter
 		);
 
-		foreach ( new DirectoryIterator( self::$behat_run_dir . '/build/logs' ) as $file ) {
+		// Parallel workers each merge the coverage they collected into a report of their own,
+		// as they would otherwise merge, and remove, each other's files while those are written.
+		$coverage_id = self::get_coverage_id();
+		$logs_dir    = self::$behat_run_dir . '/build/logs';
+		$source_dir  = '' !== $coverage_id ? "{$logs_dir}/behat-{$coverage_id}" : $logs_dir;
+		$report      = '' !== $coverage_id ? "{$logs_dir}/behat-coverage-{$coverage_id}.xml" : "{$logs_dir}/behat-coverage.xml";
+
+		if ( ! is_dir( $source_dir ) ) {
+			return;
+		}
+
+		foreach ( new DirectoryIterator( $source_dir ) as $file ) {
 			if ( ! $file->isFile() || 'cov' !== $file->getExtension() ) {
 				continue;
 			}
@@ -329,7 +340,20 @@ class FeatureContext implements Context {
 			unlink( $file->getPathname() );
 		}
 
-		( new Clover() )->process( $coverage, self::$behat_run_dir . '/build/logs/behat-coverage.xml' );
+		( new Clover() )->process( $coverage, $report );
+
+		if ( $source_dir !== $logs_dir ) {
+			@rmdir( $source_dir );
+		}
+	}
+
+	/**
+	 * Get the identifier of the parallel worker the code coverage is collected for, if any.
+	 *
+	 * @return string
+	 */
+	private static function get_coverage_id() {
+		return (string) preg_replace( '/[^A-Za-z0-9_-]+/', '-', (string) getenv( 'WP_CLI_TEST_COVERAGE_ID' ) );
 	}
 
 	/**
@@ -481,9 +505,20 @@ class FeatureContext implements Context {
 
 		$env = array_merge( $_ENV, $env );
 
-		foreach ( [ 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
+		// Keep the launched processes in the same temporary directory as the tests, which differs per
+		// parallel worker. WordPress saves downloads under fixed names there, which would clash otherwise.
+		foreach ( [ 'TMPDIR', 'TEMP', 'TMP', 'SystemRoot', 'windir' ] as $key ) {
 			$value = getenv( $key );
 			if ( false !== $value ) {
+				$env[ $key ] = $value;
+			}
+		}
+
+		// An ImageMagick that is not installed where it was built, like the one setup-php provides on
+		// macOS, is pointed at its coders and configuration through these. Without them, Imagick
+		// supports none of the formats that ImageMagick provides as modules, PDF among them.
+		foreach ( (array) getenv() as $key => $value ) {
+			if ( 0 === strpos( (string) $key, 'MAGICK_' ) ) {
 				$env[ $key ] = $value;
 			}
 		}
@@ -504,6 +539,11 @@ class FeatureContext implements Context {
 			$current               = getenv( 'WP_CLI_REQUIRE' );
 			$updated               = $current ? "{$current},{$coverage_require_file}" : $coverage_require_file;
 			$env['WP_CLI_REQUIRE'] = $updated;
+
+			$coverage_id = self::get_coverage_id();
+			if ( '' !== $coverage_id ) {
+				$env['WP_CLI_TEST_COVERAGE_ID'] = $coverage_id;
+			}
 		}
 
 		// Test fixtures routinely create project-level `wp-cli.yml` files that contain
@@ -513,6 +553,13 @@ class FeatureContext implements Context {
 		// still override this by prefixing their command with their own value.
 		$trust_project_config               = getenv( 'WP_CLI_TRUST_PROJECT_CONFIG' );
 		$env['WP_CLI_TRUST_PROJECT_CONFIG'] = false !== $trust_project_config ? $trust_project_config : '1';
+
+		$env = array_filter(
+			array_merge( $env, self::get_php_tuning_env_variables() ),
+			static function ( $value ) {
+				return null !== $value;
+			}
+		);
 
 		$config_path = getenv( 'WP_CLI_CONFIG_PATH' );
 		if ( false !== $config_path ) {
@@ -559,6 +606,85 @@ class FeatureContext implements Context {
 		if ( false !== $github_token ) {
 			$env['GITHUB_TOKEN'] = $github_token;
 		}
+
+		return $env;
+	}
+
+	/**
+	 * Get the environment variables that make the PHP processes launched by the tests cheaper.
+	 *
+	 * Xdebug is switched off unless code coverage is collected or a mode or session is requested
+	 * explicitly. The code of WP-CLI and of the project under test is kept in a file-based opcode
+	 * cache shared by all processes. Everything below the temporary directory is excluded from that
+	 * cache, as scenarios create and rewrite PHP files there and must always run the current version.
+	 *
+	 * Set WP_CLI_TEST_PHP_TUNING=off to launch the processes with the PHP configuration as it is.
+	 *
+	 * @return array<string, string|null> Null for variables to leave out.
+	 */
+	private static function get_php_tuning_env_variables(): array {
+		if ( 'off' === getenv( 'WP_CLI_TEST_PHP_TUNING' ) || self::running_with_code_coverage() ) {
+			return [];
+		}
+
+		$env = [];
+
+		if ( false === getenv( 'XDEBUG_MODE' ) && false === getenv( 'XDEBUG_SESSION' ) && false === getenv( 'XDEBUG_CONFIG' ) ) {
+			$env['XDEBUG_MODE'] = 'off';
+		}
+
+		// The file cache cannot be used on its own on Windows.
+		if ( Utils\is_windows() ) {
+			return $env;
+		}
+
+		// The directories are named after the settings, so that a cache written with other settings,
+		// such as by an older version of this package, is never used, nor its configuration file.
+		$settings   = [ 'opcache.enable_cli=1', 'opcache.file_cache_only=1', 'opcache.optimization_level=0' ];
+		$key        = substr( md5( implode( "\n", $settings ) ), 0, 8 );
+		$temp_dir   = rtrim( sys_get_temp_dir(), '/' );
+		$config_dir = "{$temp_dir}/wp-cli-test-php-config-{$key}";
+		$cache_dir  = "{$temp_dir}/wp-cli-test-opcache-{$key}";
+
+		foreach ( [ $config_dir, $cache_dir ] as $dir ) {
+			if ( ! is_dir( $dir ) && ! @mkdir( $dir, 0777, true ) && ! is_dir( $dir ) ) {
+				return $env;
+			}
+		}
+
+		$excluded = array_unique( array_filter( [ $temp_dir, realpath( $temp_dir ) ] ) );
+		file_put_contents( "{$config_dir}/opcache-blacklist.txt", implode( "/\n", $excluded ) . "/\n" );
+
+		// The optimizer bakes in what it finds at compile time, such as whether a function exists,
+		// which differs between processes with other settings, such as disabled functions.
+		$ini = array_merge(
+			$settings,
+			[
+				"opcache.file_cache={$cache_dir}",
+				"opcache.blacklist_filename={$config_dir}/opcache-blacklist.txt",
+			]
+		);
+		file_put_contents( "{$config_dir}/wp-cli-tests.ini", implode( "\n", $ini ) . "\n" );
+
+		// Add to the directories PHP scans for configuration files rather than replacing them.
+		$scan_dirs = getenv( 'PHP_INI_SCAN_DIR' );
+
+		// Behat and Composer restart without Xdebug through composer/xdebug-handler, which clears
+		// the directories, and keeps the original ones in its settings, with "*" if there were none.
+		// The configuration file it points PHPRC to holds the scanned files already, so restore that too.
+		$restart_settings = getenv( 'XDEBUG_HANDLER_SETTINGS' );
+		if ( '' === $scan_dirs && is_string( $restart_settings ) ) {
+			$restart = explode( '|', $restart_settings );
+			if ( isset( $restart[2], $restart[3] ) ) {
+				$scan_dirs    = '*' === $restart[2] ? false : $restart[2];
+				$env['PHPRC'] = '*' === $restart[3] ? null : $restart[3];
+			}
+		}
+
+		if ( false === $scan_dirs ) {
+			$scan_dirs = PHP_CONFIG_FILE_SCAN_DIR;
+		}
+		$env['PHP_INI_SCAN_DIR'] = ( '' !== $scan_dirs ? $scan_dirs . PATH_SEPARATOR : '' ) . $config_dir;
 
 		return $env;
 	}
@@ -916,15 +1042,12 @@ class FeatureContext implements Context {
 	}
 
 	/**
-	 * We cache the results of `wp core download` to improve test performance.
-	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
+	 * We cache the SQLite plugins so that they only need to be downloaded once per machine.
 	 *
-	 * @param string $version
+	 * Every code path that installs WordPress has to call this before using the cache directories,
+	 * as any of them can be the first step of a scenario.
 	 */
-	private static function cache_wp_files( $version = '' ): void {
-		$core_zip               = $version ? null : self::get_core_zip();
-		$wp_version             = $version ?: getenv( 'WP_VERSION' );
-		$cache_dir              = self::get_core_cache_dir( $version );
+	private static function cache_sqlite_plugins(): void {
 		self::$sqlite_cache_dir = sys_get_temp_dir() . '/wp-cli-test-sqlite-integration-cache';
 
 		if ( 'sqlite' === getenv( 'WP_CLI_TEST_DBTYPE' ) ) {
@@ -939,6 +1062,20 @@ class FeatureContext implements Context {
 				self::download_sqlite_object_cache_plugin( self::$sqlite_object_cache_dir );
 			}
 		}
+	}
+
+	/**
+	 * We cache the results of `wp core download` to improve test performance.
+	 * Ideally, we'd cache at the HTTP layer for more reliable tests.
+	 *
+	 * @param string $version
+	 */
+	private static function cache_wp_files( $version = '' ): void {
+		$core_zip   = $version ? null : self::get_core_zip();
+		$wp_version = $version ?: getenv( 'WP_VERSION' );
+		$cache_dir  = self::get_core_cache_dir( $version );
+
+		self::cache_sqlite_plugins();
 
 		if ( is_readable( $cache_dir . '/wp-includes/version.php' ) ) {
 			self::$cache_dir = $cache_dir;
@@ -1063,7 +1200,7 @@ class FeatureContext implements Context {
 			$is_ci    = getenv( 'CI' );
 			$is_debug = getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' );
 			if ( $scope->getTestResult()->getResultCode() <= 10 || ( $is_ci && ! $is_debug ) ) {
-				self::remove_dir( self::$run_dir );
+				self::remove_dir_in_background( self::$run_dir );
 			}
 			self::$run_dir = null;
 		}
@@ -1075,7 +1212,7 @@ class FeatureContext implements Context {
 
 		// Remove SUITE_CACHE_DIR if any.
 		if ( self::$suite_cache_dir ) {
-			self::remove_dir( self::$suite_cache_dir );
+			self::remove_dir_in_background( self::$suite_cache_dir );
 			self::$suite_cache_dir = null;
 		}
 
@@ -1437,11 +1574,16 @@ class FeatureContext implements Context {
 
 		$line = $scenario_feature->getLine();
 
-		if ( ! method_exists( $scenario_feature, 'getFile' ) ) {
-			return null;
+		if ( method_exists( $scenario_feature, 'getFile' ) ) {
+			return $scenario_feature->getFile();
 		}
 
-		return $scenario_feature->getFile();
+		// Scenario nodes do not know their file, but the feature they belong to does.
+		if ( method_exists( $scope, 'getFeature' ) ) {
+			return $scope->getFeature()->getFile();
+		}
+
+		return null;
 	}
 
 	/**
@@ -1674,6 +1816,88 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Run several WP-CLI commands one after the other in a single `wp` process.
+	 *
+	 * Each command has to start with `wp `, and has to succeed. A command can use the
+	 * output saved by an earlier command in the same batch as a {VARIABLE}.
+	 *
+	 * @param array<array{0: string, 1: string}> $commands Pairs of command and the name of the variable to save its STDOUT into, or ''.
+	 */
+	public function run_commands_in_single_process( array $commands ): void {
+		$batch_variables = array_filter( array_column( $commands, 1 ) );
+
+		$rows = [];
+		foreach ( $commands as list( $command, $save ) ) {
+			// Variables saved within the batch are only known once the process runs.
+			$command = (string) preg_replace_callback(
+				'/\{([A-Z_][A-Z_0-9]*)\}/',
+				function ( $matches ) use ( $batch_variables ) {
+					return in_array( $matches[1], $batch_variables, true ) ? $matches[0] : $this->replace_variables( $matches[0] );
+				},
+				$command
+			);
+
+			if ( 0 !== strpos( $command, 'wp ' ) ) {
+				throw new RuntimeException( "Only WP-CLI commands can run in a single process, got: {$command}" );
+			}
+
+			// These change how WordPress is loaded, which has already happened for every command but the first.
+			if ( preg_match( '/(?:^|\s)--(?:require|path|url|skip-plugins|skip-themes|skip-packages|context|exec|ssh|http)(?:[=\s]|$)/', $command ) ) {
+				throw new RuntimeException( "Commands that change how WordPress is loaded cannot share a process, got: {$command}" );
+			}
+
+			$rows[] = [ substr( $command, 3 ), $save ];
+		}
+
+		$marker  = 'WP_CLI_TEST_SAVED_VARIABLES:';
+		$started = 'WP_CLI_TEST_STARTED_COMMAND:';
+		$code    = '<?php
+$wp_cli_test_saved = [];
+foreach ( ' . var_export( $rows, true ) . ' as $wp_cli_test_index => $wp_cli_test_row ) {
+	echo "\n' . $started . '{$wp_cli_test_index}\n";
+	$wp_cli_test_command = strtr( $wp_cli_test_row[0], $wp_cli_test_saved );
+	$wp_cli_test_result  = WP_CLI::runcommand( $wp_cli_test_command, [ "launch" => false, "return" => "all", "exit_error" => false ] );
+	if ( 0 !== $wp_cli_test_result->return_code ) {
+		fwrite( STDERR, "\$ wp {$wp_cli_test_command}\n{$wp_cli_test_result->stdout}\n{$wp_cli_test_result->stderr}\nexit status: {$wp_cli_test_result->return_code}\n" );
+		exit( 1 );
+	}
+	if ( "" !== $wp_cli_test_row[1] ) {
+		$wp_cli_test_saved[ "{" . $wp_cli_test_row[1] . "}" ] = trim( $wp_cli_test_result->stdout, "\n" );
+	}
+}
+echo "\n' . $marker . '" . json_encode( $wp_cli_test_saved ) . "\n";
+';
+
+		$file = $this->variables['RUN_DIR'] . '/' . uniqid( 'wp-cli-test-commands-', true ) . '.php';
+		file_put_contents( $file, $code );
+
+		try {
+			$result = $this->proc( Utils\esc_cmd( 'wp eval-file %s', $file ) )->run();
+		} finally {
+			unlink( $file );
+		}
+
+		if ( 0 !== $result->return_code ) {
+			$stdout = trim( (string) preg_replace( '/^' . $started . '\d+$/m', '', $result->stdout ) );
+			throw new RuntimeException( "Running the commands in a single process failed:\n{$result->stderr}\n{$stdout}" );
+		}
+
+		$position = strrpos( $result->stdout, $marker );
+		$saved    = false !== $position ? json_decode( trim( substr( $result->stdout, $position + strlen( $marker ) ) ), true ) : null;
+		if ( ! is_array( $saved ) ) {
+			$last = preg_match_all( '/^' . $started . '(\d+)$/m', $result->stdout, $matches ) ? (int) end( $matches[1] ) : null;
+			if ( null !== $last ) {
+				throw new RuntimeException( "The process ended while running `wp {$rows[ $last ][0]}`. A command that exits on its own cannot share a process with other commands." );
+			}
+			throw new RuntimeException( "Could not read the saved variables from the output:\n{$result->stdout}" );
+		}
+
+		foreach ( $saved as $placeholder => $value ) {
+			$this->variables[ trim( $placeholder, '{}' ) ] = $value;
+		}
+	}
+
+	/**
 	 * Start a background process. Will automatically be closed when the tests finish.
 	 *
 	 * @param string $cmd
@@ -1697,13 +1921,20 @@ class FeatureContext implements Context {
 			];
 		}
 
+		// If something else is already listening on the port, the process failing to bind to it
+		// would go unnoticed when waiting for the port, so fall back to waiting the full second.
+		$port = self::get_listening_port( $cmd );
+		if ( null !== $port && self::is_port_open( $port ) ) {
+			$port = null;
+		}
+
 		$proc = proc_open( $cmd, $descriptors, $pipes, $this->variables['RUN_DIR'], self::get_process_env_variables() );
 
 		if ( Utils\is_windows() ) {
 			fclose( $pipes[0] );
 		}
 
-		sleep( 1 );
+		self::wait_for_background_proc( $proc, $port );
 
 		$status = proc_get_status( $proc );
 
@@ -1726,6 +1957,61 @@ class FeatureContext implements Context {
 			$this->temp_files[] = $stdout_file;
 			$this->temp_files[] = $stderr_file;
 		}
+	}
+
+	/**
+	 * Give a background process up to a second to start.
+	 *
+	 * Returns early once the process accepts connections on the given port.
+	 *
+	 * @param resource $proc
+	 * @param int|null $port Port the process is expected to listen on, if known.
+	 */
+	private static function wait_for_background_proc( $proc, $port ): void {
+		$deadline = microtime( true ) + 1;
+
+		while ( microtime( true ) < $deadline ) {
+			$status = proc_get_status( $proc );
+
+			if ( ! $status['running'] || ( null !== $port && self::is_port_open( $port ) ) ) {
+				return;
+			}
+
+			usleep( 50000 );
+		}
+	}
+
+	/**
+	 * Get the local port a background command is going to listen on, if it can be told from the command.
+	 *
+	 * @param string $cmd
+	 * @return int|null
+	 */
+	private static function get_listening_port( $cmd ): ?int {
+		if ( preg_match( '/(?:localhost|127\.0\.0\.1):(\d+)/', $cmd, $matches ) || preg_match( '/--port[= ](\d+)/', $cmd, $matches ) ) {
+			return (int) $matches[1];
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether a local port accepts connections.
+	 *
+	 * @param int $port
+	 * @return bool
+	 */
+	private static function is_port_open( $port ): bool {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A refused connection is the expected answer for a closed port.
+		$connection = @fsockopen( 'localhost', $port, $errno, $errstr, 0.1 );
+
+		if ( false === $connection ) {
+			return false;
+		}
+
+		fclose( $connection );
+
+		return true;
 	}
 
 	/**
@@ -1785,6 +2071,22 @@ class FeatureContext implements Context {
 	}
 
 	/**
+	 * Remove a directory without waiting for it to be gone.
+	 *
+	 * Only meant for directories with a unique name, which no later scenario is going to use.
+	 *
+	 * @param string $dir
+	 */
+	private static function remove_dir_in_background( $dir ): void {
+		if ( Utils\is_windows() || ! is_dir( $dir ) ) {
+			self::remove_dir( $dir );
+			return;
+		}
+
+		exec( 'rm -rf ' . escapeshellarg( $dir ) . ' > /dev/null 2>&1 &' );
+	}
+
+	/**
 	 * Copy a directory (recursive). Destination directory must exist.
 	 *
 	 * @param string $src_dir
@@ -1840,11 +2142,16 @@ class FeatureContext implements Context {
 
 		$dest_dir = rtrim( $this->variables['RUN_DIR'], '/\\' ) . ( $subdir ? DIRECTORY_SEPARATOR . $subdir : '' );
 
-		if ( $subdir ) {
+		// The scenario may have created files in the subdirectory already.
+		if ( $subdir && ! is_dir( $dest_dir ) ) {
 			mkdir( $dest_dir, 0777, true /*recursive*/ );
 		}
 
 		self::copy_dir( self::$cache_dir, $dest_dir );
+
+		if ( ! $subdir ) {
+			$this->set_content_dir_variables( $dest_dir . '/wp-content' );
+		}
 
 		if ( ! is_dir( $dest_dir . '/wp-content/mu-plugins' ) ) {
 			mkdir( $dest_dir . '/wp-content/mu-plugins', 0777, true /*recursive*/ );
@@ -1865,6 +2172,153 @@ class FeatureContext implements Context {
 			self::copy_dir( self::$sqlite_object_cache_dir, $dest_dir . '/wp-content/mu-plugins' );
 			copy( $dest_dir . '/wp-content/mu-plugins/sqlite-object-cache/assets/drop-in/object-cache.php', $dest_dir . '/wp-content/object-cache.php' );
 			file_put_contents( $dest_dir . '/wp-content/mu-plugins/sqlite-object-cache.php', "<?php\nrequire_once __DIR__ . '/sqlite-object-cache/sqlite-object-cache.php';\n" );
+		}
+	}
+
+	/**
+	 * Install plugins or themes, copying the ones from WordPress.org from a local cache when possible.
+	 *
+	 * @param string        $type     Either 'plugin' or 'theme'.
+	 * @param array<string> $lines    Slugs, optionally followed by `--version=<version>` and `--force`, or anything `wp plugin install` accepts.
+	 * @param bool          $activate Whether to activate them.
+	 */
+	public function install_extensions( $type, array $lines, $activate ): void {
+		$target_dir = $this->get_extension_dir( $type );
+		$slugs      = [];
+		$uncached   = [];
+		$others     = [];
+
+		foreach ( $lines as $line ) {
+			if ( ! preg_match( '/^([a-z0-9][a-z0-9._-]*)(?:\s+--version=(\S+))?(\s+--force)?$/i', $line, $matches ) || null === $target_dir ) {
+				$others[] = $line;
+				continue;
+			}
+
+			$slug    = $matches[1];
+			$flags   = ( isset( $matches[2] ) && '' !== $matches[2] ? ' --version=' . escapeshellarg( $matches[2] ) : '' ) . ( empty( $matches[3] ) ? '' : ' --force' );
+			$slugs[] = $slug;
+
+			$cache_path = self::get_extension_cache_path( $type, $slug, $flags );
+			if ( is_dir( $cache_path ) ) {
+				self::remove_dir( "$target_dir/$slug" );
+				mkdir( "$target_dir/$slug" );
+				self::copy_dir( $cache_path, "$target_dir/$slug" );
+
+				// Installing a child theme also installs its parent.
+				$parent = 'theme' === $type ? self::get_parent_theme( "$target_dir/$slug" ) : '';
+				if ( '' !== $parent && ! is_dir( "$target_dir/$parent" ) ) {
+					$this->install_extensions( 'theme', [ $parent ], false );
+				}
+			} else {
+				$uncached[ $flags ][] = $slug;
+			}
+		}
+
+		foreach ( $uncached as $flags => $uncached_slugs ) {
+			$this->proc( "wp $type install " . implode( ' ', array_map( 'escapeshellarg', $uncached_slugs ) ) . $flags )->run_check();
+
+			foreach ( $uncached_slugs as $slug ) {
+				if ( is_dir( "$target_dir/$slug" ) ) {
+					self::store_in_extension_cache( "$target_dir/$slug", self::get_extension_cache_path( $type, $slug, (string) $flags ) );
+				}
+
+				$parent = 'theme' === $type && is_dir( "$target_dir/$slug" ) ? self::get_parent_theme( "$target_dir/$slug" ) : '';
+				if ( '' !== $parent && is_dir( "$target_dir/$parent" ) && ! is_dir( self::get_extension_cache_path( 'theme', $parent, '' ) ) ) {
+					self::store_in_extension_cache( "$target_dir/$parent", self::get_extension_cache_path( 'theme', $parent, '' ) );
+				}
+			}
+		}
+
+		if ( $others ) {
+			$this->proc( "wp $type install " . implode( ' ', $others ) . ( $activate ? ' --activate' : '' ) )->run_check();
+		}
+
+		if ( $activate && $slugs ) {
+			$this->proc( "wp $type activate " . implode( ' ', array_map( 'escapeshellarg', $slugs ) ) )->run_check();
+		}
+	}
+
+	/**
+	 * Remove every installed theme, like `wp theme delete --all --force` does.
+	 */
+	public function remove_all_themes(): void {
+		$themes_dir = $this->get_extension_dir( 'theme' );
+		if ( null === $themes_dir ) {
+			throw new RuntimeException( 'Could not find the themes directory.' );
+		}
+
+		$entries = scandir( $themes_dir );
+		foreach ( false === $entries ? [] : $entries as $entry ) {
+			if ( '.' !== $entry[0] && is_dir( "$themes_dir/$entry" ) ) {
+				self::remove_dir( "$themes_dir/$entry" );
+			}
+		}
+	}
+
+	/**
+	 * Get the directory plugins or themes are installed into, or null if it is not known.
+	 *
+	 * @param string $type Either 'plugin' or 'theme'.
+	 */
+	private function get_extension_dir( $type ): ?string {
+		if ( ! isset( $this->variables['RUN_DIR'] ) ) {
+			return null;
+		}
+
+		$run_dir    = $this->variables['RUN_DIR'];
+		$candidates = 'plugin' === $type
+			? [ "$run_dir/my-plugins", "$run_dir/wp-content/plugins", "$run_dir/WordPress/wp-content/plugins" ]
+			: [ "$run_dir/my-content/themes", "$run_dir/wp-content/themes", "$run_dir/WordPress/wp-content/themes" ];
+
+		foreach ( $candidates as $candidate ) {
+			if ( is_dir( $candidate ) ) {
+				return $candidate;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Get the parent of a theme from the `Template` header of its stylesheet, or '' if it has none.
+	 *
+	 * @param string $theme_dir
+	 */
+	private static function get_parent_theme( $theme_dir ): string {
+		$stylesheet = "$theme_dir/style.css";
+		if ( ! is_file( $stylesheet ) ) {
+			return '';
+		}
+
+		$header = (string) file_get_contents( $stylesheet, false, null, 0, 8192 );
+
+		return preg_match( '/^[ \t\/*#@]*Template:(.*)$/mi', $header, $matches ) ? trim( $matches[1] ) : '';
+	}
+
+	/**
+	 * @param string $type
+	 * @param string $slug
+	 * @param string $flags Install flags that change what gets installed.
+	 */
+	private static function get_extension_cache_path( $type, $slug, $flags ): string {
+		$key = implode( ':', [ $type, $slug, $flags, (string) getenv( 'WP_VERSION' ), PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION ] );
+
+		return sys_get_temp_dir() . '/wp-cli-test-extension-cache/' . $type . '-' . $slug . '-' . substr( md5( $key ), 0, 12 );
+	}
+
+	/**
+	 * @param string $source_dir
+	 * @param string $cache_path
+	 */
+	private static function store_in_extension_cache( $source_dir, $cache_path ): void {
+		$temp_path = $cache_path . '-' . uniqid( '', true );
+		mkdir( $temp_path, 0777, true );
+
+		self::copy_dir( $source_dir, $temp_path );
+
+		// Another process may have filled the cache in the meantime.
+		if ( is_dir( $cache_path ) || ! rename( $temp_path, $cache_path ) ) {
+			self::remove_dir( $temp_path );
 		}
 	}
 
@@ -1934,6 +2388,11 @@ class FeatureContext implements Context {
 			$this->create_db();
 		}
 		$this->create_run_dir();
+
+		// Files the scenario created before installing belong to that scenario only, and must not
+		// end up in the installation cache that later scenarios are set up from.
+		$scenario_files = self::list_dir( '' !== $subdir ? ( $this->variables['RUN_DIR'] . "/$subdir" ) : $this->variables['RUN_DIR'] );
+
 		$this->download_wp( $subdir, $version );
 		$this->create_config( $subdir, $config_extra_php );
 
@@ -1950,50 +2409,11 @@ class FeatureContext implements Context {
 
 		$install_cache_path = self::$install_cache_dir . '/install_' . md5( implode( ':', $install_args ) . ':subdir=' . $subdir . ':object_cache=' . getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) );
 
-		$install_cache_is_valid = is_dir( $install_cache_path )
-			&& ( 'sqlite' !== self::$db_type || file_exists( "{$install_cache_path}.sqlite" ) );
-
-		if ( ! $install_cache_is_valid && file_exists( $install_cache_path ) ) {
-			if ( is_dir( $install_cache_path ) ) {
-				$iterator = new \RecursiveIteratorIterator(
-					new \RecursiveDirectoryIterator( $install_cache_path, \FilesystemIterator::SKIP_DOTS ),
-					\RecursiveIteratorIterator::CHILD_FIRST
-				);
-				foreach ( $iterator as $fileinfo ) {
-					if ( $fileinfo->isDir() ) {
-						rmdir( $fileinfo->getPathname() );
-					} else {
-						unlink( $fileinfo->getPathname() );
-					}
-				}
-				rmdir( $install_cache_path );
-			} else {
-				unlink( $install_cache_path );
-			}
-
-			$sqlite_cache = "{$install_cache_path}.sqlite";
-			if ( file_exists( $sqlite_cache ) && is_file( $sqlite_cache ) ) {
-				unlink( $sqlite_cache );
-			}
-
-			$sql_cache = "{$install_cache_path}.sql";
-			if ( file_exists( $sql_cache ) && is_file( $sql_cache ) ) {
-				unlink( $sql_cache );
-			}
-		}
-		if ( $install_cache_is_valid ) {
+		// The cache includes the SQLite database, stored under "wp-content/database".
+		if ( is_dir( $install_cache_path ) ) {
 			self::copy_dir( $install_cache_path, $run_dir );
 
-			// This is the sqlite equivalent of restoring a database dump in MySQL
-			if ( 'sqlite' === self::$db_type ) {
-				$sqlite_dest_dir = "$run_dir/wp-content/database";
-				if ( ! is_dir( $sqlite_dest_dir ) ) {
-					mkdir( $sqlite_dest_dir, 0755, true );
-				}
-				if ( file_exists( "{$install_cache_path}.sqlite" ) ) {
-					copy( "{$install_cache_path}.sqlite", "$sqlite_dest_dir/.ht.sqlite.php" );
-				}
-			} else {
+			if ( 'sqlite' !== self::$db_type ) {
 				$ssl_flag = 'mariadb' === self::$db_type ? ' --skip-ssl-verify-server-cert' : '';
 				self::run_sql( self::$mysql_binary . ' --no-defaults' . $ssl_flag, [ 'execute' => "source {$install_cache_path}.sql" ], true /*add_database*/ );
 			}
@@ -2005,6 +2425,7 @@ class FeatureContext implements Context {
 			}
 
 			self::dir_diff_copy( $run_dir, self::$cache_dir, $install_cache_path );
+			self::remove_from_dir( $install_cache_path, $scenario_files );
 
 			if ( 'sqlite' !== self::$db_type ) {
 				$mysqldump_binary          = Utils\get_sql_dump_command();
@@ -2018,21 +2439,6 @@ class FeatureContext implements Context {
 				}
 				self::run_sql( $command, [ 'result-file' => "{$install_cache_path}.sql" ], true /*add_database*/ );
 			}
-
-			if ( 'sqlite' === self::$db_type ) {
-				// This is the sqlite equivalent of creating a database dump in MySQL
-				// Support both the new (.ht.sqlite.php) and legacy (.ht.sqlite) file names.
-				$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite.php";
-				if ( ! file_exists( $sqlite_source ) ) {
-					$sqlite_source = "$run_dir/wp-content/database/.ht.sqlite";
-				}
-				if ( file_exists( $sqlite_source ) ) {
-					copy( $sqlite_source, "{$install_cache_path}.sqlite" );
-				} elseif ( file_exists( "{$install_cache_path}.sqlite" ) ) {
-					// Ensure we don't keep a stale cached SQLite DB if the source wasn't produced
-					unlink( "{$install_cache_path}.sqlite" );
-				}
-			}
 		}
 	}
 
@@ -2043,6 +2449,10 @@ class FeatureContext implements Context {
 		$this->create_run_dir();
 		$this->create_db();
 
+		// Unlike download_wp(), this path never goes through cache_wp_files(),
+		// so the SQLite plugins have to be cached here.
+		self::cache_sqlite_plugins();
+
 		$yml_path = $this->variables['RUN_DIR'] . '/wp-cli.yml';
 		file_put_contents( $yml_path, 'path: WordPress' );
 
@@ -2052,7 +2462,10 @@ class FeatureContext implements Context {
 
 		// Allow for all Composer plugins to run to avoid warnings.
 		$this->composer_command( 'config --no-plugins allow-plugins true' );
-		$this->composer_command( 'require johnpbloch/wordpress-core-installer johnpbloch/wordpress-core --optimize-autoloader' );
+		// The roots packages link directly to the official WordPress.org release zips,
+		// so they are published immediately and cannot suffer from repackaging issues.
+		// The "-full" variant ships the default themes and plugins, roots/wordpress does not.
+		$this->composer_command( 'require roots/wordpress-core-installer roots/wordpress-full --optimize-autoloader' );
 
 		// Disable WP Cron by default to avoid bogus HTTP requests in CLI context.
 		$config_extra_php = "if ( defined( 'DISABLE_WP_CRON' ) === false ) { define( 'DISABLE_WP_CRON', true ); }\n";
@@ -2092,6 +2505,21 @@ class FeatureContext implements Context {
 		}
 
 		$this->proc( 'wp core install', $install_args )->run_check();
+
+		$this->set_content_dir_variables( $this->variables['RUN_DIR'] . '/WordPress/wp-content' );
+	}
+
+	/**
+	 * Expose the plugins and themes directories as {PLUGIN_DIR} and {THEME_DIR}.
+	 *
+	 * Matches the output of `wp plugin path` and `wp theme path`.
+	 *
+	 * @param string $content_dir
+	 * @param string $plugin_dir Defaults to the plugins directory inside $content_dir.
+	 */
+	public function set_content_dir_variables( $content_dir, $plugin_dir = '' ): void {
+		$this->variables['PLUGIN_DIR'] = $plugin_dir ?: $content_dir . '/plugins';
+		$this->variables['THEME_DIR']  = $content_dir . '/themes';
 	}
 
 	public function composer_add_wp_cli_local_repository(): void {
@@ -2130,14 +2558,82 @@ class FeatureContext implements Context {
 			$dir .= trim( $subdir, '/' ) . '/';
 		}
 		$cmd = Utils\esc_cmd(
-			'%s -S %s -t %s -c %s %s',
+			'%s -S %s -t %s -c %s',
 			Utils\get_php_binary(),
 			'localhost:8080',
 			$dir,
-			get_cfg_var( 'cfg_file_path' ),
-			$this->variables['RUN_DIR'] . '/vendor/wp-cli/server-command/router.php'
+			get_cfg_var( 'cfg_file_path' )
 		);
+
+		// Route requests through the router script of wp-cli/server-command when
+		// it is available, so that a WordPress installation gets pretty permalinks.
+		// The router sends every request for a missing file to index.php, so it is
+		// only used when the directory has one. Without a router, PHP's built-in
+		// web server serves the directory as-is, which is what a plain directory of
+		// static files needs, and a missing file is a 404. Passing a router path
+		// that does not exist would make every request fail with a fatal error.
+		$router = is_file( $dir . 'index.php' ) ? $this->get_php_server_router() : null;
+		if ( null !== $router ) {
+			$cmd .= ' ' . escapeshellarg( $router );
+		}
+
 		$this->background_proc( $cmd );
+	}
+
+	/**
+	 * Locate the router script of wp-cli/server-command, if it is installed.
+	 *
+	 * The Composer vendor directory of the run directory is checked first, so
+	 * that a scenario which installs the package itself takes precedence,
+	 * followed by the vendor directory of the project under test.
+	 *
+	 * @return string|null Absolute path to the router script, or null if none was found.
+	 */
+	private function get_php_server_router(): ?string {
+		$candidates = [
+			$this->variables['RUN_DIR'] . '/' . $this->get_run_dir_composer_vendor_dir(),
+			self::get_vendor_dir(),
+		];
+
+		foreach ( $candidates as $vendor_dir ) {
+			$router = $vendor_dir . '/wp-cli/server-command/router.php';
+			if ( is_file( $router ) ) {
+				return $router;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Get the Composer vendor directory configured in the run directory.
+	 *
+	 * Honors a custom `vendor-dir` in the run directory's composer.json, as set
+	 * up by `Given a WP installation with Composer and a custom vendor directory`.
+	 *
+	 * @return string Vendor directory, relative to the run directory.
+	 */
+	private function get_run_dir_composer_vendor_dir(): string {
+		$composer_json = $this->variables['RUN_DIR'] . '/composer.json';
+
+		if ( ! is_file( $composer_json ) ) {
+			return 'vendor';
+		}
+
+		$composer_data = json_decode( (string) file_get_contents( $composer_json ), true );
+
+		if (
+			is_array( $composer_data )
+			&& isset( $composer_data['config'] )
+			&& is_array( $composer_data['config'] )
+			&& isset( $composer_data['config']['vendor-dir'] )
+			&& is_string( $composer_data['config']['vendor-dir'] )
+			&& '' !== $composer_data['config']['vendor-dir']
+		) {
+			return trim( $composer_data['config']['vendor-dir'], '/' );
+		}
+
+		return 'vendor';
 	}
 
 	/**
@@ -2213,6 +2709,61 @@ class FeatureContext implements Context {
 			if ( count( self::$scenario_run_times ) > self::$num_top_scenarios ) {
 				arsort( self::$scenario_run_times );
 				array_pop( self::$scenario_run_times );
+			}
+		}
+	}
+
+	/**
+	 * List the files and directories within a directory, relative to it.
+	 *
+	 * Symbolic links are listed, but not followed.
+	 *
+	 * @param string $dir
+	 * @return array<string, bool> Whether each entry is a symbolic link, keyed by relative path, directories after
+	 *                             their contents. Empty if the directory does not exist.
+	 */
+	private static function list_dir( $dir ): array {
+		$dir = rtrim( $dir, '/\\' );
+		if ( ! is_dir( $dir ) ) {
+			return [];
+		}
+
+		$paths    = [];
+		$iterator = new \RecursiveIteratorIterator(
+			new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+			\RecursiveIteratorIterator::CHILD_FIRST
+		);
+
+		/**
+		 * @var \SplFileInfo $item
+		 */
+		foreach ( $iterator as $item ) {
+			$paths[ substr( $item->getPathname(), strlen( $dir ) + 1 ) ] = $item->isLink();
+		}
+
+		return $paths;
+	}
+
+	/**
+	 * Remove the given files from a directory, as well as the given directories once they are empty.
+	 *
+	 * A copy of what a symbolic link pointed to is removed with all its contents.
+	 *
+	 * @param string              $dir
+	 * @param array<string, bool> $paths Whether each entry was a symbolic link, keyed by relative path, directories
+	 *                                   after their contents.
+	 */
+	private static function remove_from_dir( $dir, array $paths ): void {
+		foreach ( $paths as $path => $was_link ) {
+			$full_path = "{$dir}/{$path}";
+
+			if ( $was_link && is_dir( $full_path ) && ! is_link( $full_path ) ) {
+				self::remove_dir( $full_path );
+			} elseif ( is_dir( $full_path ) && ! is_link( $full_path ) ) {
+				// Only succeeds for directories that are empty by now.
+				@rmdir( $full_path );
+			} elseif ( file_exists( $full_path ) || is_link( $full_path ) ) {
+				unlink( $full_path );
 			}
 		}
 	}
@@ -2371,7 +2922,9 @@ class FeatureContext implements Context {
 		if ( 'error_log' === self::$output_to ) {
 			error_log( $log );
 		} else {
-			echo PHP_EOL . $log;
+			// Behat buffers what hooks echo and only prints it for failed scenarios,
+			// so write to the stream directly to get the report in every run.
+			fwrite( STDOUT, PHP_EOL . $log . PHP_EOL );
 		}
 	}
 
