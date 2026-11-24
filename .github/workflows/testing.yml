@@ -19,18 +19,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Trial of the fanned-out shape from wp-cli/.github#277. A matrix only becomes a
+# Trial of the fanned-out shape from wp-cli/.github#282. A matrix only becomes a
 # collapsible group in the Actions run view when it sits on a job declared in the
 # workflow the run belongs to, so the legs are started from here rather than from
 # inside reusable-testing.yml.
 #
-# TODO: the three refs below point at the pull request branch because
+# TODO: the three refs below are pinned to the head of wp-cli/.github#282 because
 # reusable-prepare-matrix.yml does not exist on main yet. Switch them to @main
-# once wp-cli/.github#277 is merged.
+# once that is merged.
 jobs:
   prepare:
     name: Prepare test matrices
-    uses: wp-cli/.github/.github/workflows/reusable-prepare-matrix.yml@claude/wp-cli-actions-optimization-mozclo
+    uses: wp-cli/.github/.github/workflows/reusable-prepare-matrix.yml@80540c1216ca1c4f64f2d17a4d85906f7a7d44b9
     # Carried over unchanged from the previous `test` job.
     with:
       matrix: |
@@ -74,7 +74,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.unit) }}
-    uses: wp-cli/.github/.github/workflows/reusable-unit.yml@claude/wp-cli-actions-optimization-mozclo
+    uses: wp-cli/.github/.github/workflows/reusable-unit.yml@80540c1216ca1c4f64f2d17a4d85906f7a7d44b9
     secrets: inherit
     with:
       php: ${{ matrix.php }}
@@ -90,7 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.functional) }}
-    uses: wp-cli/.github/.github/workflows/reusable-functional.yml@claude/wp-cli-actions-optimization-mozclo
+    uses: wp-cli/.github/.github/workflows/reusable-functional.yml@80540c1216ca1c4f64f2d17a4d85906f7a7d44b9
     secrets: inherit
     with:
       php: ${{ matrix.php }}
