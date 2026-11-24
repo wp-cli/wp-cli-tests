@@ -2,7 +2,7 @@
 
 namespace WP_CLI\Tests\Tests;
 
-use ReflectionMethod;
+use Closure;
 use WP_CLI\Tests\Context\FeatureContext;
 use WP_CLI\Tests\TestCase;
 
@@ -36,13 +36,15 @@ class TestXdebugEnv extends TestCase {
 	 * @return array<string, string>
 	 */
 	private function get_xdebug_env_variables(): array {
-		$method = new ReflectionMethod( FeatureContext::class, 'get_xdebug_env_variables' );
-		if ( PHP_VERSION_ID < 80100 ) {
-			$method->setAccessible( true );
-		}
+		$get_variables = Closure::bind(
+			static function (): array {
+				return FeatureContext::get_xdebug_env_variables();
+			},
+			null,
+			FeatureContext::class
+		);
 
-		/** @var array<string, string> */
-		return $method->invoke( null );
+		return $get_variables();
 	}
 
 	public function test_nothing_is_set_without_the_variable(): void {
