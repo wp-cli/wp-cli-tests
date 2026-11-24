@@ -46,20 +46,23 @@ trait WP_CLI_Tests_Mock_Requests_Trait {
 	}
 }
 
-if ( interface_exists( '\WpOrg\Requests\Transport' ) ) {
-	class WP_CLI_Tests_Mock_Requests_Transport implements \WpOrg\Requests\Transport {
-		use WP_CLI_Tests_Mock_Requests_Trait;
-	}
-} else {
-	class WP_CLI_Tests_Mock_Requests_Transport implements \Requests_Transport {
-		use WP_CLI_Tests_Mock_Requests_Trait;
-	}
-}
-
 WP_CLI::add_hook(
 	'http_request_options',
 	static function ( $options ) {
-		$options['transport'] = new WP_CLI_Tests_Mock_Requests_Transport();
+		if ( class_exists( '\WP_CLI\RequestsLibrary' ) && method_exists( '\WP_CLI\RequestsLibrary', 'register_autoloader' ) ) {
+			\WP_CLI\RequestsLibrary::register_autoloader();
+		}
+
+		if ( interface_exists( '\WpOrg\Requests\Transport' ) ) {
+			$options['transport'] = new class() implements \WpOrg\Requests\Transport {
+				use WP_CLI_Tests_Mock_Requests_Trait;
+			};
+		} else {
+			$options['transport'] = new class() implements \Requests_Transport {
+				use WP_CLI_Tests_Mock_Requests_Trait;
+			};
+		}
+
 		return $options;
 	}
 );

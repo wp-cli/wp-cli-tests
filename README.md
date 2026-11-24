@@ -210,23 +210,33 @@ Unlike the analysis above, a docstring that merely opens with `<?php` does not c
 routinely an expectation about the contents of a file rather than a file, and reformatting one would
 make it stop matching what it is checked against.
 
-The defaults leave out the sniffs that look at a block as if it were a file of its own, along with
-those that ask of a fixture what is only worth asking of production code. They live in
-`phpcs/feature-files.sh` and are shared by the check and the fixer, so that the two cannot disagree
-over which sniff applies. A package replaces them wholesale by adding a `phpcs-feature-files.xml`
-(or `phpcs-feature-files.xml.dist`) ruleset to its root:
+Feature files indent with spaces, so the sniffs that would indent a block with tabs are turned around
+for this run: a block is checked, and fixed, as the space-indented code it is, and a tab that does
+find its way into one is reported and fixed like any other violation. Trailing whitespace is reported
+too, as the fixer leaves some behind wherever it breaks a line.
+
+All of this is the `WP_CLI_CS_Feature_Files` ruleset, which is `WP_CLI_CS` with the sniffs that
+indent turned around, and with the sniffs that look at a block as if it were a file of its own left
+out, along with those that ask of a fixture what is only worth asking of production code. The check
+and the fixer both use it, so that the two cannot disagree over which sniff applies to a block. A
+package replaces it wholesale by adding a `phpcs-feature-files.xml` (or
+`phpcs-feature-files.xml.dist`) ruleset to its root:
 
 ```xml
 <?xml version="1.0"?>
 <ruleset name="WP-CLI-PROJECT-NAME-feature-files">
     <arg name="warning-severity" value="0"/>
 
-    <rule ref="WP_CLI_CS">
+    <rule ref="WP_CLI_CS_Feature_Files">
         <exclude name="Generic.Files.InlineHTML"/>
         <exclude name="Squiz.Commenting.FileComment"/>
     </rule>
 </ruleset>
 ```
+
+Starting from `WP_CLI_CS_Feature_Files`, as above, keeps the defaults and adds to them. Starting
+from `WP_CLI_CS` instead gives up all of them, including the space indentation, and leaves the
+package to say for itself what a padded block cannot satisfy.
 
 The blocks are left alone when a run is narrowed down to a path, as in `composer phpcs -- src/`,
 since such an argument is about the files of the package itself.
@@ -254,6 +264,41 @@ composer behat -- --stop-on-failure
 # Re-run only the scenarios that failed the last time.
 composer behat-rerun
 ```
+
+### Running scenarios in parallel
+
+Set `WP_CLI_TEST_PARALLEL` to a number of workers to spread the scenarios over that many Behat processes:
+```bash
+WP_CLI_TEST_PARALLEL=4 composer behat
+```
+
+Every worker but the first gets its own temporary directory, and with it its own home directory, caches and run directories, as well as its own test database, named after the test database with a numeric suffix (`wp_cli_test_1`, `wp_cli_test_2`, ...). Run `composer prepare-tests` once to allow the test user to create these databases. Without that permission, the scenarios are run one after the other, as they are on Windows, when collecting code coverage, or when selecting scenarios by path or name.
+
+Scenarios that rely on resources shared across the system, such as a fixed port or a fixed path in the system's temporary directory, are all run by the first worker, one after the other. `composer behat-rerun` re-runs exactly the scenarios that failed in the last parallel run.
+
+Set `WP_CLI_TEST_DOCKER` to run the scenarios in throwaway Docker containers instead, every worker in its own:
+```bash
+WP_CLI_TEST_DOCKER=auto WP_CLI_TEST_PARALLEL=4 composer behat
+```
+
+| `WP_CLI_TEST_DOCKER`                | Effect                                                                                           |
+|-------------------------------------|--------------------------------------------------------------------------------------------------|
+| not set (default), `0`, `no`, `off` | The scenarios run without Docker.                                                                |
+| `auto`                              | The scenarios run in containers where possible, and without Docker otherwise, which is reported. |
+| `1`, `yes`, `on`                    | The scenarios run in containers, and the run fails where that is not possible.                   |
+
+Docker is not used on Windows, when collecting code coverage, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
+
+Each worker gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`, so that the host needs neither a database server nor a client). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. Scenarios selected by path or name run in a single container.
+
+The containers are removed when the run ends, also when it is stopped with Ctrl+C or a termination signal (with the `pcntl` extension). Containers of a run that was killed outright are removed by the next run on the same host, which only removes those whose run is no longer going.
+
+The containers run the same PHP version as the host, unless `WP_CLI_TEST_DOCKER_PHP` sets another one:
+```bash
+WP_CLI_TEST_DOCKER=1 WP_CLI_TEST_DOCKER_PHP=7.4 WP_CLI_TEST_PARALLEL=4 composer behat
+```
+
+The project's Composer dependencies are then installed for that PHP version in a separate directory, the way CI installs them without a lock file, and refreshed once a day. Dependencies that are linked to local checkouts, as in `wp-cli/wp-cli-dev`, come from their published versions in that case, which is reported.
 
 ### Linting the feature files
 
@@ -351,6 +396,29 @@ they test.
   skipped when there is none, which is the case when the database server runs in a
   container and is only reachable over TCP. Set `WP_CLI_TEST_DBSOCKET` to point at the
   socket if it lives somewhere unusual.
+* `@require-bin-<name>` — the scenario runs a command that is not always installed, such as
+  `@require-bin-svn` or `@require-bin-ex` for one using `ex` as its editor. It is skipped
+  where the command is not available. `@require-composer` does the same for Composer.
+* `@require-extension-<name>` — the scenario needs a PHP extension, such as
+  `@require-extension-imagick`. It is skipped where the extension is not loaded.
+* `@require-download` — the scenario downloads files from WordPress.org. It is skipped where
+  WordPress.org cannot be reached.
+
+Requirement tags the test framework does not know are reported with a warning, as they would
+not filter anything. When a command fails because a command it runs does not exist, the
+failure names the tag to add, and `composer lint-gherkin` lists the scenarios that run
+commands which are not always installed without declaring them.
+
+Before the scenarios run, the scenarios that are left out are listed together with the reason,
+separating the ones the environment cannot run, such as those needing a PHP extension that is
+not loaded, from the ones that are not part of the configuration being tested, such as those
+for another database or WordPress version. On GitHub Actions, the list is also added to the
+job summary.
+
+Set `WP_CLI_TEST_STRICT_REQUIREMENTS` where the environment is expected to provide everything
+the scenarios need, such as on CI. The run then stops before any scenario starts when some of
+them cannot run in the environment, or when the database cannot be reached, instead of leaving
+those scenarios out or falling back to SQLite.
 
 #### WP-CLI Binary
 

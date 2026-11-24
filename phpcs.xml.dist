@@ -79,9 +79,13 @@
 		 so this file does not have to comply with WP naming conventions. -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<exclude-pattern>*/utils/behat-tags\.php$</exclude-pattern>
+		<exclude-pattern>*/utils/behat-parallel\.php$</exclude-pattern>
+		<exclude-pattern>*/utils/check-required-tools\.php$</exclude-pattern>
 	</rule>
 	<rule ref="WordPress.WP.GlobalVariablesOverride">
 		<exclude-pattern>*/utils/behat-tags\.php$</exclude-pattern>
+		<exclude-pattern>*/utils/behat-parallel\.php$</exclude-pattern>
+		<exclude-pattern>*/utils/check-required-tools\.php$</exclude-pattern>
 	</rule>
 
 	<!-- This is a procedural stand-alone file that is adding polyfills when
@@ -101,15 +105,8 @@
 
 	<!-- These are stand-alone files that are copied into the test run directory and
 		 executed by the child WP-CLI process, not loaded as part of this package.
-		 They declare a class once per supported Requests major version, and their
-		 method signatures are dictated by the transport interface they implement,
+		 Their method signatures are dictated by the transport interface they implement,
 		 so unused parameters cannot be dropped. -->
-	<rule ref="Generic.Files.OneObjectStructurePerFile">
-		<exclude-pattern>*/src/Context/templates/*</exclude-pattern>
-	</rule>
-	<rule ref="Generic.Classes.DuplicateClassName">
-		<exclude-pattern>*/src/Context/templates/*</exclude-pattern>
-	</rule>
 	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
 		<exclude-pattern>*/src/Context/templates/*</exclude-pattern>
 	</rule>

@@ -25,8 +25,8 @@ done
 DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 
 # A ruleset of the same purpose in the package root replaces the defaults
-# wholesale. Both scripts read the defaults from the same file, so that the
-# check and the fixer cannot disagree over which sniff applies to a block.
+# wholesale. Both scripts use the same ruleset otherwise, so that the check and
+# the fixer cannot disagree over which sniff applies to a block.
 FEATURE_STANDARD=""
 for CANDIDATE in "phpcs-feature-files.xml" "phpcs-feature-files.xml.dist"
 do
@@ -37,13 +37,9 @@ do
 	fi
 done
 
-FEATURE_ARGS=""
-if [ -z "$FEATURE_STANDARD" ] && [ -f "$DIR/phpcs/feature-files.sh" ]
+if [ -z "$FEATURE_STANDARD" ]
 then
-	. "$DIR/phpcs/feature-files.sh"
-	FEATURE_STANDARD="$WP_CLI_TESTS_FEATURE_STANDARD"
-	# Holds no path, so leaving it unquoted below splits it into arguments.
-	FEATURE_ARGS="$WP_CLI_TESTS_FEATURE_ARGS"
+	FEATURE_STANDARD="WP_CLI_CS_Feature_Files"
 fi
 
 # An argument naming what to fix applies to the files of the package itself, so
@@ -57,7 +53,7 @@ do
 	esac
 done
 
-if [ "$FIX_BLOCKS" -eq 1 ] && [ -d "features" ] && [ -n "$FEATURE_STANDARD" ] \
+if [ "$FIX_BLOCKS" -eq 1 ] && [ -d "features" ] \
 	&& [ -f "$DIR/utils/extract-feature-php.php" ]
 then
 	TEMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'feature_phpcbf')
@@ -68,8 +64,7 @@ then
 	then
 		if [ -n "$(ls -A "$TEMP_DIR" 2>/dev/null)" ]
 		then
-			# shellcheck disable=SC2086 # Intentional word splitting.
-			vendor/bin/phpcbf --standard="$FEATURE_STANDARD" $FEATURE_ARGS \
+			vendor/bin/phpcbf --standard="$FEATURE_STANDARD" \
 				"$TEMP_DIR" >/dev/null || EXIT_CODE=$?
 
 			php "$DIR/utils/extract-feature-php.php" update features "$TEMP_DIR" >/dev/null || EXIT_CODE=$?

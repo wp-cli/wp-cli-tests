@@ -44,8 +44,8 @@ done
 DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 
 # A ruleset of the same purpose in the package root replaces the defaults
-# wholesale. Both scripts read the defaults from the same file, so that the
-# check and the fixer cannot disagree over which sniff applies to a block.
+# wholesale. Both scripts use the same ruleset otherwise, so that the check and
+# the fixer cannot disagree over which sniff applies to a block.
 FEATURE_STANDARD=""
 for CANDIDATE in "phpcs-feature-files.xml" "phpcs-feature-files.xml.dist"
 do
@@ -56,13 +56,9 @@ do
 	fi
 done
 
-FEATURE_ARGS=""
-if [ -z "$FEATURE_STANDARD" ] && [ -f "$DIR/phpcs/feature-files.sh" ]
+if [ -z "$FEATURE_STANDARD" ]
 then
-	. "$DIR/phpcs/feature-files.sh"
-	FEATURE_STANDARD="$WP_CLI_TESTS_FEATURE_STANDARD"
-	# Holds no path, so leaving it unquoted below splits it into arguments.
-	FEATURE_ARGS="$WP_CLI_TESTS_FEATURE_ARGS"
+	FEATURE_STANDARD="WP_CLI_CS_Feature_Files"
 fi
 
 # An argument naming what to check applies to the files of the package itself,
@@ -76,7 +72,7 @@ do
 	esac
 done
 
-if [ "$CHECK_BLOCKS" -eq 1 ] && [ -d "features" ] && [ -n "$FEATURE_STANDARD" ] \
+if [ "$CHECK_BLOCKS" -eq 1 ] && [ -d "features" ] \
 	&& [ -f "$DIR/utils/extract-feature-php.php" ]
 then
 	TEMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'feature_phpcs')
@@ -93,8 +89,7 @@ then
 			# `--basepath` reduces the reported paths to the part that is worth
 			# showing, which also keeps PHPCS from truncating them from the left
 			# once they grow past the width of the report.
-			# shellcheck disable=SC2086 # Intentional word splitting.
-			vendor/bin/phpcs --standard="$FEATURE_STANDARD" $FEATURE_ARGS \
+			vendor/bin/phpcs --standard="$FEATURE_STANDARD" \
 				--basepath="$TEMP_DIR" "$TEMP_DIR" >"$PHPCS_OUTPUT" 2>&1 || EXIT_CODE=$?
 
 			# Findings are reported against the feature files they came from.
