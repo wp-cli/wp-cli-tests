@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run the Behat tests only if a Behat config file is found.
-if [ ! -f "behat.yml" ]; then
+if [ ! -f "behat.yml" ] && [ ! -f "behat.php" ] && [ ! -f "behat.dist.php" ]; then
 	echo 'Did not detect "behat.yml" file, skipping Behat tests.'
 	exit 0;
 fi
@@ -292,6 +292,25 @@ done
 # Fetch the root folder of the WP-CLI tests package.
 WP_CLI_TESTS_ROOT="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
 export WP_CLI_TESTS_ROOT
+
+# Behat 4 only reads PHP configuration. Unless the project has one, or the run names a configuration
+# file, hand Behat the default profile of behat.yml through BEHAT_PARAMS, which it reads in every
+# version. What BEHAT_PARAMS already holds takes precedence over the file, as it does in Behat 3.
+BEHAT_CONFIG_ARG=""
+for arg in "$@"; do
+	case "$arg" in
+		-c|-c*|--config|--config=*) BEHAT_CONFIG_ARG=1;;
+	esac
+done
+
+if [ -f "behat.yml" ] && [ ! -f "behat.php" ] && [ ! -f "behat.dist.php" ] && [ -z "${BEHAT_CONFIG_ARG}" ]; then
+	if ! BEHAT_YML_PARAMS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-config.php); then
+		exit 1
+	fi
+	if [ -n "${BEHAT_YML_PARAMS}" ]; then
+		export BEHAT_PARAMS="${BEHAT_YML_PARAMS}"
+	fi
+fi
 
 # Generate the tags to apply environment-specific filters.
 BEHAT_TAGS=$(php "$WP_CLI_TESTS_ROOT"/utils/behat-tags.php)
