@@ -310,7 +310,7 @@ WP_CLI_TEST_DOCKER=auto WP_CLI_TEST_PARALLEL=4 composer behat
 | `auto`                              | The scenarios run in containers where possible, and without Docker otherwise, which is reported. |
 | `1`, `yes`, `on`                    | The scenarios run in containers, and the run fails where that is not possible.                   |
 
-Docker is not used on Windows, when collecting code coverage, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
+Docker is not used on Windows, when collecting code coverage, when step debugging, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
 
 Each worker gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`, so that the host needs neither a database server nor a client). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. Scenarios selected by path or name run in a single container.
 
@@ -459,6 +459,24 @@ chmod +x ~/wp-cli/wp
 
 WP_CLI_BIN_DIR=~/wp-cli composer behat
 ```
+
+#### Xdebug Step Debugging
+
+Set `WP_CLI_TEST_XDEBUG` to step debug the WP-CLI and WordPress code that the scenarios run, with Xdebug 3:
+
+```bash
+WP_CLI_TEST_XDEBUG=true composer behat -- features/cli-info.feature:12
+```
+
+Every WP-CLI process launched by the tests then starts a debugging session, which your IDE needs to listen for. The test runner itself is not debugged; set `XDEBUG_MODE` and `XDEBUG_SESSION` for that.
+
+The launched processes get the following environment variables:
+
+* `XDEBUG_MODE`: `debug`, added to the modes set through `XDEBUG_MODE` or `xdebug.mode`, and to `coverage` when collecting code coverage.
+* `XDEBUG_SESSION=1`, unless `XDEBUG_SESSION` is set already.
+* `XDEBUG_CONFIG`: `log_level=0`, added to the settings in `XDEBUG_CONFIG` unless they set a log level, so that Xdebug does not print warnings into the output the scenarios check when no IDE is listening.
+
+As every process connects to the debugger, run a single scenario or feature file rather than the whole suite, and without parallel workers. Docker is not used when step debugging.
 
 ### Setting up the tests in Travis CI
 

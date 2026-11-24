@@ -305,6 +305,15 @@ class FeatureContext implements Context, LegacyAnnotations {
 		return \in_array( $with_code_coverage, [ 'true', '1' ], true );
 	}
 
+	/**
+	 * Whether the launched WP-CLI processes should connect to the Xdebug step debugger.
+	 */
+	private static function running_with_xdebug(): bool {
+		$with_xdebug = (string) getenv( 'WP_CLI_TEST_XDEBUG' );
+
+		return \in_array( $with_xdebug, [ 'true', '1' ], true );
+	}
+
 	public static function merge_coverage_reports(): void {
 		if ( ! self::running_with_code_coverage() ) {
 			return;
@@ -544,7 +553,7 @@ class FeatureContext implements Context, LegacyAnnotations {
 		}
 
 		$env = array_filter(
-			array_merge( $env, self::get_php_tuning_env_variables() ),
+			array_merge( $env, self::get_php_tuning_env_variables(), self::get_xdebug_env_variables() ),
 			static function ( $value ) {
 				return null !== $value;
 			}
@@ -594,6 +603,46 @@ class FeatureContext implements Context, LegacyAnnotations {
 		$github_token = getenv( 'GITHUB_TOKEN' );
 		if ( false !== $github_token ) {
 			$env['GITHUB_TOKEN'] = $github_token;
+		}
+
+		return $env;
+	}
+
+	/**
+	 * Get the environment variables that make the launched PHP processes start a step debugging session.
+	 *
+	 * The debug mode is added to the modes already requested through XDEBUG_MODE or php.ini,
+	 * and to the coverage mode when code coverage is collected. XDEBUG_SESSION is only set when not
+	 * set already. Unless XDEBUG_CONFIG sets a log level, it is lowered so that Xdebug does not
+	 * print a warning on STDERR, which scenarios check, when no debugging client is listening.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function get_xdebug_env_variables(): array {
+		if ( ! self::running_with_xdebug() ) {
+			return [];
+		}
+
+		$mode = getenv( 'XDEBUG_MODE' );
+		if ( false === $mode ) {
+			$mode = (string) ini_get( 'xdebug.mode' );
+		}
+
+		$modes   = array_diff( array_map( 'trim', explode( ',', $mode ) ), [ '', 'off' ] );
+		$modes[] = 'debug';
+		if ( self::running_with_code_coverage() ) {
+			$modes[] = 'coverage';
+		}
+
+		$env = [ 'XDEBUG_MODE' => implode( ',', array_unique( $modes ) ) ];
+
+		if ( false === getenv( 'XDEBUG_SESSION' ) ) {
+			$env['XDEBUG_SESSION'] = '1';
+		}
+
+		$config = (string) getenv( 'XDEBUG_CONFIG' );
+		if ( false === strpos( $config, 'log_level=' ) ) {
+			$env['XDEBUG_CONFIG'] = ltrim( "{$config} log_level=0" );
 		}
 
 		return $env;

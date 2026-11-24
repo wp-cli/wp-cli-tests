@@ -60,6 +60,8 @@ if [ -n "${DOCKER}" ]; then
 		without_docker "Docker is not available."
 	elif [[ "${WP_CLI_TEST_COVERAGE}" == "true" ]]; then
 		without_docker "Code coverage cannot be collected in Docker containers."
+	elif [[ "${WP_CLI_TEST_XDEBUG}" == "true" || "${WP_CLI_TEST_XDEBUG}" == "1" ]]; then
+		without_docker "Step debugging is not available in Docker containers."
 	fi
 fi
 
