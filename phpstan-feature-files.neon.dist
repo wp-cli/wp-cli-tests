@@ -1,0 +1,8 @@
+# Opts this package into the static analysis of the PHP blocks in its feature files.
+#
+# The defaults in `phpstan/feature-files.neon` are applied first. Packages using the
+# testing framework pick up `extension.neon` through phpstan/extension-installer, so
+# they do not have to include it themselves.
+
+includes:
+	- extension.neon

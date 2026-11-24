@@ -18,7 +18,7 @@ Feature: Test that WP-CLI loads.
     And a test_cron.php file:
       """
       <?php
-      $cron_disabled = defined( "DISABLE_WP_CRON" ) ? DISABLE_WP_CRON : false;
+      $cron_disabled = defined( 'DISABLE_WP_CRON' ) ? DISABLE_WP_CRON : false;
       echo 'DISABLE_WP_CRON is: ' . ( $cron_disabled ? 'true' : 'false' );
       """
 
@@ -35,6 +35,81 @@ Feature: Test that WP-CLI loads.
     Then STDOUT should contain:
       """
       sqlite
+      """
+
+  Scenario: Leave files a scenario created before installing out of the installation cache
+    Given an empty directory
+    And a scenario-files/wp-cli.yml file:
+      """
+      user: admin
+      """
+    And a WP installation in 'scenario-files/'
+    Then the scenario-files/wp-cli.yml file should exist
+
+    When I run `php -r "rename('scenario-files', 'first');"`
+
+    # Reuse the subdirectory to select the same installation cache.
+    Given a WP installation in 'scenario-files/'
+    Then the scenario-files/wp-config.php file should exist
+    And the scenario-files/wp-cli.yml file should not exist
+
+  @skip-windows
+  Scenario: Leave what a scenario linked to before installing out of the installation cache
+    Given an empty directory
+    And a linked-files/wp-cli.yml file:
+      """
+      user: admin
+      """
+    When I run `php -r "mkdir('scenario-links'); symlink(getcwd() . '/linked-files', 'scenario-links/linked');"`
+
+    Given a WP installation in 'scenario-links'
+    Then the scenario-links/linked/wp-cli.yml file should exist
+
+    When I run `php -r "rename('scenario-links', 'first');"`
+
+    # Reuse the subdirectory to select the same installation cache.
+    Given a WP installation in 'scenario-links'
+    Then the scenario-links/wp-config.php file should exist
+    And the scenario-links/linked directory should not exist
+
+  @require-sqlite
+  Scenario: Restore independent SQLite databases from the installation cache
+    Given a WP installation in 'cached'
+    When I run `wp eval 'echo substr( defined( "DB_PATH" ) ? DB_PATH : FQDB, strlen( ABSPATH ) );'` from 'cached'
+    Then save STDOUT as {DATABASE_PATH}
+
+    When I run `php -r "rename('cached', 'first');"`
+    And I run `wp eval 'update_option( "blogname", "First installation" );'` from 'first'
+
+    # Reuse the subdirectory to select the same installation cache.
+    Given a WP installation in 'cached'
+    Then the cached/{DATABASE_PATH} file should exist
+    When I run `wp eval 'echo get_option( "blogname" );'` from 'cached'
+    Then STDOUT should be:
+      """
+      WP CLI Site
+      """
+
+    When I run `php -r "rename('cached', 'second');"`
+    And I run `wp eval 'update_option( "blogname", "Second installation" );'` from 'second'
+
+    Given a WP installation in 'cached'
+    Then the cached/{DATABASE_PATH} file should exist
+    When I run `wp eval 'echo get_option( "blogname" );'` from 'cached'
+    Then STDOUT should be:
+      """
+      WP CLI Site
+      """
+
+    When I run `wp eval 'echo get_option( "blogname" );'` from 'first'
+    Then STDOUT should be:
+      """
+      First installation
+      """
+    When I run `wp eval 'echo get_option( "blogname" );'` from 'second'
+    Then STDOUT should be:
+      """
+      Second installation
       """
 
   @require-mysql
@@ -133,3 +208,14 @@ Feature: Test that WP-CLI loads.
       C:\Windows
       """
 
+
+  @skip-windows
+  Scenario: Run WP-CLI with a disabled function after it ran without
+    Given an empty directory
+    When I run `wp cli version`
+    And I try `{INVOKE_WP_CLI_WITH_PHP_ARGS--ddisable_functions=ini_set} cli info`
+    Then the return code should be 0
+    And STDOUT should contain:
+      """
+      PHP binary
+      """

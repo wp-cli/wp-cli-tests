@@ -1,0 +1,27 @@
+# Defaults for the static analysis of the PHP blocks embedded in Behat feature files.
+#
+# A package opts into the analysis by adding a `phpstan-feature-files.neon` (or
+# `phpstan-feature-files.neon.dist`) file to its root. These defaults are always
+# applied first, so that file only needs to hold what it wants to change.
+#
+# The snippets in feature files are fixtures rather than production code, so the
+# level is kept below the one that asks for type declarations everywhere.
+
+parameters:
+	level: 5
+	treatPhpDocTypesAsCertain: false
+
+	# Most packages will not run into all of the errors ignored below.
+	reportUnmatchedIgnoredErrors: false
+
+	ignoreErrors:
+		# `wp eval-file` passes the remaining positional arguments to the file it runs.
+		-
+			identifier: variable.undefined
+			message: '#^Variable \$args might not be defined\.$#'
+
+		# Files a snippet pulls in are created by other steps while the scenario runs.
+		- identifier: include.fileNotFound
+		- identifier: includeOnce.fileNotFound
+		- identifier: require.fileNotFound
+		- identifier: requireOnce.fileNotFound

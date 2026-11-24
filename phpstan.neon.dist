@@ -7,6 +7,9 @@ parameters:
     - tests
   excludePaths:
     - tests/data
+    # Templates are copied into the test run directory and executed by the
+    # child WP-CLI process, where Requests v1 classes may still exist.
+    - src/Context/templates
   scanDirectories:
     - vendor/wp-cli/wp-cli
     - vendor/phpunit/php-code-coverage

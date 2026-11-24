@@ -349,6 +349,33 @@ class TestBehatTags extends TestCase {
 		$this->assertSame( $expected, $output );
 	}
 
+	public function test_behat_tags_docker_db_image(): void {
+		if ( Utils\is_windows() ) {
+			$this->markTestSkipped( 'The scenarios do not run in Docker containers on Windows.' );
+		}
+
+		file_put_contents( $this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'db.feature', '@require-mysql @require-mariadb-10.6 @require-mariadb-11.4 @less-than-mariadb-10.5 @less-than-mariadb-11' );
+
+		$base_expecteds = array( '~@github-api', '~@broken' );
+		if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
+			$base_expecteds[] = '~@require-object-cache';
+		} else {
+			$base_expecteds[] = '~@skip-object-cache';
+		}
+		$expecteds = array( '~@require-mysql', '~@require-sqlite', '~@skip-mariadb', '~@require-mariadb-11.4', '~@less-than-mariadb-10.5' );
+		$expected  = '--tags=' . implode( '&&', array_merge( $base_expecteds, $expecteds ) );
+		$output    = $this->run_with_env(
+			array(
+				'GITHUB_TOKEN'          => null,
+				'WP_VERSION'            => null,
+				'WP_CLI_TEST_DBTYPE'    => 'mysql',
+				'WP_CLI_TEST_DOCKER'    => 'force',
+				'WP_CLI_TEST_DOCKER_DB' => 'mariadb:10.11',
+			)
+		);
+		$this->assertSame( $expected, $output );
+	}
+
 	public function test_behat_tags_os(): void {
 		$env_github_token = getenv( 'GITHUB_TOKEN' );
 		$db_type          = getenv( 'WP_CLI_TEST_DBTYPE' );
@@ -458,5 +485,227 @@ class TestBehatTags extends TestCase {
 		$this->assertSame( $expected, $output );
 
 		putenv( false === $env_github_token ? 'GITHUB_TOKEN' : "GITHUB_TOKEN=$env_github_token" );
+	}
+
+	/**
+	 * Write a feature file carrying the given tag.
+	 *
+	 * @param string $tag
+	 */
+	private function write_tagged_feature( $tag ): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'tagged.feature',
+			$tag . "\nFeature: Tagged\n"
+		);
+	}
+
+	/**
+	 * Run the script with the given environment, restoring it afterwards.
+	 *
+	 * @param array<string, ?string> $env Variables to set, or null to unset.
+	 * @return string|false
+	 */
+	private function run_with_env( array $env ) {
+		$previous = array();
+
+		foreach ( $env as $name => $value ) {
+			$current           = getenv( $name );
+			$previous[ $name ] = false === $current ? null : $current;
+
+			putenv( null === $value ? $name : "{$name}={$value}" );
+		}
+
+		try {
+			return $this->run_behat_tags_script();
+		} finally {
+			foreach ( $previous as $name => $value ) {
+				putenv( null === $value ? $name : "{$name}={$value}" );
+			}
+		}
+	}
+
+	public function test_require_wp_stable_is_skipped_for_an_archive(): void {
+		$this->write_tagged_feature( '@require-wp-stable' );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_VERSION'           => '6.4.2',
+				'WP_CLI_TEST_CORE_ZIP' => $this->temp_dir . DIRECTORY_SEPARATOR . 'wordpress.zip',
+			)
+		);
+
+		$this->assertStringContainsString( '~@require-wp-stable', (string) $output );
+	}
+
+	public function test_require_wp_stable_is_skipped_on_trunk(): void {
+		$this->write_tagged_feature( '@require-wp-stable' );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_VERSION'           => 'trunk',
+				'WP_CLI_TEST_CORE_ZIP' => null,
+			)
+		);
+
+		$this->assertStringContainsString( '~@require-wp-stable', (string) $output );
+	}
+
+	public function test_require_wp_stable_runs_on_a_release(): void {
+		$this->write_tagged_feature( '@require-wp-stable' );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_VERSION'           => '6.4.2',
+				'WP_CLI_TEST_CORE_ZIP' => null,
+			)
+		);
+
+		$this->assertStringNotContainsString( '@require-wp-stable', (string) $output );
+	}
+
+	public function test_require_mysql_socket_is_skipped_without_a_socket(): void {
+		$this->write_tagged_feature( '@require-mysql-socket' );
+
+		$output = $this->run_with_env(
+			array( 'WP_CLI_TEST_DBSOCKET' => $this->temp_dir . DIRECTORY_SEPARATOR . 'missing.sock' )
+		);
+
+		$this->assertStringContainsString( '~@require-mysql-socket', (string) $output );
+	}
+
+	public function test_require_mysql_socket_runs_with_a_socket(): void {
+		$this->write_tagged_feature( '@require-mysql-socket' );
+
+		$socket = $this->temp_dir . DIRECTORY_SEPARATOR . 'mysql.sock';
+		touch( $socket );
+
+		$output = $this->run_with_env( array( 'WP_CLI_TEST_DBSOCKET' => $socket ) );
+
+		$this->assertStringNotContainsString( '@require-mysql-socket', (string) $output );
+	}
+
+	/**
+	 * Tags no scenario carries do not need to be filtered out.
+	 */
+	public function test_unused_tags_are_not_filtered_out(): void {
+		$this->write_tagged_feature( '@some-other-tag' );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_VERSION'           => 'trunk',
+				'WP_CLI_TEST_DBSOCKET' => $this->temp_dir . DIRECTORY_SEPARATOR . 'missing.sock',
+			)
+		);
+
+		$this->assertStringNotContainsString( '@require-wp-stable', (string) $output );
+		$this->assertStringNotContainsString( '@require-mysql-socket', (string) $output );
+	}
+
+	/**
+	 * Run the script and capture its output streams and exit code.
+	 *
+	 * @param array<string, string> $env Additional environment variables.
+	 * @return array{stdout: string, stderr: string, exit_code: int}
+	 */
+	private function run_behat_tags_script_with_streams( array $env = array() ): array {
+		$behat_tags = dirname( dirname( __DIR__ ) ) . DIRECTORY_SEPARATOR . 'utils' . DIRECTORY_SEPARATOR . 'behat-tags.php';
+		$command    = escapeshellarg( PHP_BINARY ) . ' -n ' . escapeshellarg( $behat_tags );
+
+		$env = array_merge(
+			getenv(),
+			array( 'BEHAT_FEATURES_FOLDER' => $this->temp_dir . DIRECTORY_SEPARATOR . 'features' ),
+			$env
+		);
+
+		$process = proc_open(
+			$command,
+			array(
+				1 => array( 'pipe', 'w' ),
+				2 => array( 'pipe', 'w' ),
+			),
+			$pipes,
+			$this->temp_dir,
+			$env
+		);
+		$this->assertIsResource( $process );
+
+		$stdout = (string) stream_get_contents( $pipes[1] );
+		$stderr = (string) stream_get_contents( $pipes[2] );
+		fclose( $pipes[1] );
+		fclose( $pipes[2] );
+
+		return array(
+			'stdout'    => $stdout,
+			'stderr'    => $stderr,
+			'exit_code' => proc_close( $process ),
+		);
+	}
+
+	public function test_filtered_scenarios_are_reported(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'report.feature',
+			"Feature: Report\n\n  @require-extension-wpclinonexistent\n  Scenario: Needs an extension\n    Given a step\n\n  @broken\n  Scenario: Broken\n    Given a step\n\n  Scenario: Runs\n    Given a step\n      \"\"\"\n      Scenario: Not a scenario of this file\n      \"\"\"\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams();
+
+		$this->assertSame( 0, $result['exit_code'] );
+		$this->assertStringContainsString( '~@require-extension-wpclinonexistent', $result['stdout'] );
+		$this->assertStringContainsString( 'Not running 2 of 3 scenarios:', $result['stderr'] );
+		$this->assertStringContainsString( 'Not available in this environment:', $result['stderr'] );
+		$this->assertStringContainsString( '@require-extension-wpclinonexistent, as the PHP extension "wpclinonexistent" is not loaded: ', $result['stderr'] );
+		$this->assertStringContainsString( 'report.feature:4', $result['stderr'] );
+		$this->assertStringContainsString( 'Not part of this configuration:', $result['stderr'] );
+		$this->assertStringContainsString( 'report.feature:8', $result['stderr'] );
+	}
+
+	public function test_strict_requirements_stop_before_the_run(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'strict.feature',
+			"Feature: Strict\n\n  @require-extension-wpclinonexistent\n  Scenario: Needs an extension\n    Given a step\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams( array( 'WP_CLI_TEST_STRICT_REQUIREMENTS' => '1' ) );
+
+		$this->assertSame( 1, $result['exit_code'] );
+		$this->assertSame( '', $result['stdout'] );
+		$this->assertStringContainsString( 'Stopping, as WP_CLI_TEST_STRICT_REQUIREMENTS is set and 1 scenarios cannot run in this environment.', $result['stderr'] );
+	}
+
+	public function test_strict_requirements_allow_other_configurations(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'strict.feature',
+			"Feature: Strict\n\n  @broken\n  Scenario: Broken\n    Given a step\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams( array( 'WP_CLI_TEST_STRICT_REQUIREMENTS' => '1' ) );
+
+		$this->assertSame( 0, $result['exit_code'] );
+		$this->assertStringContainsString( '~@broken', $result['stdout'] );
+	}
+
+	public function test_missing_commands_are_filtered_out_and_reported(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'commands.feature',
+			"Feature: Commands\n\n  @require-bin-wpclinonexistentcommand\n  Scenario: Needs a missing command\n    Given a step\n\n  @require-bin-php\n  Scenario: Needs PHP\n    Given a step\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams();
+
+		$this->assertStringContainsString( '~@require-bin-wpclinonexistentcommand', $result['stdout'] );
+		$this->assertStringNotContainsString( '@require-bin-php', $result['stdout'] );
+		$this->assertStringContainsString( '@require-bin-wpclinonexistentcommand, as the command "wpclinonexistentcommand" is not available: ', $result['stderr'] );
+	}
+
+	public function test_unknown_requirement_tags_are_warned_about(): void {
+		file_put_contents(
+			$this->temp_dir . DIRECTORY_SEPARATOR . 'features' . DIRECTORY_SEPARATOR . 'unknown.feature',
+			"Feature: Unknown\n\n  @require-wpclinonexistent\n  Scenario: Has an unknown requirement\n    Given a step\n"
+		);
+
+		$result = $this->run_behat_tags_script_with_streams();
+
+		$this->assertStringContainsString( 'Warning: @require-wpclinonexistent is not a known requirement and does not filter anything: ', $result['stderr'] );
+		$this->assertStringContainsString( 'unknown.feature:4', $result['stderr'] );
 	}
 }

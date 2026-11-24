@@ -48,6 +48,15 @@ function version_tags(
 }
 
 function get_db_type_and_version() {
+	// Docker workers run their own database server of the given image, so it decides.
+	$docker_db = getenv( 'WP_CLI_TEST_DOCKER_DB' );
+	if ( getenv( 'WP_CLI_TEST_DOCKER' ) && is_string( $docker_db ) && preg_match( '@^(?:[^/]+/)*(mysql|mariadb)(?::([0-9]+(?:\.[0-9]+)*))?@', $docker_db, $matches ) ) {
+		return array(
+			'type'    => $matches[1],
+			'version' => isset( $matches[2] ) ? $matches[2] : '',
+		);
+	}
+
 	// Detect which client binary is available.
 	$client_binary = null;
 	$output        = array();
@@ -131,6 +140,68 @@ function get_db_version() {
 	return $db_info['version'];
 }
 
+/**
+ * Whether any feature file uses the given tag.
+ *
+ * Tags that no scenario carries do not need to be filtered out, and leaving them
+ * out keeps the filter to what the suite being run actually uses.
+ *
+ * @param string $tag
+ * @param string $features_folder
+ * @return bool
+ */
+function tag_in_use( $tag, $features_folder = 'features' ) {
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+
+	if ( empty( $feature_files ) ) {
+		return false;
+	}
+
+	foreach ( $feature_files as $feature_file ) {
+		if ( false !== strpos( (string) file_get_contents( $feature_file ), $tag ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Whether the database server can be reached through a socket.
+ *
+ * A database server running in a container is only reachable over TCP, so the
+ * scenarios that connect through a socket cannot run against one. The locations
+ * checked here are the same ones those scenarios look in.
+ *
+ * @return bool
+ */
+function has_mysql_socket() {
+	$socket = getenv( 'WP_CLI_TEST_DBSOCKET' );
+
+	if ( is_string( $socket ) && '' !== $socket ) {
+		return file_exists( $socket );
+	}
+
+	// Anything but a port number after the colon in the host is a socket path.
+	$host = getenv( 'WP_CLI_TEST_DBHOST' );
+
+	if ( is_string( $host ) && false !== strpos( $host, ':' ) ) {
+		$after_colon = substr( $host, strrpos( $host, ':' ) + 1 );
+
+		if ( '' !== $after_colon && ! is_numeric( $after_colon ) ) {
+			return file_exists( $after_colon );
+		}
+	}
+
+	foreach ( array( '/var/run/mysqld/mysqld.sock', '/tmp/mysql.sock' ) as $location ) {
+		if ( file_exists( $location ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 $features_folder = getenv( 'BEHAT_FEATURES_FOLDER' ) ?: 'features';
 $wp_version      = getenv( 'WP_VERSION' );
 $wp_version_reqs = array();
@@ -174,6 +245,24 @@ if ( 'sqlite' !== getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ) {
 
 if ( $wp_version && in_array( $wp_version, array( 'nightly', 'trunk' ), true ) ) {
 	$skip_tags[] = '@broken-trunk';
+}
+
+// Some scenarios need a version of WordPress that WordPress.org knows about, such
+// as the ones verifying an installation against the published checksums. Neither a
+// development build nor an archive supplied through WP_CLI_TEST_CORE_ZIP qualifies.
+$core_zip = getenv( 'WP_CLI_TEST_CORE_ZIP' );
+if (
+	tag_in_use( '@require-wp-stable', $features_folder )
+	&& (
+		( false !== $core_zip && '' !== $core_zip )
+		|| in_array( $wp_version, array( 'nightly', 'trunk' ), true )
+	)
+) {
+	$skip_tags[] = '@require-wp-stable';
+}
+
+if ( tag_in_use( '@require-mysql-socket', $features_folder ) && ! has_mysql_socket() ) {
+	$skip_tags[] = '@require-mysql-socket';
 }
 
 $db_info    = get_db_type_and_version();
@@ -304,8 +393,312 @@ function os_tags( $features_folder = 'features' ) {
 	return $skip_tags;
 }
 
+/**
+ * Whether a command is available in the environment.
+ *
+ * @param string $command
+ * @return bool
+ */
+function command_available( $command ) {
+	$check = 'Windows' === PHP_OS_FAMILY ? 'where ' . escapeshellarg( $command ) . ' 2> NUL' : 'command -v ' . escapeshellarg( $command ) . ' 2> /dev/null';
+	exec( $check, $output, $exit_code );
+	return 0 === $exit_code;
+}
+
+/**
+ * Tags for requirements on the environment beyond PHP extensions: commands, network access and opcache settings.
+ *
+ * @param string $features_folder The folder where the feature files are located.
+ * @return array
+ */
+function environment_tags( $features_folder = 'features' ) {
+	$skip_tags = array();
+
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+	$contents      = '';
+	foreach ( $feature_files ? $feature_files : array() as $feature_file ) {
+		$contents .= (string) file_get_contents( $feature_file ) . "\n";
+	}
+
+	// Commands a scenario needs, such as "@require-bin-svn".
+	if ( preg_match_all( '/@require-bin-([A-Za-z0-9_.+-]+)/', $contents, $matches ) ) {
+		foreach ( array_unique( $matches[1] ) as $command ) {
+			if ( ! command_available( $command ) ) {
+				$skip_tags[] = "@require-bin-{$command}";
+			}
+		}
+	}
+
+	if ( false !== strpos( $contents, '@require-composer' ) && ! command_available( 'composer' ) ) {
+		$skip_tags[] = '@require-composer';
+	}
+
+	if ( false !== strpos( $contents, '@require-download' ) ) {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- A failed connection is the answer being looked for.
+		$connection = @fsockopen( 'downloads.wordpress.org', 443, $errno, $errstr, 5 );
+		if ( false === $connection ) {
+			$skip_tags[] = '@require-download';
+		} else {
+			fclose( $connection );
+		}
+	}
+
+	// WP-CLI reads the doc comments of commands, which opcache can be configured to drop.
+	if ( false !== strpos( $contents, '@require-opcache-save-comments' ) && extension_loaded( 'Zend OPcache' ) && ! ini_get( 'opcache.save_comments' ) ) {
+		$skip_tags[] = '@require-opcache-save-comments';
+	}
+
+	return $skip_tags;
+}
+
+/**
+ * Warn about requirement tags that the test framework does not know, and which therefore never filter anything.
+ *
+ * @param string $features_folder The folder where the feature files are located.
+ */
+function warn_about_unknown_requirement_tags( $features_folder = 'features' ) {
+	$known = '/^@(require-(wp|php|mysql|mariadb)-[0-9.]+|less-than-(wp|php|mysql|mariadb)-[0-9.]+|require-(mysql|mariadb|sqlite|mysql-or-mariadb|object-cache|wp-stable|mysql-socket|composer|download|opcache-save-comments|windows|macos|linux)|require-(extension|bin)-[A-Za-z0-9_.+-]+)$/';
+
+	$unknown = array();
+	foreach ( scenarios_with_tags( $features_folder ) as $scenario ) {
+		foreach ( $scenario['tags'] as $tag ) {
+			if ( preg_match( '/^@(require|less-than)-/', $tag ) && ! preg_match( $known, $tag ) ) {
+				$unknown[ $tag ][] = $scenario['path'];
+			}
+		}
+	}
+
+	foreach ( $unknown as $tag => $paths ) {
+		fwrite( STDERR, sprintf( "Warning: %s is not a known requirement and does not filter anything: %s\n", $tag, implode( ', ', array_unique( $paths ) ) ) );
+	}
+}
+
+/**
+ * Get the scenarios of the feature files with the tags that apply to them.
+ *
+ * @param string $features_folder The folder where the feature files are located.
+ * @return array<array{path: string, tags: array<string>}>
+ */
+function scenarios_with_tags( $features_folder = 'features' ) {
+	$scenarios     = array();
+	$feature_files = glob( $features_folder . DIRECTORY_SEPARATOR . '*.feature' );
+
+	foreach ( $feature_files ? $feature_files : array() as $feature_file ) {
+		$lines        = file( $feature_file, FILE_IGNORE_NEW_LINES );
+		$feature_tags = array();
+		$pending_tags = array();
+		$doc_string   = null;
+
+		foreach ( $lines ? $lines : array() as $index => $line ) {
+			$line = trim( $line );
+
+			// Doc strings can hold whole feature files, as written by scenarios for scaffolding.
+			if ( null !== $doc_string ) {
+				if ( 0 === strpos( $line, $doc_string ) ) {
+					$doc_string = null;
+				}
+				continue;
+			}
+			if ( 0 === strpos( $line, '"""' ) || 0 === strpos( $line, '```' ) ) {
+				$doc_string = substr( $line, 0, 3 );
+				continue;
+			}
+
+			if ( 0 === strpos( $line, '@' ) ) {
+				preg_match_all( '/@[^\s@]+/', $line, $matches );
+				$pending_tags = array_merge( $pending_tags, $matches[0] );
+			} elseif ( preg_match( '/^Feature:/', $line ) ) {
+				$feature_tags = $pending_tags;
+				$pending_tags = array();
+			} elseif ( preg_match( '/^(Scenario|Scenario Outline|Scenario Template|Example):/', $line ) ) {
+				$scenarios[]  = array(
+					'path' => $feature_file . ':' . ( $index + 1 ),
+					'tags' => array_merge( $feature_tags, $pending_tags ),
+				);
+				$pending_tags = array();
+			} elseif ( '' !== $line && 0 !== strpos( $line, '#' ) ) {
+				$pending_tags = array();
+			}
+		}
+	}
+
+	return $scenarios;
+}
+
+/**
+ * Describe why scenarios carrying a skip tag are not run.
+ *
+ * @param string $tag     The tag, without the leading tilde.
+ * @param array  $context What the environment provides: wp, php, db and os.
+ * @return array{0: bool, 1: string} Whether the environment lacks something, and the reason.
+ */
+function describe_skip_tag( $tag, $context ) {
+	if ( preg_match( '/^@require-extension-(.+)$/', $tag, $matches ) ) {
+		return array( true, "the PHP extension \"{$matches[1]}\" is not loaded" );
+	}
+
+	if ( preg_match( '/^@require-bin-(.+)$/', $tag, $matches ) ) {
+		return array( true, "the command \"{$matches[1]}\" is not available" );
+	}
+
+	if ( '@require-composer' === $tag ) {
+		return array( true, 'the command "composer" is not available' );
+	}
+
+	if ( '@require-download' === $tag ) {
+		return array( true, 'downloads.wordpress.org cannot be reached' );
+	}
+
+	if ( '@require-opcache-save-comments' === $tag ) {
+		return array( true, 'opcache drops doc comments' );
+	}
+
+	if ( '@require-mysql-socket' === $tag ) {
+		return array( true, 'the database server cannot be reached through a socket' );
+	}
+
+	if ( preg_match( '/^@(require|less-than)-wp-/', $tag ) || '@require-wp-stable' === $tag || '@broken-trunk' === $tag ) {
+		return array( false, "WordPress {$context['wp']} is used" );
+	}
+
+	if ( preg_match( '/^@(require|less-than)-php-/', $tag ) ) {
+		return array( false, "PHP {$context['php']} is used" );
+	}
+
+	if ( preg_match( '/^@(require|less-than|skip)-(mysql|mariadb|sqlite)/', $tag ) ) {
+		return array( false, "the database is {$context['db']}" );
+	}
+
+	if ( preg_match( '/^@(require|skip)-(windows|macos|linux)$/', $tag ) ) {
+		return array( false, "the operating system is {$context['os']}" );
+	}
+
+	if ( '@github-api' === $tag ) {
+		return array( false, 'GITHUB_TOKEN is not set' );
+	}
+
+	if ( '@require-object-cache' === $tag || '@skip-object-cache' === $tag ) {
+		return array( false, 'WP_CLI_TEST_OBJECT_CACHE is ' . ( getenv( 'WP_CLI_TEST_OBJECT_CACHE' ) ? 'set' : 'not set' ) );
+	}
+
+	if ( '@broken' === $tag ) {
+		return array( false, 'they are known to be broken' );
+	}
+
+	return array( false, 'it is excluded' );
+}
+
+/**
+ * Report the scenarios that the tag filter leaves out, and why.
+ *
+ * Scenarios that the environment cannot run are listed separately from the ones that are
+ * not part of the configuration being tested, such as another database or WordPress version.
+ *
+ * @param array<string> $skip_tags
+ * @param string        $features_folder
+ * @param array         $context
+ * @return int Number of scenarios left out because the environment lacks something.
+ */
+function report_filtered_scenarios( $skip_tags, $features_folder, $context ) {
+	$scenarios = scenarios_with_tags( $features_folder );
+	$groups    = array();
+
+	foreach ( $scenarios as $scenario ) {
+		$matching = array_values( array_intersect( $skip_tags, $scenario['tags'] ) );
+		if ( $matching ) {
+			$groups[ $matching[0] ][] = $scenario['path'];
+		}
+	}
+
+	if ( ! $groups ) {
+		return 0;
+	}
+
+	$sections = array(
+		true  => array(),
+		false => array(),
+	);
+	$missing  = 0;
+	$total    = 0;
+
+	foreach ( $groups as $tag => $paths ) {
+		list( $lacks, $reason ) = describe_skip_tag( $tag, $context );
+		$sections[ $lacks ][]   = array( $tag, $reason, $paths );
+		$total                 += count( $paths );
+		if ( $lacks ) {
+			$missing += count( $paths );
+		}
+	}
+
+	$titles = array(
+		true  => 'Not available in this environment',
+		false => 'Not part of this configuration',
+	);
+
+	$text     = sprintf( "Not running %d of %d scenarios:\n", $total, count( $scenarios ) );
+	$markdown = sprintf( "### Behat: %d of %d scenarios not run\n", $total, count( $scenarios ) );
+
+	foreach ( array( true, false ) as $lacks ) {
+		if ( ! $sections[ $lacks ] ) {
+			continue;
+		}
+		$text     .= "  {$titles[ $lacks ]}:\n";
+		$markdown .= "\n**{$titles[ $lacks ]}**\n\n";
+		foreach ( $sections[ $lacks ] as $section ) {
+			list( $tag, $reason, $paths ) = $section;
+
+			$text     .= sprintf( "    %s, as %s: %s\n", $tag, $reason, implode( ', ', $paths ) );
+			$markdown .= sprintf(
+				"- `%s`, as %s (%d): %s\n",
+				$tag,
+				$reason,
+				count( $paths ),
+				implode(
+					', ',
+					array_map(
+						function ( $path ) {
+							return "`{$path}`";
+						},
+						$paths
+					)
+				)
+			);
+		}
+	}
+
+	fwrite( STDERR, $text );
+
+	// Add the report to the summary of a GitHub Actions job, once per run.
+	$summary = getenv( 'GITHUB_STEP_SUMMARY' );
+	if ( $summary && ! getenv( 'WP_CLI_TEST_DEBUG_BEHAT_ENV' ) ) {
+		file_put_contents( $summary, $markdown . "\n", FILE_APPEND );
+	}
+
+	return $missing;
+}
+
 $skip_tags = array_merge( $skip_tags, extension_tags( $features_folder ) );
 $skip_tags = array_merge( $skip_tags, os_tags( $features_folder ) );
+$skip_tags = array_merge( $skip_tags, environment_tags( $features_folder ) );
+
+warn_about_unknown_requirement_tags( $features_folder );
+
+$missing = report_filtered_scenarios(
+	$skip_tags,
+	$features_folder,
+	array(
+		'wp'  => $wp_version ? $wp_version : 'latest',
+		'php' => PHP_VERSION,
+		'db'  => trim( ( 'sqlite' === $db_type ? 'SQLite' : ( 'mariadb' === $db_type ? 'MariaDB' : 'MySQL' ) ) . ' ' . ( 'sqlite' === $db_type ? '' : $db_version ) ),
+		'os'  => PHP_OS_FAMILY,
+	)
+);
+
+// With strict requirements, everything the scenarios need has to be available.
+if ( $missing && getenv( 'WP_CLI_TEST_STRICT_REQUIREMENTS' ) ) {
+	fwrite( STDERR, "Stopping, as WP_CLI_TEST_STRICT_REQUIREMENTS is set and {$missing} scenarios cannot run in this environment.\n" );
+	exit( 1 );
+}
 
 if ( ! empty( $skip_tags ) ) {
 	echo '--tags=~' . implode( '&&~', $skip_tags );

@@ -191,6 +191,7 @@ trait GivenStepDefinitions {
 
 		$config_file = $this->variables['RUN_DIR'] . '/wp-cli.yml';
 		$mock_file   = $this->variables['RUN_DIR'] . '/mock-requests.php';
+		$data_file   = $this->variables['RUN_DIR'] . '/mock-requests-data.php';
 		$dir         = dirname( $config_file );
 
 		if ( ! file_exists( $dir ) ) {
@@ -209,146 +210,12 @@ FILE;
 
 		$this->mocked_requests[ $url_or_pattern ] = (string) $content;
 
-		$mocked_requests = var_export( $this->mocked_requests, true /* return */ );
-
-		$mock_file_contents = <<<FILE
-<?php
-/**
- * HTTP request mocking supporting both Requests v1 and v2.
- */
-
-trait WP_CLI_Tests_Mock_Requests_Trait {
-	public function request( \$url, \$headers = array(), \$data = array(), \$options = array() ) {
-		\$mocked_requests = $mocked_requests;
-
-		foreach ( \$mocked_requests as \$pattern => \$response ) {
-			\$pattern = '/' . preg_quote( \$pattern, '/' ) . '/';
-			if ( 1 === preg_match( \$pattern, \$url ) ) {
-				\$pos = strpos( \$response, "\\n\\n");
-				if ( false !== \$pos ) {
-					\$response = substr( \$response, 0, \$pos ) . "\\r\\n\\r\\n" . substr( \$response, \$pos + 2 );
-				}
-				if ( ! empty( \$options['filename'] ) ) {
-					\$body = '';
-					\$body_pos = strpos( \$response, "\\r\\n\\r\\n" );
-					if ( false !== \$body_pos ) {
-						\$body = substr( \$response, \$body_pos + 4 );
-					}
-					file_put_contents( \$options['filename'], \$body );
-				}
-				return \$response;
-			}
-		}
-
-		if ( class_exists( '\WpOrg\Requests\Transport\Curl' ) ) {
-			return ( new \WpOrg\Requests\Transport\Curl() )->request( \$url, \$headers, \$data, \$options );
-		}
-
-		return ( new \Requests_Transport_cURL() )->request( \$url, \$headers, \$data, \$options );
-	}
-
-	public function request_multiple( \$requests, \$options ) {
-		throw new Exception( 'Method not implemented: ' . __METHOD__ );
-	}
-
-	public static function test( \$capabilities = array() ) {
-		return true;
-	}
-}
-
-if ( interface_exists( '\WpOrg\Requests\Transport' ) ) {
-	class WP_CLI_Tests_Mock_Requests_Transport implements \WpOrg\Requests\Transport {
-		use WP_CLI_Tests_Mock_Requests_Trait;
-	}
-} else {
-	class WP_CLI_Tests_Mock_Requests_Transport implements \Requests_Transport {
-		use WP_CLI_Tests_Mock_Requests_Trait;
-	}
-}
-
-WP_CLI::add_hook(
-	'http_request_options',
-	static function( \$options ) {
-		\$options['transport'] = new WP_CLI_Tests_Mock_Requests_Transport();
-		return \$options;
-	}
-);
-
-WP_CLI::add_wp_hook(
-	'pre_http_request',
-	static function( \$pre, \$parsed_args, \$url ) {
-		\$mocked_requests = $mocked_requests;
-
-		foreach ( \$mocked_requests as \$pattern => \$response ) {
-			\$pattern = '/' . preg_quote( \$pattern, '/' ) . '/';
-			if ( 1 === preg_match( \$pattern, \$url ) ) {
-				\$pos = strpos( \$response, "\n\n");
-				if ( false !== \$pos ) {
-					\$response = substr( \$response, 0, \$pos ) . "\r\n\r\n" . substr( \$response, \$pos + 2 );
-				}
-
-				if ( class_exists( '\WpOrg\Requests\Requests' ) ) {
-					WpOrg\Requests\Requests::parse_multiple(
-						\$response,
-						array(
-							'url'     => \$url,
-							'headers' => array(),
-							'data'    => array(),
-							'options' => array_merge(
-								WpOrg\Requests\Requests::OPTION_DEFAULTS,
-								array(
-									'hooks' => new WpOrg\Requests\Hooks(),
-								)
-							),
-						)
-					);
-				} else {
-					\Requests::parse_multiple(
-						\$response,
-						array(
-							'url'     => \$url,
-							'headers' => array(),
-							'data'    => array(),
-							'options' => array(
-								'blocking'         => true,
-								'filename'         => false,
-								'follow_redirects' => true,
-								'redirected'       => 0,
-								'redirects'        => 10,
-								'hooks'            => new Requests_Hooks(),
-							),
-						)
-					);
-				}
-
-				if ( ! empty( \$parsed_args['filename'] ) ) {
-					file_put_contents( \$parsed_args['filename'], \$response->body );
-				}
-
-				return array(
-					'headers'  => \$response->headers->getAll(),
-					'body'     => \$response->body,
-					'response' => array(
-						'code'    => \$response->status_code,
-						'message' => get_status_header_desc( \$response->status_code ),
-					),
-					'cookies'  => array(),
-					'filename' => '',
-				);
-			}
-		}
-
-		return \$pre;
-	},
-	10,
-	3
-);
-FILE;
-
 		file_put_contents(
-			$mock_file,
-			$mock_file_contents
+			$data_file,
+			'<?php' . PHP_EOL . 'return ' . var_export( $this->mocked_requests, true /* return */ ) . ';' . PHP_EOL
 		);
+
+		copy( __DIR__ . '/templates/mock-requests.php', $mock_file );
 	}
 
 	/**
@@ -538,7 +405,43 @@ FILE;
 	}
 
 	/**
-	 * Installs and activates one or more plugins.
+	 * Removes all themes and installs, and optionally activates, the listed ones instead.
+	 *
+	 * Takes the same lines as `Given these installed themes:`. This replaces running
+	 * `wp theme delete --all --force` followed by one or more `wp theme install` commands.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And only these installed themes:
+	 *     """
+	 *     twentysixteen
+	 *     twentyseventeen
+	 *     """
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given /^only these installed (themes|and active themes):$/
+	 *
+	 * @param string       $kind Either 'themes' or 'and active themes'.
+	 * @param PyStringNode $stream
+	 */
+	public function given_only_these_installed_themes( $kind, PyStringNode $stream ): void {
+		$lines    = array_filter( array_map( 'trim', explode( "\n", $this->replace_variables( (string) $stream ) ) ) );
+		$activate = 'and active themes' === $kind;
+
+		$this->remove_all_themes();
+		$this->install_extensions( 'theme', $lines, $activate );
+	}
+
+	/**
+	 * Installs and optionally activates one or more plugins or themes.
+	 *
+	 * Plugins and themes from WordPress.org are downloaded once and copied from a local cache
+	 * afterwards. Each line holds a slug, optionally followed by `--version=<version>` and `--force`. Other
+	 * lines, like a URL or a path to a ZIP file, are installed with `wp plugin install` or
+	 * `wp theme install` every time.
 	 *
 	 * ```
 	 * Scenario: My example scenario
@@ -548,19 +451,65 @@ FILE;
 	 *     akismet
 	 *     wordpress-importer
 	 *     """
+	 *
+	 * Scenario: My other scenario
+	 *   Given a WP installation
+	 *   And these installed themes:
+	 *     """
+	 *     twentysixteen
+	 *     twentyseventeen --version=1.0
+	 *     """
 	 * ```
 	 *
 	 * @access public
 	 *
-	 * @Given these installed and active plugins:
+	 * @Given /^these installed (and active )?(plugins|themes):$/
 	 *
-	 * @param string $stream
+	 * @param string       $active
+	 * @param string       $type
+	 * @param PyStringNode $stream
 	 */
-	public function given_these_installed_and_active_plugins( $stream ): void {
-		$plugins = implode( ' ', array_map( 'trim', explode( PHP_EOL, (string) $stream ) ) );
-		$plugins = $this->replace_variables( $plugins );
+	public function given_these_installed_plugins_or_themes( $active, $type, PyStringNode $stream ): void {
+		$lines    = array_filter( array_map( 'trim', explode( "\n", $this->replace_variables( (string) $stream ) ) ) );
+		$type     = 'plugins' === $type ? 'plugin' : 'theme';
+		$activate = '' !== trim( $active );
 
-		$this->proc( "wp plugin install $plugins --activate" )->run_check();
+		$this->install_extensions( $type, $lines, $activate );
+	}
+
+	/**
+	 * Runs several setup commands in a single process.
+	 *
+	 * Avoids loading WordPress once per command when a scenario needs several fixtures. The `command`
+	 * column holds the WP-CLI commands, which all have to succeed. The optional `save` column names a
+	 * variable to save the command's STDOUT into, which later commands in the same table can use.
+	 *
+	 * ```
+	 * Scenario: My example scenario
+	 *   Given a WP installation
+	 *   And these setup commands:
+	 *     | command                                                | save     |
+	 *     | wp post create --post_title="First post" --porcelain   | POST_ID  |
+	 *     | wp post meta add {POST_ID} color blue                  |          |
+	 *     | wp term create category Fruit --porcelain              | TERM_ID  |
+	 * ```
+	 *
+	 * @access public
+	 *
+	 * @Given these setup commands:
+	 *
+	 * @param TableNode $table
+	 */
+	public function given_these_setup_commands( TableNode $table ): void {
+		$commands = [];
+		foreach ( $table->getHash() as $row ) {
+			if ( ! isset( $row['command'] ) ) {
+				throw new RuntimeException( 'The setup commands table needs a "command" column.' );
+			}
+			$commands[] = [ $row['command'], trim( $row['save'] ?? '', '{} ' ) ];
+		}
+
+		$this->run_commands_in_single_process( $commands );
 	}
 
 	/**
@@ -602,6 +551,8 @@ FILE;
 		);
 
 		file_put_contents( $wp_config_path, $wp_config_code );
+
+		$this->set_content_dir_variables( $this->variables['RUN_DIR'] . '/my-content', $this->variables['RUN_DIR'] . '/my-plugins' );
 
 		if ( 'sqlite' === self::$db_type ) {
 			$db_dropin = $this->variables['RUN_DIR'] . '/my-content/db.php';

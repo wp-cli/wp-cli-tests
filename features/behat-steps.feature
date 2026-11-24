@@ -19,6 +19,12 @@ Feature: Test that WP-CLI Behat steps work as expected
     Given an empty directory
     Then the {RUN_DIR} directory should exist
 
+  Scenario: Name the run directory after the scenario it belongs to
+    Given an empty directory
+
+    When I run `echo {RUN_DIR}`
+    Then STDOUT should match /wp-cli-test-run-behat-steps\.feature\.\d+-/
+
   Scenario: Test "Given a specific directory" steps
     Given an empty directory
     And an empty test-dir directory
@@ -26,6 +32,30 @@ Feature: Test that WP-CLI Behat steps work as expected
 
     Given a non-existent test-dir directory
     Then the test-dir directory should not exist
+
+  Scenario: Always run the current version of files created by a scenario
+    Given an empty directory
+    And a script.php file:
+      """
+      <?php echo 'first';
+      """
+
+    When I run `wp --require=script.php --skip-wordpress eval ";"`
+    Then STDOUT should be:
+      """
+      first
+      """
+
+    Given a script.php file:
+      """
+      <?php echo 'other';
+      """
+
+    When I run `wp --require=script.php --skip-wordpress eval ";"`
+    Then STDOUT should be:
+      """
+      other
+      """
 
   Scenario: Test "Given an empty cache" step
     Given a WP installation
@@ -389,12 +419,328 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
     Then the wp-cli.yml file should exist
     And the mock-requests.php file should exist
+    And the mock-requests-data.php file should exist
+
+    When I run `php -l mock-requests.php`
+    Then STDOUT should contain:
+      """
+      No syntax errors detected
+      """
+
+    When I run `php -l mock-requests-data.php`
+    Then STDOUT should contain:
+      """
+      No syntax errors detected
+      """
+
+  Scenario: Test "a PHP built-in web server" step in a plain directory
+    Given an empty directory
+    And an index.html file:
+      """
+      Hello from the built-in web server
+      """
+    And a fetch.php file:
+      """
+      <?php
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
+      """
+    And a PHP built-in web server
+    Then the HTTP status code should be 200
+
+    # Without a router, the directory is served as-is: the file itself comes back, not a PHP error page.
+    When I run `php fetch.php http://localhost:8080/`
+    Then STDOUT should contain:
+      """
+      200 OK
+      """
+    And STDOUT should contain:
+      """
+      Hello from the built-in web server
+      """
+
+  Scenario: Test "a PHP built-in web server" step returns 404 for a missing file
+    Given an empty directory
+    And a hello.html file:
+      """
+      Hello from the built-in web server
+      """
+    And a fetch.php file:
+      """
+      <?php
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
+      """
+    And a PHP built-in web server
+
+    When I run `php fetch.php http://localhost:8080/hello.html`
+    Then STDOUT should contain:
+      """
+      200 OK
+      """
+    And STDOUT should contain:
+      """
+      Hello from the built-in web server
+      """
+
+    # No index file means nothing to fall back to, so a missing file is a real 404.
+    When I run `php fetch.php http://localhost:8080/missing.html`
+    Then STDOUT should contain:
+      """
+      404 Not Found
+      """
+
+  Scenario: Test "a PHP built-in web server" step without an index.php does not use the server-command router
+    Given an empty directory
+    And a vendor/wp-cli/server-command/router.php file:
+      """
+      <?php
+      // Like the router of wp-cli/server-command, send requests for missing files to index.php.
+      $root = (string) ( $_SERVER['DOCUMENT_ROOT'] ?? '' );
+      $path = (string) parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), PHP_URL_PATH );
+      if ( is_file( $root . $path ) ) {
+          return false;
+      }
+      echo 'Routed by router.php: ';
+      require $root . '/index.php';
+      """
+    And a fetch.php file:
+      """
+      <?php
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
+      """
+    And a PHP built-in web server
+
+    # The router would require a missing index.php, so the directory is served as-is.
+    When I run `php fetch.php http://localhost:8080/missing.html`
+    Then STDOUT should contain:
+      """
+      404 Not Found
+      """
+    And STDOUT should not contain:
+      """
+      Routed by router.php
+      """
+
+  Scenario: Test "a PHP built-in web server" step with an index.php uses the server-command router
+    Given an empty directory
+    And a vendor/wp-cli/server-command/router.php file:
+      """
+      <?php
+      // Like the router of wp-cli/server-command, send requests for missing files to index.php.
+      $root = (string) ( $_SERVER['DOCUMENT_ROOT'] ?? '' );
+      $path = (string) parse_url( (string) ( $_SERVER['REQUEST_URI'] ?? '/' ), PHP_URL_PATH );
+      if ( is_file( $root . $path ) ) {
+          return false;
+      }
+      echo 'Routed by router.php: ';
+      require $root . '/index.php';
+      """
+    And an index.php file:
+      """
+      <?php
+      echo 'Hello from index.php';
+      """
+    And a fetch.php file:
+      """
+      <?php
+      $url     = (string) ( $_SERVER['argv'][1] ?? '' );
+      $headers = @get_headers( $url );
+      echo is_array( $headers ) ? $headers[0] : 'no response', PHP_EOL, (string) @file_get_contents( $url );
+      """
+    And a PHP built-in web server
+
+    When I run `php fetch.php http://localhost:8080/hello-world/`
+    Then STDOUT should contain:
+      """
+      200 OK
+      """
+    And STDOUT should contain:
+      """
+      Routed by router.php: Hello from index.php
+      """
 
   @require-wp
   Scenario: Test background process launch
     Given a WP installation
     When I launch in the background `wp eval 'sleep(2); echo "done";'`
     # Background process should not block, continuing immediately
+
+  @require-wp
+  Scenario: Install plugins and themes from WordPress.org
+    Given a WP installation
+    And these installed themes:
+      """
+      twentysixteen
+      """
+    And these installed and active plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    Then the wp-content/themes/twentysixteen/style.css file should exist
+
+    When I run `wp plugin get wordpress-importer --fields=status,version --format=csv`
+    Then STDOUT should contain:
+      """
+      status,active
+      version,0.8
+      """
+
+  @require-wp
+  Scenario: Install cached plugins and themes without requests to WordPress.org
+    Given a WP installation
+    And these installed themes:
+      """
+      twentysixteen
+      oceanly-green
+      """
+    And these installed plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    And a non-existent wp-content/themes/twentysixteen directory
+    And a non-existent wp-content/themes/oceanly-green directory
+    And a non-existent wp-content/themes/oceanly directory
+    And a non-existent wp-content/plugins/wordpress-importer directory
+    And a wp-content/mu-plugins/block-http-requests.php file:
+      """
+      <?php
+      add_filter(
+          'pre_http_request',
+          static function () {
+              return new WP_Error( 'http_request_blocked', 'HTTP requests are blocked.' );
+          }
+      );
+      """
+
+    When these installed themes:
+      """
+      oceanly-green
+      """
+    And these installed and active themes:
+      """
+      twentysixteen
+      """
+    And these installed and active plugins:
+      """
+      wordpress-importer --version=0.8
+      """
+    And I run `wp theme list --status=active --field=name`
+    Then STDOUT should be:
+      """
+      twentysixteen
+      """
+
+    When I run `wp plugin get wordpress-importer --fields=status,version --format=csv`
+    Then STDOUT should contain:
+      """
+      status,active
+      version,0.8
+      """
+    And the wp-content/themes/oceanly-green/style.css file should exist
+    And the wp-content/themes/oceanly/style.css file should exist
+
+  @require-wp
+  Scenario: Keep only the listed themes
+    Given a WP installation
+    And only these installed themes:
+      """
+      twentysixteen
+      twentyseventeen
+      """
+
+    When I run `wp theme list --format=count`
+    Then STDOUT should be:
+      """
+      2
+      """
+    And the wp-content/themes/twentysixteen/style.css file should exist
+    And the wp-content/themes/twentyseventeen/style.css file should exist
+
+  @require-wp
+  Scenario: Keep only the listed theme and activate it
+    Given a WP installation
+    And only these installed and active themes:
+      """
+      twentysixteen
+      """
+
+    When I run `wp theme list --fields=name,status --format=csv`
+    Then STDOUT should be:
+      """
+      name,status
+      twentysixteen,active
+      """
+
+  @require-wp
+  Scenario: Run setup commands in a single process
+    Given a WP installation
+    And these setup commands:
+      | command                                                                                   | save     |
+      | wp eval 'echo wp_insert_post( [ "post_title" => "First", "post_status" => "publish" ] );' | POST_ID  |
+      | wp eval 'echo get_the_title( {POST_ID} );'                                                 | TITLE    |
+      | wp eval 'echo getmypid();'                                                                | FIRST    |
+      | wp eval 'echo getmypid();'                                                                | SECOND   |
+      | wp config set WP_CLI_TEST_CONSTANT "a value"                                              |          |
+
+    When I run `wp eval 'echo get_post_field( "post_title", {POST_ID} ) . "|{TITLE}";'`
+    Then STDOUT should be:
+      """
+      First|First
+      """
+
+    When I run `wp eval 'echo "{FIRST}" === "{SECOND}" ? "same process" : "different processes";'`
+    Then STDOUT should be:
+      """
+      same process
+      """
+    And the wp-config.php file should contain:
+      """
+      'WP_CLI_TEST_CONSTANT', 'a value'
+      """
+
+  @require-wp
+  Scenario: Use the plugin and theme directories of a WP installation
+    Given a WP installation
+    Then the {PLUGIN_DIR}/akismet directory should exist
+    And the {THEME_DIR} directory should exist
+
+  # Skipped on Windows because WordPress mixes path separators in these paths there.
+  @require-wp @skip-windows
+  Scenario: Plugin and theme directory variables match the WordPress constants
+    Given a WP installation
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
+
+  # Skipped on Windows because WordPress mixes path separators in these paths there.
+  @require-wp @skip-windows
+  Scenario: Plugin and theme directory variables follow a custom wp-content directory
+    Given a WP installation
+    And a custom wp-content directory
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
 
   @require-wp
   Scenario: Test custom wp-content directory
@@ -407,6 +753,8 @@ Feature: Test that WP-CLI Behat steps work as expected
       """
       WP_CONTENT_DIR
       """
+    And the {PLUGIN_DIR} directory should exist
+    And the {THEME_DIR} directory should exist
 
   @require-wp
   Scenario: Test WP multisite installation
@@ -452,6 +800,18 @@ Feature: Test that WP-CLI Behat steps work as expected
     And the vendor directory should exist
     When I run `wp core version`
     Then STDOUT should not be empty
+
+    When I run `wp eval 'echo WP_PLUGIN_DIR;'`
+    Then STDOUT should be:
+      """
+      {PLUGIN_DIR}
+      """
+
+    When I run `wp eval 'echo get_theme_root();'`
+    Then STDOUT should be:
+      """
+      {THEME_DIR}
+      """
 
   # Skipped on Windows because of curl getaddrinfo() errors.
   @require-wp @require-composer @skip-windows
@@ -574,7 +934,7 @@ Feature: Test that WP-CLI Behat steps work as expected
     And a send-email.php file:
       """
       <?php
-      wp_mail('test@example.com', 'Test', 'Body');
+      wp_mail( 'test@example.com', 'Test', 'Body' );
       """
     When I run `wp eval-file send-email.php`
     Then an email should be sent

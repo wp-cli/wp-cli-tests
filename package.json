@@ -1,0 +1,9 @@
+{
+	"name": "wp-cli-tests",
+	"description": "Pins the Node tooling used by the WP-CLI testing framework. Not published to npm.",
+	"private": true,
+	"license": "MIT",
+	"devDependencies": {
+		"gherkin-lint-plus": "1.0.2"
+	}
+}
