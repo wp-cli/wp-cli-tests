@@ -633,7 +633,7 @@ function wp_cli_tests_docker_worker_command( $name, $php_image, $db_image, array
 	}
 
 	foreach ( getenv() as $key => $value ) {
-		if ( preg_match( '/^(WP_VERSION|NO_COLOR|CI|GITHUB_TOKEN|WP_CLI_TEST_(DBTYPE|OBJECT_CACHE|CORE_ZIP|QUIET|LOG_RUN_TIMES|PHP_TUNING|WP_VERSION_CACHE_TTL))$/', $key ) ) {
+		if ( preg_match( '/^(WP_VERSION|NO_COLOR|CI|GITHUB_TOKEN|WP_CLI_TEST_(DBTYPE|OBJECT_CACHE|CORE_ZIP|QUIET|LOG_RUN_TIMES|PHP_TUNING|WP_VERSION_CACHE_TTL)|WP_CLI_TRUST_PROJECT_CONFIG)$/', $key ) ) {
 			$env[ $key ] = $value;
 		}
 	}
