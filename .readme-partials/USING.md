@@ -105,6 +105,40 @@ You can use the following commands to control the tests:
 * `composer phpunit` - Run only the unit test suite.
 * `composer behat` - Run only the functional test suite.
 
+### Behat 3 and Behat 4
+
+The testing framework works with both Behat 3 and Behat 4. Composer installs Behat 4 on PHP 8.2 and
+later, and Behat 3 on older PHP versions, and a package that only uses the steps of the framework
+does not need to change anything for either.
+
+Behat 4 dropped a few things that the framework bridges, within limits:
+
+* Behat 4 only reads its configuration from a `behat.php` (or `behat.dist.php`) file. For a package
+  that only has a `behat.yml`, `composer behat` hands the `default` profile of that file to Behat 4
+  through the `BEHAT_PARAMS` environment variable, with anything that variable already holds
+  merged over it. Other profiles and `imports` are not carried over; a package that needs those
+  adds a `behat.php` next to its `behat.yml`, or names a configuration file with `--config`.
+* Behat 4 only reads step definitions and hooks from attributes (`#[Given( '...' )]`), not from
+  annotations (`@Given ...`) anymore. This matters to packages with a context class of their own.
+  Behat 3 reads attributes as well, but only on PHP 8, and it defines a step twice, which is an
+  error, when a method has both. A context that has to run on PHP 7 too can do what
+  `WP_CLI\Tests\Context\FeatureContext` does: declare everything with attributes, and repeat the
+  declarations as annotations on an interface that the context only implements on PHP 7. Behat
+  3.15, the last release for PHP 8.0, has no attributes for the `BeforeSuite` and `AfterSuite`
+  hooks yet. There the context implements a second interface instead, which only carries the
+  annotations of those two hooks; implementing the full one would define every step twice.
+* A class extending `WP_CLI\Tests\Context\FeatureContext` that overrides one of its steps or hooks
+  keeps the definition without repeating the attribute, except with Behat 3.15 to 3.17 on PHP 8,
+  which do not look at the method that is overridden. In practice that is PHP 8.0.
+* Behat 4 fails a step whose regular expression captures more values than its method has
+  parameters, where Behat 3 dropped the extra ones. Use non-capturing groups (`(?:...)`) for those.
+
+To keep a package on Behat 3 for the time being, require it explicitly:
+
+```bash
+composer require --dev behat/behat:^3.15
+```
+
 ### Analysing the PHP blocks in feature files
 
 Feature files embed PHP snippets in docstrings, which none of the static analysis tools normally
@@ -276,7 +310,7 @@ WP_CLI_TEST_DOCKER=auto WP_CLI_TEST_PARALLEL=4 composer behat
 | `auto`                              | The scenarios run in containers where possible, and without Docker otherwise, which is reported. |
 | `1`, `yes`, `on`                    | The scenarios run in containers, and the run fails where that is not possible.                   |
 
-Docker is not used on Windows, when collecting code coverage, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
+Docker is not used on Windows, when collecting code coverage, when step debugging, when Docker is not available, when the image cannot be built or when the database server cannot be identified.
 
 Each worker gets its own network, temporary directory and database server, of the same type and version as the one configured through the `WP_CLI_TEST_DB*` variables (or set the image through `WP_CLI_TEST_DOCKER_DB`, e.g. `mysql:8.0`, so that the host needs neither a database server nor a client). Nothing is shared between workers, so they can run any scenario. The database servers keep their data in memory. Scenarios selected by path or name run in a single container.
 
@@ -425,6 +459,24 @@ chmod +x ~/wp-cli/wp
 
 WP_CLI_BIN_DIR=~/wp-cli composer behat
 ```
+
+#### Xdebug Step Debugging
+
+Set `WP_CLI_TEST_XDEBUG` to step debug the WP-CLI and WordPress code that the scenarios run, with Xdebug 3:
+
+```bash
+WP_CLI_TEST_XDEBUG=true composer behat -- features/cli-info.feature:12
+```
+
+Every WP-CLI process launched by the tests then starts a debugging session, which your IDE needs to listen for. The test runner itself is not debugged; set `XDEBUG_MODE` and `XDEBUG_SESSION` for that.
+
+The launched processes get the following environment variables:
+
+* `XDEBUG_MODE`: `debug`, added to the modes set through `XDEBUG_MODE` or `xdebug.mode`, and to `coverage` when collecting code coverage.
+* `XDEBUG_SESSION=1`, unless `XDEBUG_SESSION` is set already.
+* `XDEBUG_CONFIG`: `log_level=0`, added to the settings in `XDEBUG_CONFIG` unless they set a log level, so that Xdebug does not print warnings into the output the scenarios check when no IDE is listening.
+
+As every process connects to the debugger, run a single scenario or feature file rather than the whole suite, and without parallel workers. Docker is not used when step debugging.
 
 ### Setting up the tests in Travis CI
 
