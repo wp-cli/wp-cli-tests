@@ -4,6 +4,7 @@ namespace WP_CLI\Tests\Context;
 
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
+use Behat\Step\Then;
 use WP_CLI\Path;
 use WP_CLI\RequestsLibrary;
 use Exception;
@@ -25,11 +26,10 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^the return code should( not)? be (\d+)$/
-	 *
 	 * @param bool $not
 	 * @param numeric-string $return_code
 	 */
+	#[Then( '/^the return code should( not)? be (\d+)$/' )]
 	public function then_the_return_code_should_be( $not, $return_code ): void {
 		if (
 			( ! $not && (int) $return_code !== $this->result->return_code )
@@ -60,13 +60,12 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^(STDOUT|STDERR) should( strictly)? (be|contain|not contain):$/
-	 *
 	 * @param string $stream
 	 * @param bool $strictly
 	 * @param string $action
 	 * @param PyStringNode $expected
 	 */
+	#[Then( '/^(STDOUT|STDERR) should( strictly)? (be|contain|not contain):$/' )]
 	public function then_stdout_stderr_should_contain( $stream, $strictly, $action, PyStringNode $expected ): void {
 
 		$stream = strtolower( $stream );
@@ -88,10 +87,9 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^(STDOUT|STDERR) should be a number$/
-	 *
 	 * @param string $stream
 	 */
+	#[Then( '/^(STDOUT|STDERR) should be a number$/' )]
 	public function then_stdout_stderr_should_be_a_number( $stream ): void {
 
 		$stream = strtolower( $stream );
@@ -112,10 +110,9 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^(STDOUT|STDERR) should not be a number$/
-	 *
 	 * @param string $stream
 	 */
+	#[Then( '/^(STDOUT|STDERR) should not be a number$/' )]
 	public function then_stdout_stderr_should_not_be_a_number( $stream ): void {
 
 		$stream = strtolower( $stream );
@@ -138,9 +135,8 @@ trait ThenStepDefinitions {
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Then /^STDOUT should be a table containing rows:$/
 	 */
+	#[Then( '/^STDOUT should be a table containing rows:$/' )]
 	public function then_stdout_should_be_a_table_containing_rows( TableNode $expected ): void {
 		$output      = $this->normalize_line_endings( $this->result->stdout );
 		$actual_rows = explode( "\n", rtrim( $output, "\n" ) );
@@ -174,9 +170,8 @@ trait ThenStepDefinitions {
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Then /^STDOUT should end with a table containing rows:$/
 	 */
+	#[Then( '/^STDOUT should end with a table containing rows:$/' )]
 	public function then_stdout_should_end_with_a_table_containing_rows( TableNode $expected ): void {
 		$output      = $this->normalize_line_endings( $this->result->stdout );
 		$actual_rows = explode( "\n", rtrim( $output, "\n" ) );
@@ -210,9 +205,8 @@ trait ThenStepDefinitions {
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Then /^STDOUT should be JSON containing:$/
 	 */
+	#[Then( '/^STDOUT should be JSON containing:$/' )]
 	public function then_stdout_should_be_json_containing( PyStringNode $expected ): void {
 		$output   = $this->normalize_line_endings( $this->result->stdout );
 		$expected = $this->normalize_line_endings( $this->replace_variables( (string) $expected ) );
@@ -251,9 +245,8 @@ trait ThenStepDefinitions {
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Then /^STDOUT should be a JSON array containing:$/
 	 */
+	#[Then( '/^STDOUT should be a JSON array containing:$/' )]
 	public function then_stdout_should_be_a_json_array_containing( PyStringNode $expected ): void {
 		$output   = $this->normalize_line_endings( $this->result->stdout );
 		$expected = $this->normalize_line_endings( $this->replace_variables( (string) $expected ) );
@@ -291,9 +284,8 @@ trait ThenStepDefinitions {
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Then /^STDOUT should be CSV containing:$/
 	 */
+	#[Then( '/^STDOUT should be CSV containing:$/' )]
 	public function then_stdout_should_be_csv_containing( TableNode $expected ): void {
 		$output = $this->normalize_line_endings( $this->result->stdout );
 
@@ -334,9 +326,8 @@ trait ThenStepDefinitions {
 	 * ```
 	 *
 	 * @access public
-	 *
-	 * @Then /^STDOUT should be YAML containing:$/
 	 */
+	#[Then( '/^STDOUT should be YAML containing:$/' )]
 	public function then_stdout_should_be_yaml_containing( PyStringNode $expected ): void {
 		$output   = $this->normalize_line_endings( $this->result->stdout );
 		$expected = $this->normalize_line_endings( $this->replace_variables( (string) $expected ) );
@@ -363,10 +354,9 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^(STDOUT|STDERR) should be empty$/
-	 *
 	 * @param string $stream
 	 */
+	#[Then( '/^(STDOUT|STDERR) should be empty$/' )]
 	public function then_stdout_stderr_should_be_empty( $stream ): void {
 
 		$stream = strtolower( $stream );
@@ -387,10 +377,9 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^(STDOUT|STDERR) should not be empty$/
-	 *
 	 * @param string $stream
 	 */
+	#[Then( '/^(STDOUT|STDERR) should not be empty$/' )]
 	public function then_stdout_stderr_should_not_be_empty( $stream ): void {
 
 		$stream = strtolower( $stream );
@@ -413,12 +402,11 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^(STDOUT|STDERR) should be a version string (<|<=|>|>=|==|=|!=|<>) ([+\w.{}-]+)$/
-	 *
 	 * @param string $stream
 	 * @param string $operator
 	 * @param string $goal_ver
 	 */
+	#[Then( '/^(STDOUT|STDERR) should be a version string (<|<=|>|>=|==|=|!=|<>) ([+\w.{}-]+)$/' )]
 	public function then_stdout_stderr_should_be_a_specific_version_string( $stream, $operator, $goal_ver ): void {
 		$goal_ver = $this->replace_variables( $goal_ver );
 		$stream   = strtolower( $stream );
@@ -449,14 +437,13 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^the (.+) (file|directory) should( strictly)? (exist|not exist|be:|contain:|not contain:)$/
-	 *
 	 * @param string $path     File/directory path.
 	 * @param string $type     Type, either 'file' or 'directory'.
 	 * @param string $strictly Whether it's a strict check.
 	 * @param string $action   Expected status.
 	 * @param string $expected Expected content.
 	 */
+	#[Then( '/^the (.+) (file|directory) should( strictly)? (exist|not exist|be:|contain:|not contain:)$/' )]
 	public function then_a_specific_file_folder_should_exist( $path, $type, $strictly, $action, $expected = null ): void {
 		$path = trim( $this->replace_variables( $path ), '"' );
 
@@ -520,12 +507,11 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^the contents of the (.+) file should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/
-	 *
 	 * @param string $path
 	 * @param bool $not
 	 * @param string $expected
 	 */
+	#[Then( '/^the contents of the (.+) file should( not)? match ((?:\/.+\/|#.+#)(?:[a-z]+)?)$/' )]
 	public function then_the_contents_of_a_specific_file_should_match( $path, $not, $expected ): void {
 		$path     = $this->replace_variables( $path );
 		$expected = $this->replace_variables( $expected );
@@ -553,12 +539,11 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^(STDOUT|STDERR) should( not)? match (((\/.+\/)|(#.+#))([a-z]+)?)$/
-	 *
 	 * @param string $stream
 	 * @param bool $not
 	 * @param string $expected
 	 */
+	#[Then( '/^(STDOUT|STDERR) should( not)? match ((?:\/.+\/|#.+#)(?:[a-z]+)?)$/' )]
 	public function then_stdout_stderr_should_match_a_string( $stream, $not, $expected ): void {
 		$expected = $this->replace_variables( $expected );
 
@@ -582,10 +567,9 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then /^an email should (be sent|not be sent)$/
-	 *
 	 * @param string $expected Expected status, either 'be sent' or 'not be sent'.
 	 */
+	#[Then( '/^an email should (be sent|not be sent)$/' )]
 	public function then_an_email_should_be_sent( $expected ): void {
 		if ( 'be sent' === $expected ) {
 			$this->assert_not_equals( 0, $this->email_sends );
@@ -608,10 +592,9 @@ trait ThenStepDefinitions {
 	 *
 	 * @access public
 	 *
-	 * @Then the HTTP status code should be :code
-	 *
 	 * @param int $return_code Expected HTTP status code.
 	 */
+	#[Then( 'the HTTP status code should be :code' )]
 	public function then_the_http_status_code_should_be( $return_code ): void {
 		// Use whichever version of the Requests library WP-CLI ships with.
 		RequestsLibrary::register_autoloader();

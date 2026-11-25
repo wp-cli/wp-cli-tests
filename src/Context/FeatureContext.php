@@ -13,6 +13,13 @@ use Behat\Testwork\Hook\Scope\BeforeSuiteScope;
 use Behat\Behat\Hook\Scope\AfterFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeFeatureScope;
 use Behat\Behat\Hook\Scope\BeforeStepScope;
+use Behat\Hook\AfterFeature;
+use Behat\Hook\AfterScenario;
+use Behat\Hook\AfterSuite;
+use Behat\Hook\BeforeFeature;
+use Behat\Hook\BeforeScenario;
+use Behat\Hook\BeforeStep;
+use Behat\Hook\BeforeSuite;
 use SebastianBergmann\CodeCoverage\Report\Clover;
 use SebastianBergmann\CodeCoverage\Driver\Selector;
 use SebastianBergmann\CodeCoverage\Driver\Xdebug;
@@ -31,7 +38,7 @@ use WP_CLI\WpOrgApi;
 /**
  * Features context.
  */
-class FeatureContext implements Context {
+class FeatureContext implements Context, LegacyAnnotations {
 
 	use GivenStepDefinitions;
 	use ThenStepDefinitions;
@@ -261,38 +268,28 @@ class FeatureContext implements Context {
 	 */
 	private $step_line = 0;
 
-	/**
-	 * @BeforeFeature
-	 */
+	#[BeforeFeature]
 	public static function store_feature( BeforeFeatureScope $scope ): void {
 		self::$feature = $scope->getFeature();
 	}
 
-	/**
-	 * @BeforeScenario
-	 */
+	#[BeforeScenario]
 	public function store_scenario( BeforeScenarioScope $scope ): void {
 		$this->scenario = $scope->getScenario();
 	}
 
-	/**
-	 * @BeforeStep
-	 */
+	#[BeforeStep]
 	public function store_step( BeforeStepScope $scope ): void {
 		$this->step_line = $scope->getStep()->getLine();
 	}
 
-	/**
-	 * @AfterScenario
-	 */
+	#[AfterScenario]
 	public function forget_scenario( AfterScenarioScope $scope ): void {
 		$this->step_line = 0;
 		$this->scenario  = null;
 	}
 
-	/**
-	 * @AfterFeature
-	 */
+	#[AfterFeature]
 	public static function forget_feature( AfterFeatureScope $scope ): void {
 		self::$feature = null;
 	}
@@ -306,6 +303,15 @@ class FeatureContext implements Context {
 		$with_code_coverage = (string) getenv( 'WP_CLI_TEST_COVERAGE' );
 
 		return \in_array( $with_code_coverage, [ 'true', '1' ], true );
+	}
+
+	/**
+	 * Whether the launched WP-CLI processes should connect to the Xdebug step debugger.
+	 */
+	private static function running_with_xdebug(): bool {
+		$with_xdebug = (string) getenv( 'WP_CLI_TEST_XDEBUG' );
+
+		return \in_array( $with_xdebug, [ 'true', '1' ], true );
 	}
 
 	public static function merge_coverage_reports(): void {
@@ -555,7 +561,7 @@ class FeatureContext implements Context {
 		$env['WP_CLI_TRUST_PROJECT_CONFIG'] = false !== $trust_project_config ? $trust_project_config : '1';
 
 		$env = array_filter(
-			array_merge( $env, self::get_php_tuning_env_variables() ),
+			array_merge( $env, self::get_php_tuning_env_variables(), self::get_xdebug_env_variables() ),
 			static function ( $value ) {
 				return null !== $value;
 			}
@@ -605,6 +611,46 @@ class FeatureContext implements Context {
 		$github_token = getenv( 'GITHUB_TOKEN' );
 		if ( false !== $github_token ) {
 			$env['GITHUB_TOKEN'] = $github_token;
+		}
+
+		return $env;
+	}
+
+	/**
+	 * Get the environment variables that make the launched PHP processes start a step debugging session.
+	 *
+	 * The debug mode is added to the modes already requested through XDEBUG_MODE or php.ini,
+	 * and to the coverage mode when code coverage is collected. XDEBUG_SESSION is only set when not
+	 * set already. Unless XDEBUG_CONFIG sets a log level, it is lowered so that Xdebug does not
+	 * print a warning on STDERR, which scenarios check, when no debugging client is listening.
+	 *
+	 * @return array<string, string>
+	 */
+	private static function get_xdebug_env_variables(): array {
+		if ( ! self::running_with_xdebug() ) {
+			return [];
+		}
+
+		$mode = getenv( 'XDEBUG_MODE' );
+		if ( false === $mode ) {
+			$mode = (string) ini_get( 'xdebug.mode' );
+		}
+
+		$modes   = array_diff( array_map( 'trim', explode( ',', $mode ) ), [ '', 'off' ] );
+		$modes[] = 'debug';
+		if ( self::running_with_code_coverage() ) {
+			$modes[] = 'coverage';
+		}
+
+		$env = [ 'XDEBUG_MODE' => implode( ',', array_unique( $modes ) ) ];
+
+		if ( false === getenv( 'XDEBUG_SESSION' ) ) {
+			$env['XDEBUG_SESSION'] = '1';
+		}
+
+		$config = (string) getenv( 'XDEBUG_CONFIG' );
+		if ( false === strpos( $config, 'log_level=' ) ) {
+			$env['XDEBUG_CONFIG'] = ltrim( "{$config} log_level=0" );
 		}
 
 		return $env;
@@ -1113,9 +1159,7 @@ class FeatureContext implements Context {
 		self::$cache_dir = $cache_dir;
 	}
 
-	/**
-	 * @BeforeSuite
-	 */
+	#[BeforeSuite]
 	public static function prepare( BeforeSuiteScope $scope ): void {
 		self::bootstrap_feature_context();
 
@@ -1149,9 +1193,7 @@ class FeatureContext implements Context {
 		}
 	}
 
-	/**
-	 * @AfterSuite
-	 */
+	#[AfterSuite]
 	public static function afterSuite( AfterSuiteScope $scope ): void {
 		if ( self::$composer_local_repository ) {
 			self::remove_dir( self::$composer_local_repository );
@@ -1165,9 +1207,7 @@ class FeatureContext implements Context {
 		self::merge_coverage_reports();
 	}
 
-	/**
-	 * @BeforeScenario
-	 */
+	#[BeforeScenario]
 	public function beforeScenario( BeforeScenarioScope $scope ): void {
 		if ( self::$log_run_times ) {
 			self::log_run_times_before_scenario( $scope );
@@ -1190,9 +1230,7 @@ class FeatureContext implements Context {
 		}
 	}
 
-	/**
-	 * @AfterScenario
-	 */
+	#[AfterScenario]
 	public function afterScenario( AfterScenarioScope $scope ): void {
 
 		if ( self::$run_dir ) {
