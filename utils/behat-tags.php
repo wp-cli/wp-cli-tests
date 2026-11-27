@@ -182,17 +182,6 @@ function has_mysql_socket() {
 		return file_exists( $socket );
 	}
 
-	// Anything but a port number after the colon in the host is a socket path.
-	$host = getenv( 'WP_CLI_TEST_DBHOST' );
-
-	if ( is_string( $host ) && false !== strpos( $host, ':' ) ) {
-		$after_colon = substr( $host, strrpos( $host, ':' ) + 1 );
-
-		if ( '' !== $after_colon && ! is_numeric( $after_colon ) ) {
-			return file_exists( $after_colon );
-		}
-	}
-
 	foreach ( array( '/var/run/mysqld/mysqld.sock', '/tmp/mysql.sock' ) as $location ) {
 		if ( file_exists( $location ) ) {
 			return true;

@@ -585,6 +585,32 @@ class TestBehatTags extends TestCase {
 	}
 
 	/**
+	 * A socket given only as part of WP_CLI_TEST_DBHOST is not one the scenarios using this tag
+	 * can find, so it must not count as available.
+	 */
+	public function test_require_mysql_socket_ignores_a_socket_in_the_host(): void {
+		foreach ( array( '/var/run/mysqld/mysqld.sock', '/tmp/mysql.sock' ) as $location ) {
+			if ( file_exists( $location ) ) {
+				$this->markTestSkipped( "A socket exists at {$location}, which counts as available regardless of the host." );
+			}
+		}
+
+		$this->write_tagged_feature( '@require-mysql-socket' );
+
+		$socket = $this->temp_dir . DIRECTORY_SEPARATOR . 'mysql.sock';
+		touch( $socket );
+
+		$output = $this->run_with_env(
+			array(
+				'WP_CLI_TEST_DBSOCKET' => null,
+				'WP_CLI_TEST_DBHOST'   => 'localhost:' . $socket,
+			)
+		);
+
+		$this->assertStringContainsString( '~@require-mysql-socket', (string) $output );
+	}
+
+	/**
 	 * Tags no scenario carries do not need to be filtered out.
 	 */
 	public function test_unused_tags_are_not_filtered_out(): void {
